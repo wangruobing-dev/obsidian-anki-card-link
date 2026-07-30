@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+main.js
+*.js.map
+
+# Plugin user settings
+data.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating systems
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.bak

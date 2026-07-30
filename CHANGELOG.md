@@ -1,0 +1,10 @@
+# Changelog
+
+## 1.0.0 - 2026-07-30
+
+- Add validated note ID, card ID, content, and custom-query links.
+- Add the `obsidian://anki-card-link` protocol handler.
+- Add desktop AnkiConnect `guiBrowse` routing with a timeout and connection test.
+- Add Android AnkiDroid and iOS/iPadOS AnkiMobile deep-link routing.
+- Add insert/open modals, settings, notices, debug logging, and clipboard fallback.
+- Add unit tests, build checks, release workflow, documentation, and MIT license.

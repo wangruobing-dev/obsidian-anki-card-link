@@ -1,0 +1,20 @@
+import { describe, expect, it } from 'vitest';
+import { validateAnkiConnectUrl } from '../src/settings';
+
+describe('AnkiConnect URL validation', () => {
+	it.each([
+		'http://127.0.0.1:8765',
+		'http://localhost:8765',
+		'http://[::1]:8765',
+	])('accepts a loopback URL: %s', (url) => {
+		expect(validateAnkiConnectUrl(url)).toBe(url);
+	});
+
+	it.each([
+		'https://example.com:8765',
+		'file:///tmp/anki',
+		'not-a-url',
+	])('rejects a non-loopback or invalid URL: %s', (url) => {
+		expect(() => validateAnkiConnectUrl(url)).toThrow(/localhost/u);
+	});
+});

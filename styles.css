@@ -1,0 +1,15 @@
+.anki-card-link__value-input {
+	width: 100%;
+}
+
+.anki-card-link-modal .setting-item-info,
+.anki-card-link-modal .setting-item-control {
+	color: var(--text-normal);
+}
+
+.anki-card-link-modal input,
+.anki-card-link-modal select {
+	background-color: var(--background-modifier-form-field);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border);
+}
