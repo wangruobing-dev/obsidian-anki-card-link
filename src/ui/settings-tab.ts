@@ -70,6 +70,44 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 				});
 		}
 
+		new Setting(this.containerEl).setName(strings.settings.synchronization).setHeading();
+
+		this.addTextSetting(strings.settings.defaultDeckName, strings.settings.defaultDeckNameDesc, 'defaultDeckName');
+		new Setting(this.containerEl)
+			.setName(strings.settings.useCurrentFolderAsDeck)
+			.setDesc(strings.settings.useCurrentFolderAsDeckDesc)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.useCurrentFolderAsDeck);
+				toggle.onChange((value) => {
+					void this.plugin.updateSettings({ useCurrentFolderAsDeck: value });
+				});
+			});
+		this.addTextSetting(strings.settings.basicModelName, strings.settings.basicModelNameDesc, 'basicModelName');
+		this.addTextSetting(strings.settings.basicTitleField, '', 'basicTitleField');
+		this.addTextSetting(strings.settings.basicFrontField, '', 'basicFrontField');
+		this.addTextSetting(strings.settings.basicBackField, '', 'basicBackField');
+		this.addTextSetting(strings.settings.basicHintField, '', 'basicHintField');
+		this.addTextSetting(strings.settings.basicObsidianUriField, '', 'basicObsidianUriField');
+		this.addTextSetting(strings.settings.clozeModelName, strings.settings.clozeModelNameDesc, 'clozeModelName');
+		this.addTextSetting(strings.settings.clozeContentField, '', 'clozeContentField');
+		this.addTextSetting(strings.settings.clozeTitleField, strings.settings.clozeTitleFieldDesc, 'clozeTitleField');
+		this.addTextSetting(
+			strings.settings.clozeObsidianUriField,
+			strings.settings.clozeObsidianUriFieldDesc,
+			'clozeObsidianUriField',
+		);
+
+		if (Platform.isDesktopApp) {
+			new Setting(this.containerEl)
+				.setName(strings.settings.testSyncConfiguration)
+				.setDesc(strings.settings.testSyncConfigurationDesc)
+				.addButton((button) => {
+					button.setButtonText(strings.settings.testSyncConfiguration).onClick(() => {
+						void this.plugin.testSyncConfiguration();
+					});
+				});
+		}
+
 		new Setting(this.containerEl)
 			.setName(strings.settings.defaultLinkText)
 			.setDesc(strings.settings.defaultLinkTextDesc)
@@ -123,5 +161,32 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 		} catch (error) {
 			this.plugin.handleError(error);
 		}
+	}
+
+	private addTextSetting(
+		name: string,
+		description: string,
+		key:
+			| 'defaultDeckName'
+			| 'basicModelName'
+			| 'basicTitleField'
+			| 'basicFrontField'
+			| 'basicBackField'
+			| 'basicHintField'
+			| 'basicObsidianUriField'
+			| 'clozeModelName'
+			| 'clozeContentField'
+			| 'clozeTitleField'
+			| 'clozeObsidianUriField',
+	): void {
+		new Setting(this.containerEl)
+			.setName(name)
+			.setDesc(description)
+			.addText((text) => {
+				text.setValue(this.plugin.settings[key]);
+				text.onChange((value) => {
+					void this.plugin.updateSettings({ [key]: value });
+				});
+			});
 	}
 }

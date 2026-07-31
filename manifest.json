@@ -1,9 +1,9 @@
 {
   "id": "anki-card-link",
   "name": "Anki Card Link",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "minAppVersion": "1.12.7",
-  "description": "Open Anki searches using note IDs, card IDs, text, or custom queries across desktop and mobile.",
+  "description": "Open Anki searches across desktop and mobile, and synchronize Markdown cards to Anki on desktop.",
   "author": "王若冰",
   "authorUrl": "https://github.com/wangruobing-dev",
   "isDesktopOnly": false

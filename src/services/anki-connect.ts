@@ -8,6 +8,25 @@ interface AnkiConnectResponse<T> {
 	error: string | null;
 }
 
+export interface AnkiNoteInput {
+	deckName: string;
+	modelName: string;
+	fields: Record<string, string>;
+	tags: string[];
+}
+
+export interface AnkiFieldInfo {
+	order: number;
+	value: string;
+}
+
+export interface AnkiNoteInfo {
+	noteId: number;
+	modelName: string;
+	tags: string[];
+	fields: Record<string, AnkiFieldInfo>;
+}
+
 interface RequestUrlLike {
 	(request: Parameters<typeof requestUrl>[0]): Promise<RequestUrlResponse>;
 }
@@ -35,6 +54,46 @@ export class AnkiConnectService {
 
 	async testConnection(): Promise<void> {
 		await this.invoke<number>('version', {});
+	}
+
+	async modelNames(): Promise<string[]> {
+		return this.invoke<string[]>('modelNames', {});
+	}
+
+	async deckNames(): Promise<string[]> {
+		return this.invoke<string[]>('deckNames', {});
+	}
+
+	async createDeck(deck: string): Promise<number> {
+		return this.invoke<number>('createDeck', { deck });
+	}
+
+	async modelFieldNames(modelName: string): Promise<string[]> {
+		return this.invoke<string[]>('modelFieldNames', { modelName });
+	}
+
+	async findNotes(query: string): Promise<number[]> {
+		return this.invoke<number[]>('findNotes', { query });
+	}
+
+	async notesInfo(noteIds: number[]): Promise<AnkiNoteInfo[]> {
+		return this.invoke<AnkiNoteInfo[]>('notesInfo', { notes: noteIds });
+	}
+
+	async addNote(note: AnkiNoteInput): Promise<number> {
+		return this.invoke<number>('addNote', { note });
+	}
+
+	async updateNoteFields(noteId: number, fields: Record<string, string>): Promise<void> {
+		await this.invoke<unknown>('updateNote', { note: { id: noteId, fields } });
+	}
+
+	async removeTags(noteIds: number[], tags: string[]): Promise<void> {
+		await this.invoke<unknown>('removeTags', { notes: noteIds, tags: tags.join(' ') });
+	}
+
+	async storeMediaFile(filename: string, data: string): Promise<void> {
+		await this.invoke<unknown>('storeMediaFile', { filename, data });
 	}
 
 	private async invoke<T>(action: string, params: Record<string, unknown>): Promise<T> {

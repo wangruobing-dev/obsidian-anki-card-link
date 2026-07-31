@@ -7,6 +7,18 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	defaultSearchType: 'nid',
 	debugLogging: false,
 	copyQueryOnFailure: true,
+	defaultDeckName: 'Default',
+	useCurrentFolderAsDeck: true,
+	basicModelName: 'Anki Card Link Basic',
+	basicTitleField: '标题',
+	basicFrontField: 'Front',
+	basicBackField: 'Back',
+	basicHintField: '提示',
+	basicObsidianUriField: 'ObsidianURI',
+	clozeModelName: 'Enhanced Cloze 2.1 v2',
+	clozeContentField: 'Content',
+	clozeTitleField: 'Note',
+	clozeObsidianUriField: 'ObsidianURI',
 };
 
 export function normalizeAnkiConnectUrl(value: string): string {

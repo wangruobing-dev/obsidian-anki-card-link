@@ -13,6 +13,18 @@ export interface AnkiCardLinkSettings {
 	defaultSearchType: SearchType;
 	debugLogging: boolean;
 	copyQueryOnFailure: boolean;
+	defaultDeckName: string;
+	useCurrentFolderAsDeck: boolean;
+	basicModelName: string;
+	basicTitleField: string;
+	basicFrontField: string;
+	basicBackField: string;
+	basicHintField: string;
+	basicObsidianUriField: string;
+	clozeModelName: string;
+	clozeContentField: string;
+	clozeTitleField: string;
+	clozeObsidianUriField: string;
 }
 
 export interface SearchInput {
@@ -33,7 +45,21 @@ export type ErrorCode =
 	| 'ANKICONNECT_ERROR'
 	| 'ANKIDROID_NOT_INSTALLED'
 	| 'ANKIMOBILE_NOT_INSTALLED'
-	| 'UNSUPPORTED_PLATFORM';
+	| 'UNSUPPORTED_PLATFORM'
+	| 'CURRENT_CARD_NOT_FOUND'
+	| 'NO_SYNCABLE_CARDS'
+	| 'INVALID_CARD'
+	| 'EMPTY_FRONT'
+	| 'EMPTY_BACK'
+	| 'INVALID_CLOZE'
+	| 'MODEL_NOT_FOUND'
+	| 'FIELD_NOT_FOUND'
+	| 'EMPTY_DECK'
+	| 'DUPLICATE_UID'
+	| 'IMAGE_NOT_FOUND'
+	| 'UNSUPPORTED_IMAGE'
+	| 'MOBILE_SYNC_UNSUPPORTED'
+	| 'BLOCK_ID_WRITE_FAILED';
 
 export class AnkiCardLinkError extends Error {
 	readonly cause?: unknown;
