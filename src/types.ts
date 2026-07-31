@@ -2,7 +2,12 @@ export const SEARCH_TYPES = ['nid', 'cid', 'text', 'query'] as const;
 
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
+export const LANGUAGES = ['en', 'zh-CN'] as const;
+
+export type Language = (typeof LANGUAGES)[number];
+
 export interface AnkiCardLinkSettings {
+	language: Language;
 	ankiConnectUrl: string;
 	defaultLinkText: string;
 	defaultSearchType: SearchType;

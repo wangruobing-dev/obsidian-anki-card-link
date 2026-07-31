@@ -1,6 +1,6 @@
 import { Modal, Setting, type App, type Editor } from 'obsidian';
 import { buildMarkdownLink } from '../core/uri-parser';
-import { STRINGS } from '../strings';
+import { getStrings } from '../strings';
 import { SEARCH_TYPES, type SearchType } from '../types';
 import type AnkiCardLinkPlugin from '../main';
 
@@ -25,11 +25,12 @@ abstract class SearchModalBase extends Modal {
 	}
 
 	protected addSearchFields(): void {
+		const strings = getStrings(this.plugin.settings.language);
 		new Setting(this.contentEl)
-			.setName(STRINGS.labels.searchType)
+			.setName(strings.labels.searchType)
 			.addDropdown((dropdown) => {
 				for (const type of SEARCH_TYPES) {
-					dropdown.addOption(type, STRINGS.searchTypes[type]);
+					dropdown.addOption(type, strings.searchTypes[type]);
 				}
 				dropdown.setValue(this.state.type);
 				dropdown.onChange((value) => {
@@ -38,10 +39,10 @@ abstract class SearchModalBase extends Modal {
 			});
 
 		new Setting(this.contentEl)
-			.setName(STRINGS.labels.value)
+			.setName(strings.labels.value)
 			.addText((text) => {
 				text.inputEl.addClass('anki-card-link__value-input');
-				text.setPlaceholder('Enter an ID or Anki query');
+				text.setPlaceholder(strings.labels.valuePlaceholder);
 				text.onChange((value) => {
 					this.state.value = value;
 				});
@@ -67,11 +68,12 @@ export class InsertLinkModal extends SearchModalBase {
 	}
 
 	override onOpen(): void {
-		this.setTitle(STRINGS.titles.insertLink);
+		const strings = getStrings(this.plugin.settings.language);
+		this.setTitle(strings.titles.insertLink);
 		this.addSearchFields();
 
 		new Setting(this.contentEl)
-			.setName(STRINGS.labels.linkText)
+			.setName(strings.labels.linkText)
 			.addText((text) => {
 				text.setValue(this.linkText);
 				text.onChange((value) => {
@@ -80,10 +82,10 @@ export class InsertLinkModal extends SearchModalBase {
 			});
 
 		new Setting(this.contentEl).addButton((button) => {
-			button.setButtonText(STRINGS.labels.cancel).onClick(() => this.close());
+			button.setButtonText(strings.labels.cancel).onClick(() => this.close());
 		}).addButton((button) => {
 			button
-				.setButtonText(STRINGS.labels.insert)
+				.setButtonText(strings.labels.insert)
 				.setCta()
 				.onClick(() => this.insertLink());
 		});
@@ -93,7 +95,7 @@ export class InsertLinkModal extends SearchModalBase {
 		try {
 			const markdown = buildMarkdownLink(this.state.type, this.state.value, this.linkText);
 			this.editor.replaceSelection(markdown);
-			this.plugin.showNotice(STRINGS.notices.linkInserted);
+			this.plugin.showNotice(getStrings(this.plugin.settings.language).notices.linkInserted);
 			this.close();
 		} catch (error) {
 			this.plugin.handleError(error);
@@ -107,14 +109,15 @@ export class OpenLinkModal extends SearchModalBase {
 	}
 
 	override onOpen(): void {
-		this.setTitle(STRINGS.titles.openLink);
+		const strings = getStrings(this.plugin.settings.language);
+		this.setTitle(strings.titles.openLink);
 		this.addSearchFields();
 
 		new Setting(this.contentEl).addButton((button) => {
-			button.setButtonText(STRINGS.labels.cancel).onClick(() => this.close());
+			button.setButtonText(strings.labels.cancel).onClick(() => this.close());
 		}).addButton((button) => {
 			button
-				.setButtonText(STRINGS.labels.open)
+				.setButtonText(strings.labels.open)
 				.setCta()
 				.onClick(() => {
 					void this.openLink();

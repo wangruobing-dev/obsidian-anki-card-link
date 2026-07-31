@@ -1,8 +1,9 @@
 import { AnkiCardLinkError, type AnkiCardLinkSettings } from './types';
 
 export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
+	language: 'en',
 	ankiConnectUrl: 'http://127.0.0.1:8765',
-	defaultLinkText: '打开对应的 Anki 卡片',
+	defaultLinkText: 'Open corresponding Anki card',
 	defaultSearchType: 'nid',
 	debugLogging: false,
 	copyQueryOnFailure: true,

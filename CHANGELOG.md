@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add an English and Simplified Chinese interface language selector.
+- Add Simplified Chinese translations for settings, commands, dialogs, notices, and common errors.
+- Add a complete Simplified Chinese project introduction in `README.zh-CN.md`.
+
 ## 1.0.1 - 2026-07-31
 
 - Adjust the manifest description and author URL for the community directory review.

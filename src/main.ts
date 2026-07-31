@@ -4,10 +4,11 @@ import { OBSIDIAN_PROTOCOL_ACTION, parseProtocolParams } from './core/uri-parser
 import { createPlatformRouter } from './platform/router';
 import { AnkiConnectService } from './services/anki-connect';
 import { DEFAULT_SETTINGS } from './settings';
-import { STRINGS } from './strings';
+import { getLocalizedErrorMessage, getStrings } from './strings';
 import {
 	AnkiCardLinkError,
 	type AnkiCardLinkSettings,
+	type Language,
 	type SearchType,
 } from './types';
 import { InsertLinkModal, OpenLinkModal } from './ui/insert-link-modal';
@@ -15,6 +16,7 @@ import { AnkiCardLinkSettingTab } from './ui/settings-tab';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
+	private localizedCommandsRegistered = false;
 
 	override async onload(): Promise<void> {
 		await this.loadSettings();
@@ -28,9 +30,22 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			}
 		});
 
+		this.registerLocalizedCommands();
+
+		this.addSettingTab(new AnkiCardLinkSettingTab(this.app, this));
+		this.debug('Plugin loaded.');
+	}
+
+	private registerLocalizedCommands(): void {
+		const strings = getStrings(this.settings.language);
+		if (this.localizedCommandsRegistered) {
+			this.removeCommand('insert-link');
+			this.removeCommand('open-link');
+		}
+
 		this.addCommand({
 			id: 'insert-link',
-			name: STRINGS.commands.insertLink,
+			name: strings.commands.insertLink,
 			editorCallback: (editor: Editor) => {
 				new InsertLinkModal(this.app, this, editor).open();
 			},
@@ -38,14 +53,12 @@ export default class AnkiCardLinkPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'open-link',
-			name: STRINGS.commands.openLink,
+			name: strings.commands.openLink,
 			callback: () => {
 				new OpenLinkModal(this.app, this).open();
 			},
 		});
-
-		this.addSettingTab(new AnkiCardLinkSettingTab(this.app, this));
-		this.debug('Plugin loaded.');
+		this.localizedCommandsRegistered = true;
 	}
 
 	async openSearch(type: SearchType, value: string): Promise<boolean> {
@@ -73,19 +86,29 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	async updateLanguage(language: Language): Promise<void> {
+		const oldStrings = getStrings(this.settings.language);
+		const changes: Partial<AnkiCardLinkSettings> = { language };
+		if (this.settings.defaultLinkText === oldStrings.defaultLinkText) {
+			changes.defaultLinkText = getStrings(language).defaultLinkText;
+		}
+		await this.updateSettings(changes);
+		this.registerLocalizedCommands();
+	}
+
 	showNotice(message: string): void {
 		new Notice(message);
 	}
 
 	handleError(error: unknown): void {
 		if (error instanceof AnkiCardLinkError) {
-			this.showNotice(error.message);
+			this.showNotice(getLocalizedErrorMessage(error, this.settings.language));
 			this.debug(`${error.code}: ${error.message}`, error.cause);
 			return;
 		}
 
 		const message = error instanceof Error ? error.message : String(error);
-		this.showNotice(`An unexpected error occurred: ${message}`);
+		this.showNotice(getStrings(this.settings.language).notices.unexpectedError(message));
 		this.debug('Unexpected error.', error);
 	}
 
@@ -95,11 +118,12 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	}
 
 	private async copyQuery(query: string): Promise<void> {
+		const strings = getStrings(this.settings.language);
 		try {
 			await navigator.clipboard.writeText(query);
-			this.showNotice(STRINGS.notices.queryCopied);
+			this.showNotice(strings.notices.queryCopied);
 		} catch (error) {
-			this.showNotice(STRINGS.notices.clipboardFailed);
+			this.showNotice(strings.notices.clipboardFailed);
 			this.debug('Clipboard fallback failed.', error);
 		}
 	}

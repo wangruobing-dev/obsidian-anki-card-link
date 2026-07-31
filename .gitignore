@@ -5,6 +5,9 @@ node_modules/
 main.js
 *.js.map
 
+# Project documentation
+docs/
+
 # Plugin user settings
 data.json
 

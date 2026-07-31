@@ -8,11 +8,10 @@ import {
 } from 'obsidian';
 import { AnkiConnectService } from '../services/anki-connect';
 import { normalizeAnkiConnectUrl } from '../settings';
-import { STRINGS } from '../strings';
-import { SEARCH_TYPES, type SearchType } from '../types';
+import { getStrings } from '../strings';
+import { SEARCH_TYPES, type Language, type SearchType } from '../types';
 import type AnkiCardLinkPlugin from '../main';
 
-const ANKI_CONNECT_NAME = ['Anki', 'Connect'].join('');
 const DEFAULT_ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
 
 export class AnkiCardLinkSettingTab extends PluginSettingTab {
@@ -25,13 +24,31 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		this.containerEl.empty();
+		this.renderSettings();
+	}
 
-		new Setting(this.containerEl).setName('Connection').setHeading();
+	private renderSettings(): void {
+		this.containerEl.empty();
+		const strings = getStrings(this.plugin.settings.language);
 
 		new Setting(this.containerEl)
-			.setName(`${ANKI_CONNECT_NAME} address`)
-			.setDesc(`Used only by the desktop app. The default is ${DEFAULT_ANKI_CONNECT_URL}.`)
+			.setName(strings.settings.language)
+			.setDesc(strings.settings.languageDesc)
+			.addDropdown((dropdown) => {
+				dropdown.addOption('en', 'English');
+				dropdown.addOption('zh-CN', '简体中文');
+				dropdown.setValue(this.plugin.settings.language);
+				dropdown.onChange(async (value) => {
+					await this.plugin.updateLanguage(value as Language);
+					this.renderSettings();
+				});
+			});
+
+		new Setting(this.containerEl).setName(strings.settings.connection).setHeading();
+
+		new Setting(this.containerEl)
+			.setName(strings.settings.ankiConnectAddress)
+			.setDesc(strings.settings.ankiConnectAddressDesc(DEFAULT_ANKI_CONNECT_URL))
 			.addText((text) => {
 				text.setPlaceholder(DEFAULT_ANKI_CONNECT_URL);
 				text.setValue(this.plugin.settings.ankiConnectUrl);
@@ -44,18 +61,18 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 
 		if (Platform.isDesktopApp) {
 			new Setting(this.containerEl)
-				.setName('Test desktop connection')
-				.setDesc(`Checks whether Anki and ${ANKI_CONNECT_NAME} can be reached.`)
+				.setName(strings.settings.testDesktopConnection)
+				.setDesc(strings.settings.testDesktopConnectionDesc)
 				.addButton((button) => {
-					button.setButtonText('Test connection').onClick(() => {
+					button.setButtonText(strings.settings.testConnection).onClick(() => {
 						void this.testConnection();
 					});
 				});
 		}
 
 		new Setting(this.containerEl)
-			.setName('Default link text')
-			.setDesc('Pre-filled when inserting a Markdown link.')
+			.setName(strings.settings.defaultLinkText)
+			.setDesc(strings.settings.defaultLinkTextDesc)
 			.addText((text) => {
 				text.setValue(this.plugin.settings.defaultLinkText);
 				text.onChange((value) => {
@@ -64,10 +81,10 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(this.containerEl)
-			.setName('Default search type')
+			.setName(strings.settings.defaultSearchType)
 			.addDropdown((dropdown) => {
 				for (const type of SEARCH_TYPES) {
-					dropdown.addOption(type, STRINGS.searchTypes[type]);
+					dropdown.addOption(type, strings.searchTypes[type]);
 				}
 				dropdown.setValue(this.plugin.settings.defaultSearchType);
 				dropdown.onChange((value) => {
@@ -76,8 +93,8 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(this.containerEl)
-			.setName('Debug logging')
-			.setDesc('Writes diagnostic messages to the developer console. No telemetry is collected.')
+			.setName(strings.settings.debugLogging)
+			.setDesc(strings.settings.debugLoggingDesc)
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.debugLogging);
 				toggle.onChange((value) => {
@@ -86,8 +103,8 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(this.containerEl)
-			.setName('Copy query when opening fails')
-			.setDesc('Copies the generated Anki search query to the clipboard as a fallback.')
+			.setName(strings.settings.copyQueryOnFailure)
+			.setDesc(strings.settings.copyQueryOnFailureDesc)
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.copyQueryOnFailure);
 				toggle.onChange((value) => {
@@ -102,7 +119,7 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 				url: this.plugin.settings.ankiConnectUrl,
 			});
 			await service.testConnection();
-			new Notice(STRINGS.notices.connectionOk);
+			new Notice(getStrings(this.plugin.settings.language).notices.connectionOk);
 		} catch (error) {
 			this.plugin.handleError(error);
 		}

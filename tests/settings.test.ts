@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { validateAnkiConnectUrl } from '../src/settings';
+import { DEFAULT_SETTINGS, validateAnkiConnectUrl } from '../src/settings';
+
+describe('default settings', () => {
+	it('uses English until the user selects another language', () => {
+		expect(DEFAULT_SETTINGS.language).toBe('en');
+		expect(DEFAULT_SETTINGS.defaultLinkText).toBe('Open corresponding Anki card');
+	});
+});
 
 describe('AnkiConnect URL validation', () => {
 	it.each([
