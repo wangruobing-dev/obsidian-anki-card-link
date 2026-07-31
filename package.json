@@ -1,7 +1,7 @@
 {
   "name": "obsidian-anki-card-link",
-  "version": "1.0.0",
-  "description": "Open Anki searches from Obsidian across desktop and mobile.",
+  "version": "1.0.1",
+  "description": "Open Anki searches across desktop and mobile.",
   "main": "main.js",
   "type": "module",
   "scripts": {

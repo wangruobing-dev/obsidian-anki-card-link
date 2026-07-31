@@ -93,7 +93,7 @@ npm test
 npm run build
 ```
 
-Before publishing, replace `your-github-username` and the contributor author placeholder in `manifest.json` and `package.json`, then complete the platform checklist in [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md).
+Before publishing, complete the platform checklist in [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md).
 
 ## License
 

@@ -1,10 +1,10 @@
 {
   "id": "anki-card-link",
   "name": "Anki Card Link",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.12.7",
-  "description": "Open Anki searches from Obsidian using note IDs, card IDs, text, or custom queries across desktop and mobile.",
+  "description": "Open Anki searches using note IDs, card IDs, text, or custom queries across desktop and mobile.",
   "author": "王若冰",
-  "authorUrl": "https://github.com/wangruobing-dev/obsidian-anki-card-link",
+  "authorUrl": "https://github.com/wangruobing-dev",
   "isDesktopOnly": false
 }
