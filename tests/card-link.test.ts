@@ -35,6 +35,12 @@ describe('card links in Markdown', () => {
 		expect(updated).not.toContain('^acl-');
 	});
 
+	it('updates an existing button to the newly configured label', () => {
+		const source = 'Question :: Answer\n\n[Old label](obsidian://anki-card-link?type=nid&value=20&uid=acl-1234abcd&v=2)';
+		const updated = ensureCardLink(source, parseCardBlock(source)!, { uid: 'acl-1234abcd', noteId: 20 }, 'Anki');
+		expect(updated).toBe('Question :: Answer\n\n[Anki](obsidian://anki-card-link?type=nid&value=20&uid=acl-1234abcd&v=2)');
+	});
+
 	it('removes only an exact inline legacy ID and preserves ordinary carets', () => {
 		const source = '2 ^ 3 是什么？ :: 8 ^acl-1234abcd';
 		const updated = ensureCardLink(source, parseCardBlock(source)!, { uid: 'acl-1234abcd', noteId: 20 }, 'Open');

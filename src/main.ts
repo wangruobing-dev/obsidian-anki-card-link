@@ -189,7 +189,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			const uid = card.uid ?? generateCardUid();
 			const result = await this.syncCard(card, uid, file.path);
 			try {
-				const withLink = ensureCardLink(source, card, { uid, noteId: result.noteId }, getStrings(this.settings.language).labels.openAnkiCard);
+				const withLink = ensureCardLink(source, card, { uid, noteId: result.noteId }, this.settings.defaultLinkText);
 				const updated = ensureObsidianTag(withLink, 'anki-card-link');
 				editor.setValue(updated);
 			} catch (error) {
@@ -234,7 +234,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			try {
 				let updated = original;
 				for (const item of [...synchronized].reverse()) {
-					updated = ensureCardLink(updated, item.card, { uid: item.uid, noteId: item.result.noteId }, getStrings(this.settings.language).labels.openAnkiCard);
+					updated = ensureCardLink(updated, item.card, { uid: item.uid, noteId: item.result.noteId }, this.settings.defaultLinkText);
 				}
 				if (synchronized.length > 0) {
 					updated = ensureObsidianTag(updated, 'anki-card-link');

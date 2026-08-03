@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.3.1 - 2026-08-03
+
+- Use the configured default link text for synchronized card buttons, including renaming existing buttons during resynchronization.
+- Remove the redundant product name from the plugin manifest description to satisfy community-plugin validation.
+
 ## 1.3.0 - 2026-08-03
 
 - Add dedicated single-choice and multiple-choice parsing with level-three headings, 2–7 ordered options, normalized A–G answers, hidden Front answers, optional Back content, fenced-code exclusion, and precise cursor/button ranges.
