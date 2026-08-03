@@ -1,4 +1,5 @@
-import { toAnkiHtml, buildAdvancedUri } from '../core/anki-content';
+import { toAnkiHtml } from '../core/anki-content';
+import { buildOpenObsidianUri } from '../core/open-source-uri';
 import type { ParsedCard } from '../core/card-parser';
 import type { AnkiNoteInfo, AnkiNoteInput } from './anki-connect';
 import { AnkiCardLinkError, type AnkiCardLinkSettings } from '../types';
@@ -18,7 +19,8 @@ export interface AnkiSyncClient {
 
 export interface CardSyncInput {
 	card: ParsedCard;
-	blockId: string;
+	uid: string;
+	noteIdHint?: number;
 	title: string;
 	vaultName: string;
 	filePath: string;
@@ -39,7 +41,7 @@ export interface CardSyncResult {
 }
 
 /**
- * 负责把已解析的卡片写入 Anki。块 ID 保存在 ObsidianURI 中，用它确定唯一笔记，绝不按题面内容猜测。
+	 * 负责把已解析的卡片写入 Anki。UID 保存在 ObsidianURI 中，用它确定唯一笔记，绝不按题面内容猜测。
  */
 export class CardSyncService {
 	constructor(
@@ -57,19 +59,19 @@ export class CardSyncService {
 	}
 
 	async sync(input: CardSyncInput): Promise<CardSyncResult> {
-		if (input.blockId.length === 0) {
-			throw new AnkiCardLinkError('BLOCK_ID_WRITE_FAILED', 'Card block ID is missing.');
+		if (input.uid.length === 0) {
+			throw new AnkiCardLinkError('CARD_LINK_WRITE_FAILED', 'Card UID is missing.');
 		}
 		await this.anki.testConnection();
 		const models = await this.anki.modelNames();
 		const fields = input.card.type === 'basic'
 			? await this.validateBasicConfiguration(models)
 			: await this.validateClozeConfiguration(models);
-		const uidTag = `anki-card-link::${input.blockId}`;
+		const uidTag = `anki-card-link::${input.uid}`;
 		const fieldsToSync = this.buildFields(input);
 		const { noteIds: existing, removeLegacyTag } = await this.findExistingNotes(input, uidTag);
 		if (existing.length > 1) {
-			throw new AnkiCardLinkError('DUPLICATE_UID', `More than one Anki note uses block ID ${input.blockId}.`);
+			throw new AnkiCardLinkError('DUPLICATE_UID', `More than one Anki note uses UID ${input.uid}.`);
 		}
 
 		if (existing.length === 0) {
@@ -94,11 +96,18 @@ export class CardSyncService {
 		return { status: 'updated', noteId };
 	}
 
-	/** 兼容旧版 UID 标签；迁移后仅通过 ObsidianURI 中的块 ID 查找。 */
+	/** 优先核对链接中的 noteId；失效或 UID 不一致时才执行兼容性回退查找。 */
 	private async findExistingNotes(
 		input: CardSyncInput,
 		uidTag: string,
 	): Promise<{ noteIds: number[]; removeLegacyTag: boolean }> {
+		if (input.noteIdHint !== undefined) {
+			const notes = await this.anki.notesInfo([input.noteIdHint]);
+			const hinted = notes.find((note) => note.noteId === input.noteIdHint);
+			if (hinted !== undefined && noteHasUid(hinted, input.uid)) {
+				return { noteIds: [hinted.noteId], removeLegacyTag: hinted.tags.includes(uidTag) };
+			}
+		}
 		const legacyMatches = await this.anki.findNotes(`tag:${uidTag}`);
 		if (legacyMatches.length > 0) {
 			return { noteIds: legacyMatches, removeLegacyTag: true };
@@ -114,7 +123,7 @@ export class CardSyncService {
 			const notes = await this.anki.notesInfo(noteIds);
 			for (const note of notes) {
 				const uri = note.fields[uriField]?.value;
-				if (uri !== undefined && hasBlockId(uri, input.blockId)) {
+				if (uri !== undefined && uriHasUid(uri, input.uid)) {
 					matches.push(note.noteId);
 				}
 			}
@@ -190,7 +199,11 @@ export class CardSyncService {
 	}
 
 	private buildFields(input: CardSyncInput): Record<string, string> {
-		const uri = buildAdvancedUri(input.vaultName, input.filePath, input.blockId);
+		const uri = buildOpenObsidianUri({
+			vaultName: input.vaultName,
+			filePath: input.filePath,
+			uid: input.uid,
+		});
 		if (input.card.type === 'cloze') {
 			const content = input.card.content;
 			if (content === undefined) {
@@ -232,10 +245,15 @@ export class CardSyncService {
 	}
 }
 
-function hasBlockId(uri: string, blockId: string): boolean {
+function uriHasUid(uri: string, uid: string): boolean {
 	try {
-		return new URL(uri).searchParams.get('block') === blockId;
+		const params = new URL(uri).searchParams;
+		return params.get('uid') === uid || params.get('block') === uid;
 	} catch {
 		return false;
 	}
+}
+
+function noteHasUid(note: AnkiNoteInfo, uid: string): boolean {
+	return Object.values(note.fields).some((field) => uriHasUid(field.value, uid));
 }

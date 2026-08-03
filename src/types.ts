@@ -15,6 +15,8 @@ export interface AnkiCardLinkSettings {
 	copyQueryOnFailure: boolean;
 	defaultDeckName: string;
 	useCurrentFolderAsDeck: boolean;
+	singleLineSeparators: string;
+	multiLineSeparators: string;
 	basicModelName: string;
 	basicTitleField: string;
 	basicFrontField: string;
@@ -59,7 +61,16 @@ export type ErrorCode =
 	| 'IMAGE_NOT_FOUND'
 	| 'UNSUPPORTED_IMAGE'
 	| 'MOBILE_SYNC_UNSUPPORTED'
-	| 'BLOCK_ID_WRITE_FAILED';
+	| 'INVALID_SOURCE_URI'
+	| 'UNSUPPORTED_SOURCE_URI_VERSION'
+	| 'VAULT_MISMATCH'
+	| 'SOURCE_FILE_NOT_FOUND'
+	| 'CARD_UID_NOT_FOUND'
+	| 'DUPLICATE_CARD_UID'
+	| 'MARKDOWN_VIEW_UNAVAILABLE'
+	| 'SOURCE_POSITION_FAILED'
+	| 'CARD_LINK_WRITE_FAILED'
+	| 'PLUGIN_DATA_MIGRATION_FAILED';
 
 export class AnkiCardLinkError extends Error {
 	readonly cause?: unknown;

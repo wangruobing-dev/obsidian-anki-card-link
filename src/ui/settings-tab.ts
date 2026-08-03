@@ -73,6 +73,16 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 		new Setting(this.containerEl).setName(strings.settings.synchronization).setHeading();
 
 		this.addTextSetting(strings.settings.defaultDeckName, strings.settings.defaultDeckNameDesc, 'defaultDeckName');
+		this.addSeparatorSetting(
+			strings.settings.singleLineSeparators,
+			strings.settings.singleLineSeparatorsDesc,
+			'singleLineSeparators',
+		);
+		this.addSeparatorSetting(
+			strings.settings.multiLineSeparators,
+			strings.settings.multiLineSeparatorsDesc,
+			'multiLineSeparators',
+		);
 		new Setting(this.containerEl)
 			.setName(strings.settings.useCurrentFolderAsDeck)
 			.setDesc(strings.settings.useCurrentFolderAsDeckDesc)
@@ -183,6 +193,22 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			.setName(name)
 			.setDesc(description)
 			.addText((text) => {
+				text.setValue(this.plugin.settings[key]);
+				text.onChange((value) => {
+					void this.plugin.updateSettings({ [key]: value });
+				});
+			});
+	}
+
+	private addSeparatorSetting(
+		name: string,
+		description: string,
+		key: 'singleLineSeparators' | 'multiLineSeparators',
+	): void {
+		new Setting(this.containerEl)
+			.setName(name)
+			.setDesc(description)
+			.addTextArea((text) => {
 				text.setValue(this.plugin.settings[key]);
 				text.onChange((value) => {
 					void this.plugin.updateSettings({ [key]: value });

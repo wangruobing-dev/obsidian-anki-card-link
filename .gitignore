@@ -6,7 +6,10 @@ main.js
 *.js.map
 
 # Project documentation
-docs/
+docs/*
+!docs/manual-test-checklist.md
+!docs/setup-guide.md
+!docs/setup-guide.zh-CN.md
 
 # Plugin user settings
 data.json

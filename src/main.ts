@@ -1,10 +1,10 @@
 import { Notice, Platform, Plugin, TFile, type Editor, type MarkdownFileInfo } from 'obsidian';
+import { generateCardUid } from './core/card-identity';
+import { ensureCardLink } from './core/card-link';
 import {
-	addBlockId,
 	findCardAtLine,
 	getCardTitle,
 	parseCardCandidates,
-	parseCards,
 	type ParsedCard,
 } from './core/card-parser';
 import {
@@ -12,7 +12,6 @@ import {
 	encodeArrayBufferAsBase64,
 	extractObsidianImageReferences,
 } from './core/anki-media';
-import { ensureAnkiNoteLink } from './core/card-link';
 import { buildFolderDeckName } from './core/deck-name';
 import {
 	buildClozeReplacement,
@@ -21,10 +20,19 @@ import {
 	type ClozeNumberMode,
 } from './core/cloze-editor';
 import { buildAnkiQuery } from './core/query-builder';
-import { OBSIDIAN_PROTOCOL_ACTION, parseProtocolParams } from './core/uri-parser';
+import {
+	OPEN_OBSIDIAN_PROTOCOL_ACTION,
+	parseOpenObsidianProtocolParams,
+	type OpenObsidianSourceParams,
+} from './core/open-source-uri';
+import { OPEN_ANKI_PROTOCOL_ACTION, parseProtocolParams } from './core/uri-parser';
 import { createPlatformRouter } from './platform/router';
 import { AnkiConnectService } from './services/anki-connect';
+import { CardLocationIndex } from './services/card-location-index';
 import { CardSyncService, type CardSyncResult, type CardSyncStatus } from './services/card-sync';
+import { AppObsidianSourceHost } from './services/obsidian-source-host';
+import { ObsidianSourceLocator } from './services/obsidian-source-locator';
+import { migratePluginData, type PersistedPluginDataV2 } from './services/plugin-data-store';
 import { DEFAULT_SETTINGS } from './settings';
 import { getLocalizedErrorMessage, getStrings } from './strings';
 import {
@@ -35,15 +43,26 @@ import {
 } from './types';
 import { InsertLinkModal, OpenLinkModal } from './ui/insert-link-modal';
 import { AnkiCardLinkSettingTab } from './ui/settings-tab';
+import { buildCardSyntax } from './core/card-syntax';
+import { ensureObsidianTag } from './core/note-tag';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
+	private cardLocations = new CardLocationIndex();
 	private localizedCommandsRegistered = false;
+	private layoutReady = false;
+	private pendingOpenSource?: OpenObsidianSourceParams;
+	private openingSource = false;
 
 	override async onload(): Promise<void> {
-		await this.loadSettings();
+		try {
+			await this.loadPluginData();
+		} catch (error) {
+			this.handleError(error);
+			throw error;
+		}
 
-		this.registerObsidianProtocolHandler(OBSIDIAN_PROTOCOL_ACTION, (params) => {
+		this.registerObsidianProtocolHandler(OPEN_ANKI_PROTOCOL_ACTION, (params) => {
 			try {
 				const input = parseProtocolParams(params);
 				void this.openSearch(input.type, input.value);
@@ -51,9 +70,32 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				this.handleError(error);
 			}
 		});
+		this.registerObsidianProtocolHandler(OPEN_OBSIDIAN_PROTOCOL_ACTION, (params) => {
+			try {
+				this.pendingOpenSource = parseOpenObsidianProtocolParams(params);
+				void this.flushPendingOpenSource();
+			} catch (error) {
+				this.handleError(error);
+			}
+		});
+		this.app.workspace.onLayoutReady(() => {
+			this.layoutReady = true;
+			void this.flushPendingOpenSource();
+		});
+
+		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+			const newPath = file.path;
+			if (this.cardLocations.renamePath(oldPath, newPath) > 0) {
+				void this.savePluginData();
+			}
+		}));
+		this.registerEvent(this.app.vault.on('delete', (file) => {
+			if (this.cardLocations.removePath(file.path) > 0) {
+				void this.savePluginData();
+			}
+		}));
 
 		this.registerLocalizedCommands();
-
 		this.addSettingTab(new AnkiCardLinkSettingTab(this.app, this));
 		this.debug('Plugin loaded.');
 	}
@@ -61,70 +103,24 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	private registerLocalizedCommands(): void {
 		const strings = getStrings(this.settings.language);
 		if (this.localizedCommandsRegistered) {
-			this.removeCommand('insert-link');
-			this.removeCommand('open-link');
-			this.removeCommand('sync-current-card');
-			this.removeCommand('sync-current-file');
-			this.removeCommand('cloze-next-number');
-			this.removeCommand('cloze-current-number');
+			for (const id of ['insert-link', 'open-link', 'sync-current-card', 'sync-current-file', 'cloze-next-number', 'cloze-current-number']) {
+				this.removeCommand(id);
+			}
 		}
-
-		this.addCommand({
-			id: 'insert-link',
-			name: strings.commands.insertLink,
-			editorCallback: (editor: Editor) => {
-				new InsertLinkModal(this.app, this, editor).open();
-			},
-		});
-
-		this.addCommand({
-			id: 'open-link',
-			name: strings.commands.openLink,
-			callback: () => {
-				new OpenLinkModal(this.app, this).open();
-			},
-		});
-
-		this.addCommand({
-			id: 'sync-current-card',
-			name: strings.commands.syncCurrentCard,
-			editorCallback: (editor: Editor, context: MarkdownFileInfo) => {
-				void this.syncCurrentCard(editor, context);
-			},
-		});
-
-		this.addCommand({
-			id: 'sync-current-file',
-			name: strings.commands.syncCurrentFile,
-			editorCallback: (editor: Editor, context: MarkdownFileInfo) => {
-				void this.syncCurrentFile(editor, context);
-			},
-		});
-
-		this.addCommand({
-			id: 'cloze-next-number',
-			name: strings.commands.clozeNextNumber,
-			editorCallback: (editor: Editor) => this.insertCloze(editor, 'next'),
-		});
-
-		this.addCommand({
-			id: 'cloze-current-number',
-			name: strings.commands.clozeCurrentNumber,
-			editorCallback: (editor: Editor) => this.insertCloze(editor, 'current'),
-		});
+		this.addCommand({ id: 'insert-link', name: strings.commands.insertLink, editorCallback: (editor: Editor) => new InsertLinkModal(this.app, this, editor).open() });
+		this.addCommand({ id: 'open-link', name: strings.commands.openLink, callback: () => new OpenLinkModal(this.app, this).open() });
+		this.addCommand({ id: 'sync-current-card', name: strings.commands.syncCurrentCard, editorCallback: (editor, context) => void this.syncCurrentCard(editor, context) });
+		this.addCommand({ id: 'sync-current-file', name: strings.commands.syncCurrentFile, editorCallback: (editor, context) => void this.syncCurrentFile(editor, context) });
+		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
+		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
 		this.localizedCommandsRegistered = true;
 	}
 
 	async openSearch(type: SearchType, value: string): Promise<boolean> {
 		let query: string | undefined;
-
 		try {
 			query = buildAnkiQuery(type, value);
-			this.debug(`Opening query on the current platform: ${query}`);
-			const ankiConnect = new AnkiConnectService({
-				url: this.settings.ankiConnectUrl,
-			});
-			await createPlatformRouter(ankiConnect).open(query);
+			await createPlatformRouter(this.createAnkiConnect()).open(query);
 			return true;
 		} catch (error) {
 			this.handleError(error);
@@ -137,7 +133,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 
 	async updateSettings(changes: Partial<AnkiCardLinkSettings>): Promise<void> {
 		this.settings = { ...this.settings, ...changes };
-		await this.saveData(this.settings);
+		await this.savePluginData();
 	}
 
 	async updateLanguage(language: Language): Promise<void> {
@@ -160,7 +156,6 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			this.debug(`${error.code}: ${error.message}`, error.cause);
 			return;
 		}
-
 		const message = error instanceof Error ? error.message : String(error);
 		this.showNotice(getStrings(this.settings.language).notices.unexpectedError(message));
 		this.debug('Unexpected error.', error);
@@ -169,8 +164,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	async testSyncConfiguration(): Promise<void> {
 		try {
 			this.requireDesktopSync();
-			const service = new CardSyncService(this.createAnkiConnect(), this.settings);
-			await service.testConfiguration();
+			await new CardSyncService(this.createAnkiConnect(), this.settings).testConfiguration();
 			this.showNotice(getStrings(this.settings.language).notices.syncConfigurationOk);
 		} catch (error) {
 			this.handleError(error);
@@ -181,44 +175,26 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		try {
 			this.requireDesktopSync();
 			const file = this.requireMarkdownFile(context);
+			const source = editor.getValue();
+			const syntax = buildCardSyntax(this.settings);
 			const cursor = editor.getCursor();
-			let source = editor.getValue();
-			let card = findCardAtLine(source, cursor.line);
+			const card = findCardAtLine(source, cursor.line, syntax);
 			if (card === undefined) {
-				const invalidCard = parseCardCandidates(source).find(
-					(candidate) =>
-						candidate.error !== undefined &&
-						cursor.line >= candidate.startLine &&
-						cursor.line <= candidate.endLine,
-				);
-				if (invalidCard?.error !== undefined) {
-					throw invalidCard.error;
-				}
-				throw new AnkiCardLinkError('CURRENT_CARD_NOT_FOUND', 'The cursor is not inside a supported card.');
+				const invalid = parseCardCandidates(source, syntax).find((candidate) => candidate.error !== undefined && cursor.line >= candidate.startLine && cursor.line <= candidate.endLine);
+				throw invalid?.error ?? new AnkiCardLinkError('CURRENT_CARD_NOT_FOUND', 'The cursor is not inside a supported card.');
 			}
-			if (card.blockId === undefined) {
-				source = addBlockId(source, card);
-				editor.setValue(source);
-				card = findCardAtLine(source, cursor.line);
-				if (card === undefined || card.blockId === undefined) {
-					throw new AnkiCardLinkError('BLOCK_ID_WRITE_FAILED', 'Could not write a stable card block ID to the current note.');
-				}
+			const uid = card.uid ?? generateCardUid();
+			const result = await this.syncCard(card, uid, source, file.name, file.path);
+			try {
+				const withLink = ensureCardLink(source, card, { uid, noteId: result.noteId }, getStrings(this.settings.language).labels.openAnkiCard);
+				const updated = ensureObsidianTag(withLink, 'anki-card-link');
+				editor.setValue(updated);
+			} catch (error) {
+				throw new AnkiCardLinkError('CARD_LINK_WRITE_FAILED', `Anki note ${result.noteId} was synchronized with UID ${uid}, but the Markdown link could not be written.`, { cause: error });
 			}
-			const result = await this.syncCard(card, source, file.name, file.path);
-			const sourceWithLink = ensureAnkiNoteLink(
-				source,
-				card,
-				result.noteId,
-				getStrings(this.settings.language).labels.openAnkiCard,
-			);
-			if (sourceWithLink !== source) {
-				editor.setValue(sourceWithLink);
-			}
-			this.showNotice(
-				result.status === 'created'
-					? getStrings(this.settings.language).notices.cardCreated
-					: getStrings(this.settings.language).notices.cardUpdated,
-			);
+			this.cardLocations.set(uid, file.path);
+			await this.savePluginData();
+			this.showNotice(result.status === 'created' ? getStrings(this.settings.language).notices.cardCreated : getStrings(this.settings.language).notices.cardUpdated);
 		} catch (error) {
 			this.handleError(error);
 		}
@@ -228,51 +204,46 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		try {
 			this.requireDesktopSync();
 			const file = this.requireMarkdownFile(context);
-			let source = editor.getValue();
-			const candidates = parseCardCandidates(source);
-			let cards = candidates.flatMap((candidate) =>
-				candidate.card === undefined ? [] : [candidate.card],
-			);
+			const original = editor.getValue();
+			const candidates = parseCardCandidates(original, buildCardSyntax(this.settings));
+			const cards = candidates.flatMap((candidate) => candidate.card === undefined ? [] : [candidate.card]);
 			const parseFailureCount = candidates.filter((candidate) => candidate.error !== undefined).length;
 			if (cards.length === 0 && parseFailureCount === 0) {
 				throw new AnkiCardLinkError('NO_SYNCABLE_CARDS', 'No supported cards were found in the current file.');
 			}
-			for (const card of [...cards].reverse()) {
-				if (card.blockId === undefined) {
-					source = addBlockId(source, card);
-				}
-			}
-			if (source !== editor.getValue()) {
-				editor.setValue(source);
-			}
-			cards = parseCards(source);
-			const summary: Record<CardSyncStatus | 'skipped' | 'failed', number> = {
-				created: 0,
-				updated: 0,
-				skipped: 0,
-				failed: parseFailureCount,
-			};
-			const synchronizedCards: Array<{ card: ParsedCard; noteId: number }> = [];
+			const summary: Record<CardSyncStatus | 'skipped' | 'failed', number> = { created: 0, updated: 0, skipped: 0, failed: parseFailureCount };
+			const synchronized: Array<{ card: ParsedCard; uid: string; result: CardSyncResult }> = [];
 			for (const card of cards) {
 				try {
-					const result = await this.syncCard(card, source, file.name, file.path);
+					const uid = card.uid ?? generateCardUid();
+					const result = await this.syncCard(card, uid, original, file.name, file.path);
 					summary[result.status] += 1;
-					synchronizedCards.push({ card, noteId: result.noteId });
+					synchronized.push({ card, uid, result });
 				} catch (error) {
 					summary.failed += 1;
 					this.debug('A card in the current file could not be synchronized.', error);
 				}
 			}
-			for (const synchronized of [...synchronizedCards].reverse()) {
-				source = ensureAnkiNoteLink(
-					source,
-				synchronized.card,
-				synchronized.noteId,
-					getStrings(this.settings.language).labels.openAnkiCard,
-				);
+			try {
+				let updated = original;
+				for (const item of [...synchronized].reverse()) {
+					updated = ensureCardLink(updated, item.card, { uid: item.uid, noteId: item.result.noteId }, getStrings(this.settings.language).labels.openAnkiCard);
+				}
+				if (synchronized.length > 0) {
+					updated = ensureObsidianTag(updated, 'anki-card-link');
+				}
+				if (updated !== original) {
+					editor.setValue(updated);
+				}
+			} catch (error) {
+				const identities = synchronized.map((item) => `${item.result.noteId}/${item.uid}`).join(', ');
+				throw new AnkiCardLinkError('CARD_LINK_WRITE_FAILED', `Anki notes were synchronized, but Markdown links could not be written: ${identities}.`, { cause: error });
 			}
-			if (source !== editor.getValue()) {
-				editor.setValue(source);
+			for (const item of synchronized) {
+				this.cardLocations.set(item.uid, file.path);
+			}
+			if (synchronized.length > 0) {
+				await this.savePluginData();
 			}
 			this.showNotice(getStrings(this.settings.language).notices.syncSummary(summary));
 		} catch (error) {
@@ -280,15 +251,13 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}
 	}
 
-	private async syncCard(card: ParsedCard, source: string, fileName: string, filePath: string): Promise<CardSyncResult> {
-		if (card.blockId === undefined) {
-			throw new AnkiCardLinkError('BLOCK_ID_WRITE_FAILED', 'Card block ID is missing after writing the current note.');
-		}
+	private async syncCard(card: ParsedCard, uid: string, source: string, fileName: string, filePath: string): Promise<CardSyncResult> {
 		const anki = this.createAnkiConnect();
 		const imageMedia = await this.uploadCardImages(card, filePath, anki);
 		return new CardSyncService(anki, this.settings).sync({
 			card,
-			blockId: card.blockId,
+			uid,
+			noteIdHint: card.noteId,
 			title: getCardTitle(source, card, fileName),
 			vaultName: this.app.vault.getName(),
 			filePath,
@@ -297,15 +266,8 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		});
 	}
 
-	/** 将卡片引用的 Obsidian 本地图片上传到 Anki 媒体库，并返回对应的 Anki 文件名。 */
-	private async uploadCardImages(
-		card: ParsedCard,
-		filePath: string,
-		anki: AnkiConnectService,
-	): Promise<Map<string, string>> {
-		const contents = card.type === 'cloze'
-			? [card.content]
-			: [card.front, card.back];
+	private async uploadCardImages(card: ParsedCard, filePath: string, anki: AnkiConnectService): Promise<Map<string, string>> {
+		const contents = card.type === 'cloze' ? [card.content] : [card.front, card.back];
 		const references = extractObsidianImageReferences(contents.filter((content): content is string => content !== undefined).join('\n'));
 		const imageMedia = new Map<string, string>();
 		for (const reference of references) {
@@ -316,19 +278,44 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			if (!isSupportedImageExtension(imageFile.extension)) {
 				throw new AnkiCardLinkError('UNSUPPORTED_IMAGE', `Unsupported image format: ${imageFile.extension}.`);
 			}
-			const ankiFilename = buildAnkiMediaFilename(imageFile.path, imageFile.extension);
-			const data = encodeArrayBufferAsBase64(await this.app.vault.readBinary(imageFile));
-			await anki.storeMediaFile(ankiFilename, data);
-			imageMedia.set(reference, ankiFilename);
-			this.debug(`Uploaded image to Anki media: ${imageFile.path} -> ${ankiFilename}`);
+			const filename = buildAnkiMediaFilename(imageFile.path, imageFile.extension);
+			await anki.storeMediaFile(filename, encodeArrayBufferAsBase64(await this.app.vault.readBinary(imageFile)));
+			imageMedia.set(reference, filename);
 		}
 		return imageMedia;
 	}
 
+	private async flushPendingOpenSource(): Promise<void> {
+		if (!this.layoutReady || this.openingSource) {
+			return;
+		}
+		this.openingSource = true;
+		try {
+			while (this.pendingOpenSource !== undefined) {
+				const request = this.pendingOpenSource;
+				this.pendingOpenSource = undefined;
+				try {
+					const locator = new ObsidianSourceLocator(
+						new AppObsidianSourceHost(this.app),
+						this.cardLocations,
+						buildCardSyntax(this.settings),
+					);
+					const result = await locator.open(request);
+					if (!result.positioned) {
+						this.showNotice(getStrings(this.settings.language).notices.sourceOpenedWithoutPosition);
+					}
+				} catch (error) {
+					this.handleError(error);
+				}
+			}
+		} finally {
+			this.openingSource = false;
+		}
+	}
+
 	private insertCloze(editor: Editor, mode: ClozeNumberMode): void {
 		const cursor = editor.getCursor();
-		const cardText = this.getCurrentParagraph(editor, cursor.line);
-		const number = getClozeNumber(cardText, mode);
+		const number = getClozeNumber(this.getCurrentParagraph(editor, cursor.line), mode);
 		const selection = editor.getSelection();
 		editor.replaceSelection(buildClozeReplacement(selection, number));
 		if (selection.length === 0) {
@@ -339,16 +326,10 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	private getCurrentParagraph(editor: Editor, line: number): string {
 		let first = line;
 		let last = line;
-		while (first > 0 && editor.getLine(first - 1).trim().length > 0) {
-			first -= 1;
-		}
-		while (last < editor.lastLine() && editor.getLine(last + 1).trim().length > 0) {
-			last += 1;
-		}
+		while (first > 0 && editor.getLine(first - 1).trim().length > 0) first -= 1;
+		while (last < editor.lastLine() && editor.getLine(last + 1).trim().length > 0) last += 1;
 		const lines: string[] = [];
-		for (let index = first; index <= last; index += 1) {
-			lines.push(editor.getLine(index));
-		}
+		for (let index = first; index <= last; index += 1) lines.push(editor.getLine(index));
 		return lines.join('\n');
 	}
 
@@ -358,23 +339,30 @@ export default class AnkiCardLinkPlugin extends Plugin {
 
 	private requireDesktopSync(): void {
 		if (!Platform.isDesktopApp) {
-			throw new AnkiCardLinkError(
-				'MOBILE_SYNC_UNSUPPORTED',
-				'Synchronization is currently available only on desktop. Anki links are still available.',
-			);
+			throw new AnkiCardLinkError('MOBILE_SYNC_UNSUPPORTED', 'Synchronization is currently available only on desktop. Anki links are still available.');
 		}
 	}
 
-	private requireMarkdownFile(context: MarkdownFileInfo) {
+	private requireMarkdownFile(context: MarkdownFileInfo): TFile {
 		if (context.file === null || context.file.extension !== 'md') {
 			throw new AnkiCardLinkError('CURRENT_CARD_NOT_FOUND', 'The current editor does not contain a Markdown file.');
 		}
 		return context.file;
 	}
 
-	private async loadSettings(): Promise<void> {
-		const stored = (await this.loadData()) as Partial<AnkiCardLinkSettings> | null;
-		this.settings = { ...DEFAULT_SETTINGS, ...stored };
+	private async loadPluginData(): Promise<void> {
+		try {
+			const data = migratePluginData(await this.loadData());
+			this.settings = data.settings;
+			this.cardLocations = new CardLocationIndex(data.cardLocations);
+		} catch (error) {
+			throw new AnkiCardLinkError('PLUGIN_DATA_MIGRATION_FAILED', 'Plugin data could not be migrated to version 2.', { cause: error });
+		}
+	}
+
+	private async savePluginData(): Promise<void> {
+		const data: PersistedPluginDataV2 = { version: 2, settings: this.settings, cardLocations: this.cardLocations.toJSON() };
+		await this.saveData(data);
 	}
 
 	private async copyQuery(query: string): Promise<void> {
@@ -389,13 +377,9 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	}
 
 	private debug(message: string, detail?: unknown): void {
-		if (!this.settings.debugLogging) {
-			return;
-		}
-		if (detail === undefined) {
-			console.debug(`[Anki Card Link] ${message}`);
-		} else {
-			console.debug(`[Anki Card Link] ${message}`, detail);
+		if (this.settings.debugLogging) {
+			if (detail === undefined) console.debug(`[Anki Card Link] ${message}`);
+			else console.debug(`[Anki Card Link] ${message}`, detail);
 		}
 	}
 }

@@ -7,7 +7,7 @@ import {
 
 describe('Obsidian URI handling', () => {
 	it('parses valid protocol parameters', () => {
-		expect(parseProtocolParams({ type: 'nid', value: '1667925274936' })).toEqual({
+		expect(parseProtocolParams({ type: 'nid', value: '1667925274936', uid: 'acl-1234abcd', v: '2' })).toEqual({
 			type: 'nid',
 			value: '1667925274936',
 		});

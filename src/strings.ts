@@ -41,6 +41,10 @@ const ENGLISH_STRINGS = {
 		synchronization: 'Synchronization',
 		defaultDeckName: 'Default deck name',
 		defaultDeckNameDesc: 'Anki creates this deck when it does not already exist.',
+		singleLineSeparators: 'Single-line front/back separators',
+		singleLineSeparatorsDesc: 'Enter one separator per line. The defaults are :: and ：：. Spaces around them are optional.',
+		multiLineSeparators: 'Multi-line front/back separators',
+		multiLineSeparatorsDesc: 'Enter one separator per line. A separator must occupy its own line. The defaults are ? and ？.',
 		useCurrentFolderAsDeck: 'Use current folder path as deck name',
 		useCurrentFolderAsDeckDesc: 'Uses the current note\'s full folder path with :: hierarchy. Anki creates the deck when needed.',
 		basicModelName: 'Basic note type',
@@ -56,7 +60,7 @@ const ENGLISH_STRINGS = {
 		clozeTitleField: 'Cloze title field',
 		clozeTitleFieldDesc: 'Stores the nearest Markdown heading, or the filename when there is no heading.',
 		clozeObsidianUriField: 'Cloze Obsidian URI field',
-		clozeObsidianUriFieldDesc: 'Stores an Advanced URI that opens the original Obsidian card block.',
+		clozeObsidianUriFieldDesc: 'Stores an Anki Card Link URI that opens the original Obsidian card.',
 		testSyncConfiguration: 'Test synchronization configuration',
 		testSyncConfigurationDesc: 'Checks AnkiConnect, note types, and configured fields without changing Anki data.',
 		defaultLinkText: 'Default link text',
@@ -76,6 +80,7 @@ const ENGLISH_STRINGS = {
 		syncConfigurationOk: 'Synchronization configuration is valid.',
 		cardCreated: 'Created an Anki note for the current card.',
 		cardUpdated: 'Updated the Anki note for the current card.',
+		sourceOpenedWithoutPosition: 'The file was opened, but the current view could not position the card precisely.',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`Created ${summary.created}, updated ${summary.updated}, skipped ${summary.skipped}, failed ${summary.failed}.`,
 		unexpectedError: (message: string) => `An unexpected error occurred: ${message}`,
@@ -123,6 +128,10 @@ const CHINESE_STRINGS = {
 		synchronization: '同步设置',
 		defaultDeckName: '默认牌组名称',
 		defaultDeckNameDesc: '如果牌组不存在，Anki 会自动创建该牌组。',
+		singleLineSeparators: '单行正反面分隔符',
+		singleLineSeparatorsDesc: '每行填写一个分隔符，默认支持 :: 和 ：：；分隔符两边可以不留空格。',
+		multiLineSeparators: '多行正反面分隔符',
+		multiLineSeparatorsDesc: '每行填写一个分隔符，分隔符需要单独占一行；默认支持 ? 和 ？。',
 		useCurrentFolderAsDeck: '使用当前文件夹路径作为牌组名称',
 		useCurrentFolderAsDeckDesc: '使用当前笔记的完整文件夹路径，并以 :: 表示层级；牌组不存在时由 Anki 自动创建。',
 		basicModelName: '正反面笔记类型',
@@ -138,7 +147,7 @@ const CHINESE_STRINGS = {
 		clozeTitleField: 'Cloze 标题字段',
 		clozeTitleFieldDesc: '写入卡片上方最近的 Markdown 标题；没有标题时写入文件名。',
 		clozeObsidianUriField: 'Cloze Obsidian URI 字段',
-		clozeObsidianUriFieldDesc: '写入可打开 Obsidian 原卡片块的 Advanced URI。',
+		clozeObsidianUriFieldDesc: '写入由 Anki Card Link 打开并定位原卡片的 URI。',
 		testSyncConfiguration: '测试同步配置',
 		testSyncConfigurationDesc: '检查 AnkiConnect、笔记类型和配置字段，不会修改 Anki 数据。',
 		defaultLinkText: '默认链接文字',
@@ -158,6 +167,7 @@ const CHINESE_STRINGS = {
 		syncConfigurationOk: '同步配置有效。',
 		cardCreated: '已为当前卡片创建 Anki 笔记。',
 		cardUpdated: '已更新当前卡片对应的 Anki 笔记。',
+		sourceOpenedWithoutPosition: '已打开文件，但当前视图无法精确定位到卡片。',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`创建 ${summary.created} 张，更新 ${summary.updated} 张，跳过 ${summary.skipped} 张，失败 ${summary.failed} 张。`,
 		unexpectedError: (message: string) => `发生未预期的错误：${message}`,
@@ -195,11 +205,15 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 		'Card back cannot be empty.': '卡片背面不能为空。',
 		'Cloze card does not contain a valid cloze deletion.': 'Cloze 卡片中没有合法的挖空。',
 		'Cloze card does not contain content.': 'Cloze 卡片中没有内容。',
-		'Card block ID is missing.': '卡片缺少块 ID。',
-		'Could not generate a stable card block ID.': '无法生成稳定的卡片块 ID。',
-		'Could not write a stable card block ID to the current note.': '无法将稳定的卡片块 ID 写回当前笔记。',
-		'Card block ID is missing after writing the current note.': '写回当前笔记后仍未找到卡片块 ID。',
 		'Default deck name cannot be empty.': '默认牌组名称不能为空。',
+		'The Obsidian source URI is invalid.': 'Obsidian 来源链接无效。',
+		'The Obsidian source URI uses an invalid protocol action.': 'Obsidian 来源链接使用了无效的协议动作。',
+		'Source URI vault name cannot be empty.': '来源链接中的 Vault 名称不能为空。',
+		'Source URI file path cannot be empty.': '来源链接中的文件路径不能为空。',
+		'Source URI file path cannot contain parent traversal.': '来源链接中的文件路径不能包含 .. 路径跳转。',
+		'The source file was not found at the URI path or in the local card index.': '无法通过链接路径或本地卡片索引找到来源文件；文件可能已移动、删除或尚未重新同步。',
+		'The file was opened, but the card position could not be shown.': '已打开文件，但无法显示卡片位置。',
+		'Plugin data could not be migrated to version 2.': '插件数据无法迁移到版本 2。',
 		'Synchronization is currently available only on desktop. Anki links are still available.': '同步功能目前仅支持桌面端，Anki 跳转功能仍然可用。',
 	};
 
@@ -231,6 +245,41 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 	const duplicatePrefix = 'More than one Anki note uses ';
 	if (error.message.startsWith(duplicatePrefix)) {
 		return `存在重复 UID：${error.message.slice(duplicatePrefix.length)}`;
+	}
+
+	const duplicateCardPrefix = 'More than one card in ';
+	if (error.message.startsWith(duplicateCardPrefix)) {
+		return `文件中存在重复 UID：${error.message.slice(duplicateCardPrefix.length)}`;
+	}
+
+	const vaultMismatch = /^Source URI requests vault "(.+)", but the current vault is "(.+)"\.$/u.exec(error.message);
+	if (vaultMismatch !== null) {
+		return `链接请求打开 Vault“${vaultMismatch[1]}”，但当前 Vault 是“${vaultMismatch[2]}”。请确认目标 Vault 已打开并安装、启用 Anki Card Link。`;
+	}
+
+	const unsupportedVersion = /^Unsupported source URI version: (.+)\.$/u.exec(error.message);
+	if (unsupportedVersion !== null) {
+		return `不支持的来源链接版本：${unsupportedVersion[1]}。`;
+	}
+
+	const invalidUid = /^Invalid card UID: (.+)\.$/u.exec(error.message);
+	if (invalidUid !== null) {
+		return `卡片 UID 无效：${invalidUid[1]}。`;
+	}
+
+	const uidNotFound = /^Card UID (.+) was not found in (.+)\.$/u.exec(error.message);
+	if (uidNotFound !== null) {
+		return `在文件 ${uidNotFound[2]} 中找不到卡片 UID ${uidNotFound[1]}。`;
+	}
+
+	const writeFailure = /^Anki note (\d+) was synchronized with UID (.+), but the Markdown link could not be written\.$/u.exec(error.message);
+	if (writeFailure !== null) {
+		return `Anki 笔记 ${writeFailure[1]} 已使用 UID ${writeFailure[2]} 同步成功，但 Markdown 按钮写回失败。请保留该 noteId 和 UID 后重新同步。`;
+	}
+
+	const batchWriteFailure = /^Anki notes were synchronized, but Markdown links could not be written: (.+)\.$/u.exec(error.message);
+	if (batchWriteFailure !== null) {
+		return `Anki 笔记已同步成功，但 Markdown 按钮写回失败：${batchWriteFailure[1]}。请保留这些 noteId/UID 后重新同步。`;
 	}
 
 	const imageNotFoundPrefix = 'Image attachment was not found: ';

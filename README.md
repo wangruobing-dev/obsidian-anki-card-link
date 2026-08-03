@@ -2,157 +2,114 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Anki Card Link is an Obsidian community plugin that inserts portable `obsidian://anki-card-link` links into Markdown notes. Clicking a link opens Anki's card browser or search screen with a validated search query. Version 1.1 also synchronizes supported Markdown cards from Obsidian to Anki Desktop.
+[Complete setup guide](docs/setup-guide.md) | [中文完整教程](docs/setup-guide.zh-CN.md) | [Download the optional Anki note types](assets/anki/anki-card-link-note-types.apkg)
 
-## Supported platforms
+Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
 
-| Platform | Anki application | How the plugin opens the search |
-| --- | --- | --- |
-| Windows | Anki Desktop + AnkiConnect | Calls AnkiConnect `guiBrowse` on localhost |
-| macOS | Anki Desktop + AnkiConnect | Calls AnkiConnect `guiBrowse` on localhost |
-| Linux | Anki Desktop + AnkiConnect | Calls AnkiConnect `guiBrowse` on localhost |
-| Android | AnkiDroid | Opens `anki://x-callback-url/browser` |
-| iOS/iPadOS | AnkiMobile | Opens `anki://x-callback-url/search` |
+## Platform scope
 
-The manifest sets `isDesktopOnly` to `false`. Mobile deep links still depend on the compatible Anki app being installed and on the URI behavior supported by that app version.
+| Feature | Windows/macOS/Linux | Android | iOS/iPadOS |
+| --- | --- | --- | --- |
+| Obsidian → Anki navigation | Anki Desktop + AnkiConnect | AnkiDroid deep link | AnkiMobile deep link |
+| Obsidian → Anki content sync | Supported | Not supported | Not supported |
+| Anki → Obsidian source navigation | Supported when this plugin is enabled | Supported when this plugin is enabled | Supported when this plugin is enabled |
 
-## Synchronization availability
+Mobile behavior still depends on the installed Anki app and its URI support. `isDesktopOnly: false` is not evidence that every mobile combination has been physically tested.
 
-The existing search links work on desktop and mobile platforms shown above. **Obsidian → Anki synchronization is desktop-only** (Windows, macOS, and Linux), because it needs the local Anki Desktop application and AnkiConnect. On Android and iOS/iPadOS, synchronization commands show an explanatory notice; the Anki search links remain available.
+## Desktop requirement
 
-Synchronization is one-way only. This plugin does not synchronize Anki changes back to Obsidian, delete Anki notes, run automatically, scan the whole vault, or modify Anki note templates.
+Desktop synchronization and Anki search opening require Anki Desktop and [AnkiConnect](https://ankiweb.net/shared/info/2055492159), add-on code `2055492159`, normally at `http://127.0.0.1:8765`. The configurable endpoint is restricted to HTTP/HTTPS loopback addresses. Advanced URI is not required for newly synchronized cards in version 1.2.0 and later.
 
-## Desktop requirement: AnkiConnect
+## Card format
 
-Windows, macOS, and Linux require both Anki Desktop and the [AnkiConnect add-on](https://ankiweb.net/shared/info/2055492159) to be installed and running. The default endpoint is:
+```markdown
+What is the JVM?::The Java Virtual Machine.
+
+[Open corresponding Anki card](obsidian://anki-card-link?type=nid&value=1754000000000&uid=acl-d5c044bd&v=2)
+```
+
+Single-line cards support both `::` and `：：` by default, without requiring spaces. Multi-line basic cards use a line containing only `?` or `？`. Both separator lists are configurable, one value per line. Cloze cards use `{{c1::text}}` or `{{c1::text::hint}}`. The card and button are separated by one blank line. The button label may be customized because recognition is based on the URL, not fixed text. The button is excluded from Anki `Front`, `Back`, and `Content` fields.
+
+The stable UID is stored only in the button URL, the Anki `ObsidianURI` field, and the plugin's local location index. It is not derived from the file path, title, content, line number, noteId, or cardId.
+
+## Synchronization
+
+Use **Sync current card to Anki** or **Sync all cards in current file to Anki**. On first sync, the plugin generates a UID in memory, creates the Anki note, then writes exactly one v2 button after Anki returns a noteId. An Anki failure leaves Markdown unchanged. A Markdown write failure reports the noteId and UID and does not delete the Anki note.
+
+After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag.
+
+For an existing v2 button, synchronization first calls `notesInfo` for its noteId. Only a missing note or UID mismatch triggers fallback matching through the legacy UID tag, the new `uid` URI parameter, and the old Advanced URI `block` parameter. Duplicate UIDs stop the update.
+
+Synchronization is manual and one-way. The plugin does not sync Anki edits back to Obsidian, delete Anki notes, run in real time, scan the entire vault, modify templates, or read the Anki database directly.
+
+## Anki → Obsidian navigation
+
+The `ObsidianURI` field now contains:
 
 ```text
-http://127.0.0.1:8765
+obsidian://anki-card-link-open?v=2&vault=My%20Vault&filePath=cards%2Fjava.md&uid=acl-d5c044bd
 ```
 
-You can change the endpoint in **Settings → Anki Card Link** and use **Test connection** on desktop. The plugin sends only AnkiConnect requests to the configured localhost endpoint. It does not make other network requests.
+The plugin validates the request, opens the URI path directly, falls back to its incremental UID-to-path index if the file moved, reads only that target Markdown file, and positions the editor at the card's first content line. It never scans the whole vault for each click. Cold-start requests wait for the workspace layout. If no editor is available, the correct file is still opened and a notice explains that precise positioning was unavailable.
 
-## Synchronize Markdown cards
+The URI keeps Obsidian's `vault` parameter so the correct vault can open during a cold start, but stores the vault-relative Markdown path in the plugin-specific `filePath` parameter. Obsidian's reserved `path` parameter cannot be used because the main process treats it as an absolute filesystem path and may report `Vault not found` before the plugin handler runs.
 
-Run one of these commands from the command palette while editing a Markdown file:
+The index is only a cache. It is updated after successful synchronization and on file/folder rename, move, and delete events. If both the URI path and index are stale, synchronize the card again.
 
-- **Anki Card Link: Sync current card to Anki**
-- **Anki Card Link: Sync all cards in current file to Anki**
+## Gradual legacy migration
 
-The first synchronization writes a stable block ID such as `^acl-1234abcd` back to the card. The plugin stores that block ID in `ObsidianURI` and uses it to find the corresponding Anki note: zero matches create a note, one match updates it, and multiple matches stop that card with a duplicate-UID error. Anki keeps only the shared `anki-card-link` tag; synchronizing an older note removes its legacy `anki-card-link::acl-xxxxxxxx` tag.
+Legacy standalone and inline block IDs, old `obsidian://anki-card-link` note links, legacy UID tags, and Advanced URI `block` fields remain readable. The plugin does not rewrite the vault at startup. A card is migrated only after its explicit synchronization succeeds; failed or untouched cards keep their old format.
 
-After a card is created or updated, the plugin also writes an `obsidian://anki-card-link` link below it. This uses the returned Anki note ID (`nid`) and the plugin's existing cross-platform open-search behavior.
+## Anki fields and template
 
-### Supported card syntax
+Default basic fields are `标题`, `Front`, `Back`, `提示`, and `ObsidianURI`. Default Cloze fields are `Content`, `Note`, and `ObsidianURI`. The plugin does not create or modify note types or templates.
 
-Use an empty line between cards. The recognition order is Cloze, multi-line basic, then single-line basic.
+The optional ready-to-import package is [`assets/anki/anki-card-link-note-types.apkg`](assets/anki/anki-card-link-note-types.apkg). It contains `Anki Card Link Basic`, `Enhanced Cloze 2.1 v2`, `_jquery.min.js`, and three disposable demonstration notes. Back up Anki before importing. See the [complete setup guide](docs/setup-guide.md) for exact mappings, custom-template instructions, and precautions.
 
-```markdown
-What is the JVM? :: The Java Virtual Machine. ^acl-1234abcd
+Recommended front/back or Cloze template fragment:
 
-Why is HashMap not thread-safe?
-What can happen?
-?
-Concurrent writes can overwrite data.
-State can also become inconsistent.
-^acl-1234abcd
-
-Java's {{c1::garbage collector::what does it manage}} manages memory automatically.
-^acl-1234abcd
+```html
+{{#ObsidianURI}}
+<div class="acl-source-link">
+    <a href="{{ObsidianURI}}">Open the corresponding Obsidian note</a>
+</div>
+{{/ObsidianURI}}
 ```
 
-- A single-line basic card requires a spaced ` :: ` separator.
-- A multi-line basic card uses a line containing only `?`; its two sides cannot be empty.
-- Cloze supports `{{c1::text}}`, `{{c1::text::hint}}`, repeated and different numbers, and multiple lines. Nested or overlapping Cloze is not supported.
-- Block IDs are not sent to Anki. Do not use a file path, line number, or card text as a replacement UID.
+```css
+.acl-source-link {
+    margin-top: 18px;
+    text-align: center;
+}
 
-### Anki setup
-
-1. Start Anki Desktop and install/enable [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
-2. In **Settings → Anki Card Link → Synchronization**, choose whether to use the current note's folder path as the deck name. This is enabled by default; for example, `knowledge/test/test111.md` uses the `knowledge::test` deck. Disable it to use the configured default deck instead. The plugin explicitly creates a missing deck through AnkiConnect before creating the note. Set the existing basic note type; the default is `Anki Card Link Basic`.
-3. Ensure that the basic note type has the configured fields: `标题`, `Front`, `Back`, `提示`, and `ObsidianURI`. The title is the nearest Markdown heading, or the filename without `.md`.
-4. For Cloze, install and prepare your own `Enhanced Cloze 2.1 v2` note type. By default, the plugin writes Cloze content to `Content`, the title to `Note`, and the block link to `ObsidianURI`. The plugin never creates or changes this note type, its cards, HTML, CSS, or JavaScript.
-5. Select **Test synchronization configuration**. It checks the connection, note types, and fields without changing Anki data. A missing deck is allowed because Anki creates it when a new note is added.
-
-The stored Obsidian URI is an `obsidian://advanced-uri` link to the card block. Install and configure the Advanced URI plugin if you want that field to jump directly to the block from Anki.
-
-On basic-card creation, the Hint field is empty. On later updates it is left untouched. Enhanced Cloze updates only `Content`, the title field (`Note` by default), and `ObsidianURI`; it does not overwrite `Mnemonics`, `Extra`, `Cloze99`, or other unmapped fields.
-
-### Cloze commands and shortcuts
-
-- **Cloze selection with next number** wraps the selection with the highest card number plus one, or `c1` when none exists.
-- **Cloze selection with current number** uses the last Cloze number in the current card, or `c1` when none exists.
-- With no selection, either command inserts `{{cN::}}` and places the cursor inside it.
-
-No shortcut is hard-coded. Configure one in **Settings → Hotkeys → Anki Card Link**. These commands use Obsidian's public Editor API and are available in compatible desktop and mobile editors.
-
-## Search types
-
-- **Note ID (`nid`)** finds cards generated from one Anki note. Input `1667925274936` becomes `nid:1667925274936`.
-- **Card ID (`cid`)** finds one specific card. Input `1667925275040` becomes `cid:1667925275040`.
-- **Note content (`text`)** quotes and escapes ordinary text so it can be searched safely as content.
-- **Custom query (`query`)** preserves a complete Anki search, such as `deck:软考 tag:数据结构`.
-
-IDs must contain digits only. Empty values and unsupported search types are rejected before a link is inserted or Anki is opened.
-
-## Insert a link
-
-1. Put the cursor in a Markdown note.
-2. Run **Anki Card Link: Insert link** from the command palette.
-3. Choose a search type, enter its value, and optionally change the link text.
-4. Select **Insert**.
-
-To open a search without changing the note, run **Anki Card Link: Open link**.
-
-## Link examples
-
-```markdown
-[Open Anki note](obsidian://anki-card-link?type=nid&value=1667925274936)
-[Open Anki card](obsidian://anki-card-link?type=cid&value=1667925275040)
-[Search in Anki](obsidian://anki-card-link?type=text&value=%E5%8D%95%E5%90%91%E5%BE%AA%E7%8E%AF%E9%93%BE%E8%A1%A8)
-[Run Anki query](obsidian://anki-card-link?type=query&value=deck%3A%E8%BD%AF%E8%80%83)
+.acl-source-link a {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+}
 ```
 
-All URI parameters generated by the plugin are validated and encoded with `encodeURIComponent`.
+Do not render `{{ObsidianURI}}` directly because that exposes the full URI, path, and UID.
 
-## Settings
+## Existing features
 
-- Interface language (English or Simplified Chinese)
-- AnkiConnect address (desktop only; defaults to `http://127.0.0.1:8765`)
-- Desktop connection test
-- Desktop synchronization configuration test
-- Default deck, basic/Cloze note type, and field mappings
-- Default link text
-- Default search type
-- Debug logging
-- Copy the generated search query to the clipboard when opening fails
+- Validated `nid`, `cid`, text, and custom-query links
+- Folder-path to Anki `::` deck mapping
+- Obsidian Wiki-image upload to Anki media
+- Cloze next/current-number commands
+- English and Simplified Chinese UI, debug logging, and clipboard fallback
 
-## Manual installation
+## Roadmap
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from a GitHub release.
-2. Create `<vault>/.obsidian/plugins/anki-card-link/`.
-3. Copy the three files into that directory.
-4. Reload Obsidian and enable **Anki Card Link** under **Community plugins**.
+Dedicated single-choice and multiple-choice card formats are planned for future improvement. They are not implemented yet, and no release date is promised.
 
-## Common errors
+## Installation and development
 
-- **Note ID must contain digits only / Card ID must contain digits only:** remove spaces, prefixes, and other characters from the ID field.
-- **Search content cannot be empty:** enter an ID, text, or custom Anki query.
-- **Anki is not running, or AnkiConnect is not installed or reachable:** start Anki, install/enable AnkiConnect, and verify the configured localhost address.
-- **Anki note type/field was not found:** create or select the configured note type and field in Anki, then run the synchronization configuration test again.
-- **More than one Anki note uses a block UID:** resolve the duplicate `anki-card-link::acl-xxxxxxxx` tag in Anki before synchronizing that card again.
-- **Synchronization is desktop-only:** use Obsidian Desktop with Anki Desktop and AnkiConnect; mobile search links still work.
-- **AnkiConnect returned an error:** inspect the returned message and confirm the query is accepted by the installed Anki version.
-- **Could not open AnkiDroid / AnkiMobile:** install the appropriate mobile app and verify that the app version supports the documented `anki://` route.
-- **This platform is not currently supported:** the runtime was not identified as Obsidian desktop, Android, or iOS/iPadOS.
-
-If enabled, the clipboard fallback preserves the generated query so it can be pasted into Anki manually. Failures never change Anki data, and invalid input is rejected before the current note is modified.
-
-## Privacy
-
-The plugin collects no telemetry and does not read unrelated files in the vault. Its only network access is the user-configured AnkiConnect address on desktop, which defaults to localhost. It may create or update only the Anki notes explicitly synchronized by you; it never deletes notes, removes tags, or changes note templates. Mobile platforms open an external `anki://` URI and do not send a web request.
-
-## Development
+Copy `main.js`, `manifest.json`, and `styles.css` from a release into `<vault>/.obsidian/plugins/anki-card-link/`, reload Obsidian, and enable the plugin.
 
 ```bash
 npm install
@@ -161,8 +118,4 @@ npm test
 npm run build
 ```
 
-Before publishing, complete the platform checklist in [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md).
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+Complete [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md) before publishing. MIT licensed.

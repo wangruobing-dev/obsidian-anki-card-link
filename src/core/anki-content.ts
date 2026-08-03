@@ -81,7 +81,3 @@ export function escapeHtml(value: string): string {
 		.replaceAll('"', '&quot;')
 		.replaceAll("'", '&#39;');
 }
-
-export function buildAdvancedUri(vaultName: string, filePath: string, blockId: string): string {
-	return `obsidian://advanced-uri?vault=${encodeURIComponent(vaultName)}&filepath=${encodeURIComponent(filePath)}&block=${encodeURIComponent(blockId)}`;
-}

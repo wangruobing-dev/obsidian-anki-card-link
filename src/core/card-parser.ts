@@ -1,4 +1,8 @@
+import { isCardUid } from './card-identity';
+import { parseCardLinkLine, type ParsedCardLink } from './card-link';
+import { hasUnclosedCodeFence } from './markdown-fence';
 import { AnkiCardLinkError } from '../types';
+import { DEFAULT_CARD_SYNTAX, type CardSyntax } from './card-syntax';
 
 export type ParsedCardType = 'basic' | 'cloze';
 
@@ -7,7 +11,11 @@ export interface ParsedCard {
 	startLine: number;
 	endLine: number;
 	contentEndLine: number;
-	blockId?: string;
+	uid?: string;
+	noteId?: number;
+	linkLine?: number;
+	legacyBlockId?: string;
+	legacyBlockIdInline?: boolean;
 	front?: string;
 	back?: string;
 	content?: string;
@@ -25,46 +33,87 @@ interface LineBlock {
 	endLine: number;
 }
 
+interface BlockContent {
+	lines: string[];
+	contentEndLine: number;
+	legacyBlockId?: string;
+	legacyBlockIdInline?: boolean;
+}
+
 const BLOCK_ID = /^\^?(acl-[a-z0-9]{8})$/u;
 const INLINE_BLOCK_ID = /\s+\^(acl-[a-z0-9]{8})$/u;
-const ANKI_NOTE_LINK = /^\[[^\]]+\]\(obsidian:\/\/anki-card-link\?type=nid&value=\d+\)$/u;
 const CLOZE_TOKEN = /\{\{c([1-9]\d*)::([^{}]+?)(?:::[^{}]*?)?\}\}/gu;
 const CLOZE_MARKER = /\{\{c\d+::/u;
 
-/**
- * 从 Markdown 中找出第一版支持的卡片。空行是多行卡片的边界。
- */
-export function parseCards(markdown: string): ParsedCard[] {
-	return parseCardCandidates(markdown).flatMap((candidate) =>
+export function parseCards(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard[] {
+	return parseCardCandidates(markdown, syntax).flatMap((candidate) =>
 		candidate.card === undefined ? [] : [candidate.card],
 	);
 }
 
-/**
- * 返回可同步卡片及其格式错误，让“同步全部”可以继续处理其他卡片。
- */
-export function parseCardCandidates(markdown: string): CardParseCandidate[] {
+export function parseCardCandidates(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): CardParseCandidate[] {
+	return parseCardCandidatesInternal(markdown, true, syntax);
+}
+
+function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: boolean, syntax: CardSyntax): CardParseCandidate[] {
 	const lines = markdown.split(/\r?\n/u);
-	return findLineBlocks(lines)
-		.map((block) => {
-			try {
-				const card = parseBlock(lines, block);
-				return card === null ? { ...block } : { ...block, card };
-			} catch (error) {
-				if (error instanceof AnkiCardLinkError) {
-					return { ...block, error };
-				}
-				throw error;
+	const blocks = findLineBlocks(lines);
+	const candidates: CardParseCandidate[] = [];
+
+	for (let index = 0; index < blocks.length; index += 1) {
+		const originalBlock = blocks[index];
+		let block = originalBlock;
+		if (block === undefined) {
+			continue;
+		}
+		if (getStandaloneCardLink(lines, block) !== undefined) {
+			continue;
+		}
+
+		const inlineFollowingLink = block.startLine < block.endLine && !hasUnclosedCodeFence(lines, block.startLine, block.endLine)
+			? parseCardLinkLine(lines[block.endLine] ?? '', block.endLine)
+			: undefined;
+		if (inlineFollowingLink !== undefined) {
+			block = { startLine: block.startLine, endLine: block.endLine - 1 };
+		}
+		const nextBlock = blocks[index + 1];
+		const link = nextBlock === undefined ? undefined : getStandaloneCardLink(lines, nextBlock);
+		const separateLink = link !== undefined && nextBlock !== undefined && nextBlock.startLine - block.endLine <= 2
+			? link
+			: undefined;
+		const attachedLink = inlineFollowingLink ?? separateLink;
+		try {
+			const card = parseBlock(lines, block, attachedLink, syntax);
+			candidates.push(card === null
+				? { ...block }
+				: { startLine: card.startLine, endLine: card.endLine, card });
+		} catch (error) {
+			if (error instanceof AnkiCardLinkError) {
+				candidates.push({ ...block, error });
+				continue;
 			}
-		});
+			throw error;
+		}
+	}
+
+	if (rejectDuplicateUids) {
+		markDuplicateUids(candidates);
+	}
+	return candidates;
 }
 
-export function findCardAtLine(markdown: string, line: number): ParsedCard | undefined {
-	return parseCards(markdown).find((card) => line >= card.startLine && line <= card.endLine);
+export function findCardAtLine(markdown: string, line: number, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard | undefined {
+	return parseCards(markdown, syntax).find((card) => line >= card.startLine && line <= card.endLine);
 }
 
-export function parseCardBlock(markdown: string): ParsedCard | null {
-	const candidates = parseCardCandidates(markdown);
+export function findCardsByUid(markdown: string, uid: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard[] {
+	return parseCardCandidatesInternal(markdown, false, syntax).flatMap((candidate) =>
+		candidate.card?.uid === uid ? [candidate.card] : [],
+	);
+}
+
+export function parseCardBlock(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard | null {
+	const candidates = parseCardCandidates(markdown, syntax);
 	if (candidates.length !== 1) {
 		return null;
 	}
@@ -92,52 +141,6 @@ export function getClozeNumbers(value: string): number[] {
 	return numbers;
 }
 
-export function generateBlockId(randomUuid: () => string = () => crypto.randomUUID()): string {
-	const compact = randomUuid().toLowerCase().replaceAll(/[^a-z0-9]/gu, '');
-	if (compact.length < 8) {
-		throw new AnkiCardLinkError('BLOCK_ID_WRITE_FAILED', 'Could not generate a stable card block ID.');
-	}
-	return `acl-${compact.slice(0, 8)}`;
-}
-
-export function addBlockId(markdown: string, card: ParsedCard, blockId = generateBlockId()): string {
-	if (card.blockId !== undefined) {
-		return markdown;
-	}
-	const lines = markdown.split(/\r?\n/u);
-	const lineEnding = markdown.includes('\r\n') ? '\r\n' : '\n';
-	const insertionLine = card.contentEndLine + 1;
-	const insertion = [`^${blockId}`];
-	if (hasUnclosedCodeFence(lines, card.startLine, insertionLine)) {
-		insertion.unshift('```');
-	}
-	lines.splice(insertionLine, 0, ...insertion);
-	return lines.join(lineEnding);
-}
-
-/** 判断卡片内容末尾是否仍位于 Markdown 围栏代码块中。 */
-export function hasUnclosedCodeFence(lines: string[], startLine: number, endExclusive: number): boolean {
-	let openingFence: { marker: '`' | '~'; length: number } | undefined;
-	for (let index = startLine; index < endExclusive; index += 1) {
-		const match = /^\s*(`{3,}|~{3,})/u.exec(lines[index] ?? '');
-		if (match?.[1] === undefined) {
-			continue;
-		}
-		const marker = match[1][0];
-		if (marker !== '`' && marker !== '~') {
-			continue;
-		}
-		if (openingFence === undefined) {
-			openingFence = { marker, length: match[1].length };
-			continue;
-		}
-		if (marker === openingFence.marker && match[1].length >= openingFence.length) {
-			openingFence = undefined;
-		}
-	}
-	return openingFence !== undefined;
-}
-
 export function getCardTitle(markdown: string, card: ParsedCard, fileName: string): string {
 	const lines = markdown.split(/\r?\n/u);
 	for (let index = card.startLine - 1; index >= 0; index -= 1) {
@@ -149,16 +152,30 @@ export function getCardTitle(markdown: string, card: ParsedCard, fileName: strin
 	return fileName.replace(/\.md$/iu, '').trim();
 }
 
+export { hasUnclosedCodeFence } from './markdown-fence';
+
 function findLineBlocks(lines: string[]): LineBlock[] {
 	const blocks: LineBlock[] = [];
 	let startLine: number | undefined;
+	let fence: { marker: '`' | '~'; length: number } | undefined;
 
 	for (let index = 0; index <= lines.length; index += 1) {
 		const line = lines[index] ?? '';
-		const isBoundary =
-			index === lines.length ||
-			line.trim().length === 0 ||
-			/^#{1,6}\s+/u.test(line);
+		const fenceMatch = /^\s*(`{3,}|~{3,})/u.exec(line);
+		const wasInsideFence = fence !== undefined;
+		if (fenceMatch?.[1] !== undefined) {
+			const marker = fenceMatch[1][0];
+			if (marker === '`' || marker === '~') {
+				if (fence === undefined) {
+					fence = { marker, length: fenceMatch[1].length };
+				} else if (marker === fence.marker && fenceMatch[1].length >= fence.length) {
+					fence = undefined;
+				}
+			}
+		}
+		const isBoundary = index === lines.length || (!wasInsideFence && fence === undefined && (
+			line.trim().length === 0 || /^#{1,6}\s+/u.test(line)
+		));
 		if (!isBoundary) {
 			startLine ??= index;
 			continue;
@@ -171,29 +188,40 @@ function findLineBlocks(lines: string[]): LineBlock[] {
 	return blocks;
 }
 
-function parseBlock(lines: string[], block: LineBlock): ParsedCard | null {
+function getStandaloneCardLink(lines: string[], block: LineBlock): ParsedCardLink | undefined {
+	if (block.startLine !== block.endLine) {
+		return undefined;
+	}
+	return parseCardLinkLine(lines[block.startLine] ?? '', block.startLine);
+}
+
+function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | undefined, syntax: CardSyntax): ParsedCard | null {
 	const details = getBlockContent(lines, block);
 	const content = details.lines.join('\n').trim();
 	if (content.length === 0) {
 		return null;
 	}
+	if (link?.uid !== undefined && details.legacyBlockId !== undefined && link.uid !== details.legacyBlockId) {
+		throw new AnkiCardLinkError('INVALID_CARD', 'Card link UID does not match the legacy block ID.');
+	}
+	const identity = {
+		uid: link?.uid ?? details.legacyBlockId,
+		noteId: link?.noteId,
+		linkLine: link?.line,
+		legacyBlockId: details.legacyBlockId,
+		legacyBlockIdInline: details.legacyBlockIdInline,
+	};
+	const endLine = link?.line ?? block.endLine;
 
 	if (CLOZE_MARKER.test(content)) {
 		if (!hasValidCloze(content)) {
 			throw new AnkiCardLinkError('INVALID_CLOZE', 'Cloze card does not contain a valid cloze deletion.');
 		}
-		return {
-			type: 'cloze',
-			startLine: block.startLine,
-			endLine: details.cardEndLine,
-			contentEndLine: details.contentEndLine,
-			blockId: details.blockId,
-			content,
-		};
+		return { type: 'cloze', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, content, ...identity };
 	}
 
 	const separatorLines = details.lines
-		.map((line, index) => (line.trim() === '?' ? index : -1))
+		.map((line, index) => (syntax.multiLineSeparators.includes(line.trim()) ? index : -1))
 		.filter((index) => index >= 0);
 	if (separatorLines.length === 1) {
 		const separator = separatorLines[0];
@@ -203,71 +231,55 @@ function parseBlock(lines: string[], block: LineBlock): ParsedCard | null {
 		const front = details.lines.slice(0, separator).join('\n').trim();
 		const back = details.lines.slice(separator + 1).join('\n').trim();
 		validateBasicFields(front, back);
-		return {
-			type: 'basic',
-			startLine: block.startLine,
-			endLine: details.cardEndLine,
-			contentEndLine: details.contentEndLine,
-			blockId: details.blockId,
-			front,
-			back,
-		};
+		return { type: 'basic', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, front, back, ...identity };
 	}
 
-	const line = details.lines[0] ?? '';
-	const separator = /(^|\s)::(?=\s)/u.exec(line);
-	if (separator === null) {
+	const firstLine = details.lines[0] ?? '';
+	const separator = findSingleLineSeparator(firstLine, syntax.singleLineSeparators);
+	if (separator === undefined) {
 		return null;
 	}
-	const offset = separator.index + (separator[1] ?? '').length;
-	const front = line.slice(0, offset).trim();
-	const back = [line.slice(offset + 2), ...details.lines.slice(1)].join('\n').trim();
+	const front = firstLine.slice(0, separator.index).trim();
+	const back = [firstLine.slice(separator.index + separator.value.length), ...details.lines.slice(1)].join('\n').trim();
 	validateBasicFields(front, back);
-	return {
-		type: 'basic',
-		startLine: block.startLine,
-		endLine: details.cardEndLine,
-		contentEndLine: details.contentEndLine,
-		blockId: details.blockId,
-		front,
-		back,
-	};
+	return { type: 'basic', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, front, back, ...identity };
 }
 
-function getBlockContent(lines: string[], block: LineBlock): {
-	lines: string[];
-	contentEndLine: number;
-	cardEndLine: number;
-	blockId?: string;
-} {
+function findSingleLineSeparator(line: string, separators: readonly string[]): { index: number; value: string } | undefined {
+	let result: { index: number; value: string } | undefined;
+	for (const value of separators) {
+		const index = line.indexOf(value);
+		if (index >= 0 && (result === undefined || index < result.index || (index === result.index && value.length > result.value.length))) {
+			result = { index, value };
+		}
+	}
+	return result;
+}
+
+function getBlockContent(lines: string[], block: LineBlock): BlockContent {
 	const blockLines = lines.slice(block.startLine, block.endLine + 1);
 	const finalIndex = blockLines.length - 1;
 	const finalLine = blockLines[finalIndex] ?? '';
-	const previousLine = blockLines[finalIndex - 1] ?? '';
-	const blockIdBeforeLink = BLOCK_ID.exec(previousLine.trim());
-	if (ANKI_NOTE_LINK.test(finalLine.trim()) && blockIdBeforeLink?.[1] !== undefined) {
-		return {
-			lines: blockLines.slice(0, -2),
-			contentEndLine: block.endLine - 2,
-			cardEndLine: block.endLine - 1,
-			blockId: blockIdBeforeLink[1],
-		};
-	}
 	const standaloneId = BLOCK_ID.exec(finalLine.trim());
-	if (standaloneId?.[1] !== undefined) {
+	if (standaloneId?.[1] !== undefined && isCardUid(standaloneId[1])) {
 		return {
 			lines: blockLines.slice(0, -1),
 			contentEndLine: block.endLine - 1,
-			cardEndLine: block.endLine,
-			blockId: standaloneId[1],
+			legacyBlockId: standaloneId[1],
+			legacyBlockIdInline: false,
 		};
 	}
 	const inlineId = INLINE_BLOCK_ID.exec(finalLine);
-	if (inlineId?.[1] !== undefined) {
+	if (inlineId?.[1] !== undefined && isCardUid(inlineId[1])) {
 		blockLines[finalIndex] = finalLine.slice(0, inlineId.index).trimEnd();
-		return { lines: blockLines, contentEndLine: block.endLine, cardEndLine: block.endLine, blockId: inlineId[1] };
+		return {
+			lines: blockLines,
+			contentEndLine: block.endLine,
+			legacyBlockId: inlineId[1],
+			legacyBlockIdInline: true,
+		};
 	}
-	return { lines: blockLines, contentEndLine: block.endLine, cardEndLine: block.endLine };
+	return { lines: blockLines, contentEndLine: block.endLine };
 }
 
 function validateBasicFields(front: string, back: string): void {
@@ -276,5 +288,22 @@ function validateBasicFields(front: string, back: string): void {
 	}
 	if (back.length === 0) {
 		throw new AnkiCardLinkError('EMPTY_BACK', 'Card back cannot be empty.');
+	}
+}
+
+function markDuplicateUids(candidates: CardParseCandidate[]): void {
+	const counts = new Map<string, number>();
+	for (const candidate of candidates) {
+		const uid = candidate.card?.uid;
+		if (uid !== undefined) {
+			counts.set(uid, (counts.get(uid) ?? 0) + 1);
+		}
+	}
+	for (const candidate of candidates) {
+		const uid = candidate.card?.uid;
+		if (uid !== undefined && (counts.get(uid) ?? 0) > 1) {
+			candidate.card = undefined;
+			candidate.error = new AnkiCardLinkError('DUPLICATE_CARD_UID', `More than one card in this file uses UID ${uid}.`);
+		}
 	}
 }

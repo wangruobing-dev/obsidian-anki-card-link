@@ -1,9 +1,9 @@
 {
   "id": "anki-card-link",
   "name": "Anki Card Link",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "minAppVersion": "1.12.7",
-  "description": "Open Anki searches across desktop and mobile, and synchronize Markdown cards to Anki on desktop.",
+  "description": "Open Anki searches, sync Markdown cards on desktop, and navigate from Anki back to Obsidian.",
   "author": "王若冰",
   "authorUrl": "https://github.com/wangruobing-dev",
   "isDesktopOnly": false

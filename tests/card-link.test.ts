@@ -1,49 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { parseCardBlock, parseCards } from '../src/core/card-parser';
-import { ensureAnkiNoteLink } from '../src/core/card-link';
+import { buildCardLink, ensureCardLink, parseCardLinkLine } from '../src/core/card-link';
+import { parseCardBlock } from '../src/core/card-parser';
 
-describe('Anki note links in Markdown', () => {
-	it('writes a nid link after a card block and updates it instead of duplicating it', () => {
-		const source = 'Question :: Answer\n^acl-1234abcd';
-		const card = parseCards(source)[0];
-		if (card === undefined) {
-			throw new Error('Test card was not parsed.');
-		}
-		const linked = ensureAnkiNoteLink(source, card, 100, 'Open corresponding Anki card');
-		expect(linked).toBe(
-			'Question :: Answer\n^acl-1234abcd\n\n[Open corresponding Anki card](obsidian://anki-card-link?type=nid&value=100)',
-		);
-		const linkedCard = parseCardBlock(linked.slice(0, linked.indexOf('\n\n')));
-		if (linkedCard === null) {
-			throw new Error('Linked test card was not parsed.');
-		}
-		expect(ensureAnkiNoteLink(linked, linkedCard, 200, 'Open corresponding Anki card')).toContain(
-			'value=200',
-		);
-		expect(ensureAnkiNoteLink(linked, linkedCard, 200, 'Open corresponding Anki card')).not.toContain(
-			'value=100',
+describe('card links in Markdown', () => {
+	it.each(['打开对应 Anki 卡片', 'Open corresponding Anki card', '我的自定义按钮'])('recognizes a %s label from the URL', (label) => {
+		const parsed = parseCardLinkLine(`[${label}](obsidian://anki-card-link?v=2&value=100&type=nid&uid=acl-1234abcd)`);
+		expect(parsed).toMatchObject({ label, noteId: 100, uid: 'acl-1234abcd', version: 2 });
+	});
+
+	it('ignores ordinary links and invalid card-link parameters', () => {
+		expect(parseCardLinkLine('[site](https://example.com)')).toBeUndefined();
+		expect(parseCardLinkLine('[bad](obsidian://anki-card-link?type=cid&value=100&uid=acl-1234abcd&v=2)')).toBeUndefined();
+	});
+
+	it('builds the v2 link with UID and note ID', () => {
+		expect(buildCardLink(100, 'acl-1234abcd', 'Open [card]')).toBe(
+			'[Open \\[card\\]](obsidian://anki-card-link?type=nid&value=100&uid=acl-1234abcd&v=2)',
 		);
 	});
 
-	it('moves a link outside an unclosed code fence', () => {
-		const source = '命令是什么？\n?\n```shell\nps -ef\n^acl-1234abcd\n\n[打开对应 Anki 卡片](obsidian://anki-card-link?type=nid&value=100)';
-		const card = parseCards(source)[0];
-		if (card === undefined) {
-			throw new Error('Test card was not parsed.');
-		}
-		expect(ensureAnkiNoteLink(source, card, 100, '打开对应 Anki 卡片')).toBe(
-			'命令是什么？\n?\n```shell\nps -ef\n```\n^acl-1234abcd\n\n[打开对应 Anki 卡片](obsidian://anki-card-link?type=nid&value=100)',
-		);
+	it('inserts one link and remains byte-for-byte idempotent', () => {
+		const source = 'Question :: Answer';
+		const card = parseCardBlock(source)!;
+		const linked = ensureCardLink(source, card, { uid: 'acl-1234abcd', noteId: 100 }, 'Open');
+		expect(linked).toBe('Question :: Answer\n\n[Open](obsidian://anki-card-link?type=nid&value=100&uid=acl-1234abcd&v=2)');
+		const linkedCard = parseCardBlock(linked)!;
+		expect(ensureCardLink(linked, linkedCard, { uid: 'acl-1234abcd', noteId: 100 }, 'Open')).toBe(linked);
 	});
 
-	it('adds a missing blank line before an existing note link', () => {
-		const source = 'Question :: Answer\n^acl-1234abcd\n[Open corresponding Anki card](obsidian://anki-card-link?type=nid&value=100)';
-		const card = parseCards(source)[0];
-		if (card === undefined) {
-			throw new Error('Test card was not parsed.');
-		}
-		expect(ensureAnkiNoteLink(source, card, 100, 'Open corresponding Anki card')).toBe(
-			'Question :: Answer\n^acl-1234abcd\n\n[Open corresponding Anki card](obsidian://anki-card-link?type=nid&value=100)',
-		);
+	it('updates noteId while preserving UID and removes a standalone legacy ID', () => {
+		const source = 'Question :: Answer\n^acl-1234abcd\n\n[Old](obsidian://anki-card-link?type=nid&value=10)';
+		const updated = ensureCardLink(source, parseCardBlock(source)!, { uid: 'acl-1234abcd', noteId: 20 }, 'Open');
+		expect(updated).toBe('Question :: Answer\n\n[Open](obsidian://anki-card-link?type=nid&value=20&uid=acl-1234abcd&v=2)');
+		expect(updated).not.toContain('^acl-');
+	});
+
+	it('removes only an exact inline legacy ID and preserves ordinary carets', () => {
+		const source = '2 ^ 3 是什么？ :: 8 ^acl-1234abcd';
+		const updated = ensureCardLink(source, parseCardBlock(source)!, { uid: 'acl-1234abcd', noteId: 20 }, 'Open');
+		expect(updated).toContain('2 ^ 3 是什么？ :: 8');
+		expect(updated).not.toContain('^acl-1234abcd');
+	});
+
+	it('preserves CRLF and closes an unclosed fence before the link', () => {
+		const source = '问题\r\n?\r\n```shell\r\nps -ef';
+		const updated = ensureCardLink(source, parseCardBlock(source)!, { uid: 'acl-1234abcd', noteId: 20 }, 'Open');
+		expect(updated).toContain('ps -ef\r\n```\r\n\r\n[Open]');
+		expect(updated.replaceAll('\r\n', '')).not.toContain('\n');
 	});
 });

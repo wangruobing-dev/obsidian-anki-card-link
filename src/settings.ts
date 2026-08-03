@@ -1,4 +1,5 @@
 import { AnkiCardLinkError, type AnkiCardLinkSettings } from './types';
+import { DEFAULT_MULTI_LINE_SEPARATORS, DEFAULT_SINGLE_LINE_SEPARATORS } from './core/card-syntax';
 
 export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	language: 'en',
@@ -9,6 +10,8 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	copyQueryOnFailure: true,
 	defaultDeckName: 'Default',
 	useCurrentFolderAsDeck: true,
+	singleLineSeparators: DEFAULT_SINGLE_LINE_SEPARATORS,
+	multiLineSeparators: DEFAULT_MULTI_LINE_SEPARATORS,
 	basicModelName: 'Anki Card Link Basic',
 	basicTitleField: '标题',
 	basicFrontField: 'Front',
