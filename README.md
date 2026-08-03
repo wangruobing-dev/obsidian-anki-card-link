@@ -4,7 +4,7 @@
 
 [Complete setup guide](docs/setup-guide.md) | [中文完整教程](docs/setup-guide.zh-CN.md) | [Download the optional Anki note types](assets/anki/anki-card-link-note-types.apkg)
 
-Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
+Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. It supports Basic, Cloze, and dedicated single-choice/multiple-choice Markdown cards. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
 
 ## Platform scope
 
@@ -29,6 +29,24 @@ What is the JVM?::The Java Virtual Machine.
 ```
 
 Single-line cards support both `::` and `：：` by default, without requiring spaces. Multi-line basic cards use a line containing only `?` or `？`. Both separator lists are configurable, one value per line. Cloze cards use `{{c1::text}}` or `{{c1::text::hint}}`. The card and button are separated by one blank line. The button label may be customized because recognition is based on the URL, not fixed text. The button is excluded from Anki `Front`, `Back`, and `Content` fields.
+
+Multiple-choice cards use a level-three heading followed by 2–7 consecutive one-line list items:
+
+```markdown
+## Data structures
+
+### Which statements are correct【A,C,D】?
+- Option A
+- Option B
+- Option C
+- Option D
+**Explanation:**
+A, C, and D are correct.
+```
+
+Use `【B】` for single choice and forms such as `【A,C,D】`, `【ACD】`, `【A C D】`, or `【A、C、D】` for multiple choice. The question and options may have at most one blank line between them; options cannot span multiple lines. Back starts immediately after the final option and stops at the first blank line. Back may be empty. The answer marker is replaced with `【　】` in Anki Front, while the original OptionA–OptionG order is preserved. Anki templates, not this plugin, are responsible for shuffling and answer feedback.
+
+The synchronized title is the vault-relative Markdown file path without `.md`, for example `test/Calculation.md` becomes `test/Calculation`. Inline Markdown formatting is converted to Anki HTML: `**bold**` remains bold, while backticks around inline code are removed and the code style is preserved.
 
 The stable UID is stored only in the button URL, the Anki `ObsidianURI` field, and the plugin's local location index. It is not derived from the file path, title, content, line number, noteId, or cardId.
 
@@ -62,9 +80,11 @@ Legacy standalone and inline block IDs, old `obsidian://anki-card-link` note lin
 
 ## Anki fields and template
 
-Default basic fields are `标题`, `Front`, `Back`, `提示`, and `ObsidianURI`. Default Cloze fields are `Content`, `Note`, and `ObsidianURI`. The plugin does not create or modify note types or templates.
+Default basic fields are `标题`, `Front`, `Back`, `提示`, and `ObsidianURI`. Default Cloze fields are `Content`, `Note`, and `ObsidianURI`.
 
-The optional ready-to-import package is [`assets/anki/anki-card-link-note-types.apkg`](assets/anki/anki-card-link-note-types.apkg). It contains `Anki Card Link Basic`, `Enhanced Cloze 2.1 v2`, `_jquery.min.js`, and three disposable demonstration notes. Back up Anki before importing. See the [complete setup guide](docs/setup-guide.md) for exact mappings, custom-template instructions, and precautions.
+Choice cards use the existing `Multiple Choice` note type with these exact fields: `CardID`, `Title`, `Front`, `Back`, `ObsidianURL`, `OptionA`, `OptionB`, `OptionC`, `OptionD`, `OptionE`, `OptionF`, `OptionG`, and `CorrectAnswer`. `CardID` stores the stable `acl-xxxxxxxx` UID, and `CorrectAnswer` stores original option IDs such as `B` or `A,C,D`. The plugin always writes all seven option fields so removed options are cleared. It never creates or modifies note types, templates, or CSS.
+
+The optional ready-to-import package is [`assets/anki/anki-card-link-note-types.apkg`](assets/anki/anki-card-link-note-types.apkg). It contains `Anki Card Link Basic`, `Enhanced Cloze 2.1 v2`, `Multiple Choice`, `_jquery.min.js`, and four disposable demonstration notes. Back up Anki before importing. See the [complete setup guide](docs/setup-guide.md) for exact mappings, custom-template instructions, and precautions.
 
 Recommended front/back or Cloze template fragment:
 
@@ -102,10 +122,6 @@ Do not render `{{ObsidianURI}}` directly because that exposes the full URI, path
 - Obsidian Wiki-image upload to Anki media
 - Cloze next/current-number commands
 - English and Simplified Chinese UI, debug logging, and clipboard fallback
-
-## Roadmap
-
-Dedicated single-choice and multiple-choice card formats are planned for future improvement. They are not implemented yet, and no release date is promised.
 
 ## Installation and development
 

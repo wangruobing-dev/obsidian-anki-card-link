@@ -35,4 +35,6 @@ jobs:
             main.js
             manifest.json
             styles.css
+            versions.json
+            assets/anki/anki-card-link-note-types.apkg
           generate_release_notes: true

@@ -2,9 +2,17 @@
 
 ## Unreleased
 
+## 1.3.0 - 2026-08-03
+
+- Add dedicated single-choice and multiple-choice parsing with level-three headings, 2–7 ordered options, normalized A–G answers, hidden Front answers, optional Back content, fenced-code exclusion, and precise cursor/button ranges.
+- Add configurable `Multiple Choice` note-type mapping for `CardID`, `Title`, `Front`, `Back`, `ObsidianURL`, `OptionA`–`OptionG`, and `CorrectAnswer`, including explicit clearing of removed options.
+- Keep Multiple Choice optional during configuration tests so existing Basic and Cloze users remain compatible, while validating the model and all required fields when a choice card is synchronized.
+- Use the vault-relative Markdown file path without `.md` as the synchronized title, for example `test/Calculation`.
+- Convert inline Markdown bold, italic, strikethrough, and code markers to Anki HTML so formatting is preserved without exposing Markdown symbols.
+- Add English and Simplified Chinese settings, errors, documentation, automated tests, and manual checks for choice cards.
 - Add complete English and Simplified Chinese setup guides covering AnkiConnect add-on code `2055492159`, note-type import, Basic/Cloze mappings, custom templates, precautions, and troubleshooting.
-- Add an optional ready-to-import APKG containing the default Basic and Enhanced Cloze note types and demonstration cards.
-- Document configurable English/Chinese card separators, automatic Obsidian source-note tagging, and the planned single-choice/multiple-choice roadmap.
+- Add an optional ready-to-import APKG containing the default Basic, Enhanced Cloze, and Multiple Choice note types plus demonstration cards.
+- Document configurable English/Chinese card separators and automatic Obsidian source-note tagging.
 
 ## 1.2.0 - 2026-08-01
 

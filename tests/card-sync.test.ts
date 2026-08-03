@@ -5,12 +5,13 @@ import { CardSyncService, type AnkiSyncClient } from '../src/services/card-sync'
 import type { AnkiNoteInfo, AnkiNoteInput } from '../src/services/anki-connect';
 
 class FakeAnkiClient implements AnkiSyncClient {
-	modelList = ['Anki Card Link Basic', 'Enhanced Cloze 2.1 v2'];
+	modelList = ['Anki Card Link Basic', 'Enhanced Cloze 2.1 v2', 'Multiple Choice'];
 	decks = ['Default'];
 	createdDecks: string[] = [];
 	fields = new Map<string, string[]>([
 		['Anki Card Link Basic', ['标题', 'Front', 'Back', '提示', 'ObsidianURI', 'Other']],
 		['Enhanced Cloze 2.1 v2', ['Content', 'Note', 'Mnemonics', 'Extra', 'Cloze99', 'ObsidianURI']],
+		['Multiple Choice', ['CardID', 'Title', 'Front', 'Back', 'ObsidianURL', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'OptionF', 'OptionG', 'CorrectAnswer']],
 	]);
 	matchingNotesByQuery = new Map<string, number[]>();
 	noteInfoById = new Map<number, AnkiNoteInfo>();
@@ -48,6 +49,12 @@ function basicInput(extra: { noteIdHint?: number } = {}) {
 
 function service(client: FakeAnkiClient): CardSyncService {
 	return new CardSyncService(client, { ...DEFAULT_SETTINGS });
+}
+
+function choiceInput(source = '### 正确选项是【A,C,D】。\n- 选项A\n- 选项B\n- 选项C\n- 选项D\n解析') {
+	const card = parseCardBlock(source);
+	if (card?.type !== 'choice') throw new Error('Test choice card was not parsed.');
+	return { card, uid: 'acl-1234abcd', title: '选择题章节', vaultName: '我的库', filePath: 'choice.md' };
 }
 
 describe('card synchronization', () => {
@@ -125,6 +132,89 @@ describe('card synchronization', () => {
 		const client = new FakeAnkiClient();
 		client.connectionError = new Error('connection refused');
 		await expect(service(client).sync(basicInput())).rejects.toThrow(/connection refused/u);
+		expect(client.createdNotes).toHaveLength(0);
+	});
+
+	it('creates a choice note with stable UID, original option order, and all mapped fields', async () => {
+		const client = new FakeAnkiClient();
+		await expect(service(client).sync(choiceInput())).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]).toMatchObject({
+			modelName: 'Multiple Choice',
+			tags: ['anki-card-link'],
+			fields: {
+				CardID: 'acl-1234abcd',
+				Title: '选择题章节',
+				Front: '正确选项是【　】。',
+				Back: '解析',
+				OptionA: '选项A',
+				OptionB: '选项B',
+				OptionC: '选项C',
+				OptionD: '选项D',
+				OptionE: '',
+				OptionF: '',
+				OptionG: '',
+				CorrectAnswer: 'A,C,D',
+			},
+		});
+		expect(client.createdNotes[0]?.fields.ObsidianURL).toContain('uid=acl-1234abcd');
+	});
+
+	it('updates a choice note and clears OptionE through OptionG', async () => {
+		const client = new FakeAnkiClient();
+		client.matchingNotesByQuery.set('tag:anki-card-link', [700]);
+		client.noteInfoById.set(700, {
+			noteId: 700,
+			modelName: 'Multiple Choice',
+			tags: ['anki-card-link'],
+			fields: { ObsidianURL: { order: 4, value: 'obsidian://anki-card-link-open?v=2&vault=v&path=a&uid=acl-1234abcd' } },
+		});
+		await expect(service(client).sync(choiceInput('### 四项【B】\n- A\n- B\n- C\n- D'))).resolves.toEqual({ status: 'updated', noteId: 700 });
+		expect(client.updatedNotes[0]?.fields).toMatchObject({ CardID: 'acl-1234abcd', OptionA: 'A', OptionD: 'D', OptionE: '', OptionF: '', OptionG: '', CorrectAnswer: 'B' });
+		expect(client.updatedNotes[0]?.fields).not.toHaveProperty('ObsidianURI');
+	});
+
+	it('validates a choice noteId hint through ObsidianURL instead of the Basic URI field', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(701, {
+			noteId: 701,
+			modelName: 'Multiple Choice',
+			tags: ['anki-card-link'],
+			fields: {
+				ObsidianURI: { order: 4, value: 'obsidian://anki-card-link-open?v=2&uid=acl-1234abcd' },
+				ObsidianURL: { order: 5, value: 'obsidian://anki-card-link-open?v=2&uid=acl-87654321' },
+			},
+		});
+		client.matchingNotesByQuery.set('tag:anki-card-link', [702]);
+		client.noteInfoById.set(702, {
+			noteId: 702,
+			modelName: 'Multiple Choice',
+			tags: ['anki-card-link'],
+			fields: { ObsidianURL: { order: 5, value: 'obsidian://anki-card-link-open?v=2&uid=acl-1234abcd' } },
+		});
+		await expect(service(client).sync({ ...choiceInput(), noteIdHint: 701 })).resolves.toEqual({ status: 'updated', noteId: 702 });
+	});
+
+	it('converts an image option using uploaded Anki media', async () => {
+		const client = new FakeAnkiClient();
+		const input = choiceInput('### 图片题【A】\n- ![[choice.png]]\n- 文本');
+		await service(client).sync({ ...input, imageMedia: new Map([['choice.png', 'anki-card-link-image.png']]) });
+		expect(client.createdNotes[0]?.fields.OptionA).toBe('<img src="anki-card-link-image.png">');
+	});
+
+	it('keeps Basic and Cloze usable when the optional choice model is missing', async () => {
+		const client = new FakeAnkiClient();
+		client.modelList = client.modelList.filter((model) => model !== 'Multiple Choice');
+		await expect(service(client).sync(basicInput())).resolves.toEqual({ status: 'created', noteId: 100 });
+		const configuration = await service(client).testConfiguration();
+		expect(configuration.basicModelFields).toContain('Front');
+		expect(configuration.clozeModelFields).toContain('Content');
+		expect(configuration.choiceWarning?.code).toBe('CHOICE_MODEL_NOT_FOUND');
+	});
+
+	it('reports a missing required choice field without writing', async () => {
+		const client = new FakeAnkiClient();
+		client.fields.set('Multiple Choice', client.fields.get('Multiple Choice')!.filter((field) => field !== 'CorrectAnswer'));
+		await expect(service(client).sync(choiceInput())).rejects.toMatchObject({ code: 'CHOICE_FIELD_NOT_FOUND' });
 		expect(client.createdNotes).toHaveLength(0);
 	});
 });

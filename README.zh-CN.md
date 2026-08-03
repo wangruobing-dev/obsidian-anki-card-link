@@ -7,7 +7,7 @@
 Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 - 在 Windows、macOS、Linux、Android、iOS/iPadOS 上通过 `obsidian://anki-card-link` 打开对应的 Anki 搜索；
-- 在桌面端把 Markdown 正反面卡片和 Cloze 卡片单向同步到 Anki；
+- 在桌面端把 Markdown 正反面卡片、Cloze 卡片和选择题单向同步到 Anki；
 - 通过插件自己的 `obsidian://anki-card-link-open` 协议，从 Anki 打开 Obsidian 原文件并定位到卡片正文。
 
 1.2.0 起，新同步卡片不再依赖 Advanced URI，也不再显示独立的 `^acl-xxxxxxxx` 块 ID。
@@ -64,6 +64,20 @@ Java 的 {{c1::垃圾回收器}} 可以自动管理内存。
 [打开对应 Anki 卡片](obsidian://anki-card-link?type=nid&value=1754000000000&uid=acl-6a0f08df&v=2)
 ```
 
+选择题：
+
+```markdown
+## 线性表
+
+### 下列说法正确的有【A,C,D】。
+- 选项A
+- 选项B
+- 选项C
+- 选项D
+**解析：**
+A、C、D 正确。
+```
+
 规则：
 
 - 卡片内容与按钮之间固定保留一个空行；
@@ -72,6 +86,12 @@ Java 的 {{c1::垃圾回收器}} 可以自动管理内存。
 - 按钮行不会进入 Anki 的 `Front`、`Back` 或 `Content`；
 - 单行默认支持 `::` 和 `：：`，两边不需要空格；多行默认支持单独一行的 `?` 和 `？`；两类分隔符都可以在设置中逐行自定义；Cloze 支持 `{{c1::内容}}` 和 `{{c1::内容::提示}}`；
 - 卡片之间使用空行分隔，围栏代码块中的空行会保留。
+- 选择题必须以 `### ` 开头，紧跟 2～7 个连续的单行无序列表选项；题目和第一项之间最多允许一个空行，选项不能跨多行；
+- 单选写作 `【B】`，多选可写 `【A,C,D】`、`【ACD】`、`【A C D】` 或 `【A、C、D】`；
+- Back 必须紧接最后一个选项，读取到第一个空行为止，也可以为空；同步到 Anki 的 Front 会把答案隐藏为 `【　】`；
+- OptionA～OptionG 严格保持 Markdown 原始顺序，随机打乱和答题判色由 Anki 模板负责。
+- 同步后的标题为 Vault 内的相对文件路径，并去掉 `.md`；例如 `test/Calculation.md` 写入 `test/Calculation`。
+- Markdown 行内样式会转换为 Anki HTML：`**加粗**` 保持加粗，行内代码两侧的反引号不会显示，但保留代码样式。
 
 ## 同步流程
 
@@ -129,9 +149,11 @@ obsidian://anki-card-link-open?v=2&vault=若冰的知识库&filePath=test%2Flinu
 
 ## Anki 字段与模板
 
-正反面默认字段：`标题`、`Front`、`Back`、`提示`、`ObsidianURI`。Cloze 默认写入 `Content`、`Note`、`ObsidianURI`。插件不会创建或修改笔记类型和模板。
+正反面默认字段：`标题`、`Front`、`Back`、`提示`、`ObsidianURI`。Cloze 默认写入 `Content`、`Note`、`ObsidianURI`。
 
-可以直接下载并导入 [`assets/anki/anki-card-link-note-types.apkg`](assets/anki/anki-card-link-note-types.apkg)。模板包包含 `Anki Card Link Basic`、`Enhanced Cloze 2.1 v2`、`_jquery.min.js` 和三张可删除的演示卡片。导入前请备份 Anki。字段映射、自选填空模板、背面模板和注意事项请阅读[中文完整安装教程](docs/setup-guide.zh-CN.md)。
+选择题使用已经存在的 `Multiple Choice` 笔记类型，字段名称严格为：`CardID`、`Title`、`Front`、`Back`、`ObsidianURL`、`OptionA`、`OptionB`、`OptionC`、`OptionD`、`OptionE`、`OptionF`、`OptionG`、`CorrectAnswer`。`CardID` 写入稳定 UID，`CorrectAnswer` 按原始选项编号写成 `B` 或 `A,C,D`。更新时插件会明确写入全部 OptionA～OptionG，已删除的选项会被清空。插件不会创建或修改笔记类型、模板和 CSS。
+
+可以直接下载并导入 [`assets/anki/anki-card-link-note-types.apkg`](assets/anki/anki-card-link-note-types.apkg)。模板包包含 `Anki Card Link Basic`、`Enhanced Cloze 2.1 v2`、`Multiple Choice`、`_jquery.min.js` 和四张可删除的演示卡片。导入前请备份 Anki。字段映射、自选填空模板、背面模板和注意事项请阅读[中文完整安装教程](docs/setup-guide.zh-CN.md)。
 
 在正反面或 Cloze 模板中推荐加入：
 
@@ -171,10 +193,6 @@ obsidian://anki-card-link-open?v=2&vault=若冰的知识库&filePath=test%2Flinu
 - Obsidian Wiki 图片上传到 Anki 媒体库；
 - Cloze 新编号/沿用编号命令；
 - 中英文界面、调试日志、打开失败复制查询。
-
-## 后续计划
-
-单选题和多选题目前尚未实现，后续会继续完善专用语法、字段映射、Anki 模板与自动测试，但暂不承诺具体发布时间。
 
 ## 常见错误
 

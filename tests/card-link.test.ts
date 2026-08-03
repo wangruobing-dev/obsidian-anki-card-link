@@ -48,4 +48,13 @@ describe('card links in Markdown', () => {
 		expect(updated).toContain('ps -ef\r\n```\r\n\r\n[Open]');
 		expect(updated.replaceAll('\r\n', '')).not.toContain('\n');
 	});
+
+	it('keeps exactly one v2 link for a choice card', () => {
+		const source = '## 章节\n### 题目【B】。\n- A\n- B\n解析';
+		const card = parseCardBlock(source)!;
+		const linked = ensureCardLink(source, card, { uid: 'acl-1234abcd', noteId: 100 }, 'Open');
+		expect(linked.match(/obsidian:\/\/anki-card-link/gu)).toHaveLength(1);
+		const linkedCard = parseCardBlock(linked)!;
+		expect(ensureCardLink(linked, linkedCard, { uid: 'acl-1234abcd', noteId: 100 }, 'Open')).toBe(linked);
+	});
 });

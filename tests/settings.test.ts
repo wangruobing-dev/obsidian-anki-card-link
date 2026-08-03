@@ -9,6 +9,10 @@ describe('default settings', () => {
 		expect(DEFAULT_SETTINGS.clozeContentField).toBe('Content');
 		expect(DEFAULT_SETTINGS.clozeTitleField).toBe('Note');
 		expect(DEFAULT_SETTINGS.clozeObsidianUriField).toBe('ObsidianURI');
+		expect(DEFAULT_SETTINGS.choiceModelName).toBe('Multiple Choice');
+		expect(DEFAULT_SETTINGS.choiceCardIdField).toBe('CardID');
+		expect(DEFAULT_SETTINGS.choiceObsidianUrlField).toBe('ObsidianURL');
+		expect(DEFAULT_SETTINGS.choiceCorrectAnswerField).toBe('CorrectAnswer');
 		expect(DEFAULT_SETTINGS.useCurrentFolderAsDeck).toBe(true);
 	});
 });

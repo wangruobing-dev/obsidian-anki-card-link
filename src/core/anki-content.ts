@@ -51,21 +51,41 @@ export function toAnkiHtml(markdown: string, imageMedia?: ReadonlyMap<string, st
 }
 
 function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string, string>): string {
+	const atomicHtml: string[] = [];
+	const placeholder = (html: string): string => {
+		const index = atomicHtml.push(html) - 1;
+		return `\u0000anki-card-link-${index}\u0000`;
+	};
 	const parts: string[] = [];
 	let offset = 0;
-	for (const match of markdown.matchAll(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/gu)) {
-		const source = match[1]?.trim();
+	for (const match of markdown.matchAll(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|(`+)([^\n]*?)\2/gu)) {
 		const matchIndex = match.index;
-		if (source === undefined || matchIndex === undefined) {
+		if (matchIndex === undefined) {
 			continue;
 		}
-		parts.push(escapeHtml(markdown.slice(offset, matchIndex)));
-		const mediaFilename = imageMedia?.get(source);
-		parts.push(mediaFilename === undefined ? escapeHtml(match[0]) : `<img src="${escapeHtml(mediaFilename)}">`);
+		parts.push(markdown.slice(offset, matchIndex));
+		const source = match[1]?.trim();
+		if (source !== undefined) {
+			const mediaFilename = imageMedia?.get(source);
+			parts.push(mediaFilename === undefined ? match[0] : placeholder(`<img src="${escapeHtml(mediaFilename)}">`));
+		} else {
+			parts.push(placeholder(`<code>${escapeHtml(match[3] ?? '')}</code>`));
+		}
 		offset = matchIndex + match[0].length;
 	}
-	parts.push(escapeHtml(markdown.slice(offset)));
-	return parts.join('').replaceAll('\n', '<br>');
+	parts.push(markdown.slice(offset));
+
+	let html = escapeHtml(parts.join(''))
+		.replace(/\*\*([^*\n]+)\*\*/gu, '<strong>$1</strong>')
+		.replace(/__([^_\n]+)__/gu, '<strong>$1</strong>')
+		.replace(/~~([^~\n]+)~~/gu, '<s>$1</s>')
+		.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/gu, '<em>$1</em>')
+		.replace(/(?<!_)_([^_\n]+)_(?!_)/gu, '<em>$1</em>')
+		.replaceAll('\n', '<br>');
+	for (const [index, value] of atomicHtml.entries()) {
+		html = html.replaceAll(`\u0000anki-card-link-${index}\u0000`, value);
+	}
+	return html;
 }
 
 function renderCodeBlock(codeBlock: { language?: string; lines: string[] }): string {

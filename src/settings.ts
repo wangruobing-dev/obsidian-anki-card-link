@@ -22,6 +22,20 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	clozeContentField: 'Content',
 	clozeTitleField: 'Note',
 	clozeObsidianUriField: 'ObsidianURI',
+	choiceModelName: 'Multiple Choice',
+	choiceCardIdField: 'CardID',
+	choiceTitleField: 'Title',
+	choiceFrontField: 'Front',
+	choiceBackField: 'Back',
+	choiceObsidianUrlField: 'ObsidianURL',
+	choiceOptionAField: 'OptionA',
+	choiceOptionBField: 'OptionB',
+	choiceOptionCField: 'OptionC',
+	choiceOptionDField: 'OptionD',
+	choiceOptionEField: 'OptionE',
+	choiceOptionFField: 'OptionF',
+	choiceOptionGField: 'OptionG',
+	choiceCorrectAnswerField: 'CorrectAnswer',
 };
 
 export function normalizeAnkiConnectUrl(value: string): string {

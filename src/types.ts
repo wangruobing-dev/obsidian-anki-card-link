@@ -27,6 +27,20 @@ export interface AnkiCardLinkSettings {
 	clozeContentField: string;
 	clozeTitleField: string;
 	clozeObsidianUriField: string;
+	choiceModelName: string;
+	choiceCardIdField: string;
+	choiceTitleField: string;
+	choiceFrontField: string;
+	choiceBackField: string;
+	choiceObsidianUrlField: string;
+	choiceOptionAField: string;
+	choiceOptionBField: string;
+	choiceOptionCField: string;
+	choiceOptionDField: string;
+	choiceOptionEField: string;
+	choiceOptionFField: string;
+	choiceOptionGField: string;
+	choiceCorrectAnswerField: string;
 }
 
 export interface SearchInput {
@@ -54,6 +68,15 @@ export type ErrorCode =
 	| 'EMPTY_FRONT'
 	| 'EMPTY_BACK'
 	| 'INVALID_CLOZE'
+	| 'CHOICE_TOO_FEW_OPTIONS'
+	| 'CHOICE_TOO_MANY_OPTIONS'
+	| 'CHOICE_EMPTY_ANSWER'
+	| 'CHOICE_INVALID_ANSWER'
+	| 'CHOICE_DUPLICATE_ANSWER'
+	| 'CHOICE_ANSWER_OUT_OF_RANGE'
+	| 'CHOICE_EMPTY_OPTION'
+	| 'CHOICE_MODEL_NOT_FOUND'
+	| 'CHOICE_FIELD_NOT_FOUND'
 	| 'MODEL_NOT_FOUND'
 	| 'FIELD_NOT_FOUND'
 	| 'EMPTY_DECK'

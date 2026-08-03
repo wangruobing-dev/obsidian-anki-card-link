@@ -7,6 +7,7 @@ describe('localized strings', () => {
 		expect(getStrings('en').settings.language).toBe('Language');
 		expect(getStrings('zh-CN').settings.language).toBe('界面语言');
 		expect(getStrings('zh-CN').searchTypes.nid).toBe('笔记 ID');
+		expect(getStrings('zh-CN').settings.choiceConfiguration).toBe('选择题卡片');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {
@@ -23,5 +24,9 @@ describe('localized strings', () => {
 		expect(getLocalizedErrorMessage(connectError, 'zh-CN')).toBe(
 			'AnkiConnect 返回错误：invalid query',
 		);
+		expect(getLocalizedErrorMessage(
+			new AnkiCardLinkError('CHOICE_ANSWER_OUT_OF_RANGE', 'Multiple-choice correct answer is outside the available option range.'),
+			'zh-CN',
+		)).toBe('选择题正确答案超出了现有选项范围。');
 	});
 });

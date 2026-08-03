@@ -31,6 +31,8 @@ export interface CardSyncInput {
 export interface SyncConfigurationResult {
 	basicModelFields: string[];
 	clozeModelFields: string[];
+	choiceModelFields?: string[];
+	choiceWarning?: AnkiCardLinkError;
 }
 
 export type CardSyncStatus = 'created' | 'updated';
@@ -55,7 +57,15 @@ export class CardSyncService {
 		const models = await this.anki.modelNames();
 		const basicModelFields = await this.validateBasicConfiguration(models);
 		const clozeModelFields = await this.validateClozeConfiguration(models);
-		return { basicModelFields, clozeModelFields };
+		try {
+			const choiceModelFields = await this.validateChoiceConfiguration(models);
+			return { basicModelFields, clozeModelFields, choiceModelFields };
+		} catch (error) {
+			if (error instanceof AnkiCardLinkError && ['CHOICE_MODEL_NOT_FOUND', 'CHOICE_FIELD_NOT_FOUND'].includes(error.code)) {
+				return { basicModelFields, clozeModelFields, choiceWarning: error };
+			}
+			throw error;
+		}
 	}
 
 	async sync(input: CardSyncInput): Promise<CardSyncResult> {
@@ -66,7 +76,9 @@ export class CardSyncService {
 		const models = await this.anki.modelNames();
 		const fields = input.card.type === 'basic'
 			? await this.validateBasicConfiguration(models)
-			: await this.validateClozeConfiguration(models);
+			: input.card.type === 'cloze'
+				? await this.validateClozeConfiguration(models)
+				: await this.validateChoiceConfiguration(models);
 		const uidTag = `anki-card-link::${input.uid}`;
 		const fieldsToSync = this.buildFields(input);
 		const { noteIds: existing, removeLegacyTag } = await this.findExistingNotes(input, uidTag);
@@ -78,7 +90,7 @@ export class CardSyncService {
 			const deckName = await this.ensureDeck(input);
 			const noteId = await this.anki.addNote({
 				deckName,
-				modelName: input.card.type === 'basic' ? this.settings.basicModelName : this.settings.clozeModelName,
+				modelName: this.getModelName(input.card.type),
 				fields: this.buildCreateFields(input, fieldsToSync, fields),
 				tags: ['anki-card-link'],
 			});
@@ -101,10 +113,18 @@ export class CardSyncService {
 		input: CardSyncInput,
 		uidTag: string,
 	): Promise<{ noteIds: number[]; removeLegacyTag: boolean }> {
+		const uriField = input.card.type === 'basic'
+			? this.settings.basicObsidianUriField
+			: input.card.type === 'cloze'
+				? this.settings.clozeObsidianUriField
+				: this.settings.choiceObsidianUrlField;
 		if (input.noteIdHint !== undefined) {
 			const notes = await this.anki.notesInfo([input.noteIdHint]);
 			const hinted = notes.find((note) => note.noteId === input.noteIdHint);
-			if (hinted !== undefined && noteHasUid(hinted, input.uid)) {
+			const hintMatches = hinted !== undefined && (input.card.type === 'choice'
+				? uriHasUid(hinted.fields[uriField]?.value ?? '', input.uid)
+				: noteHasUid(hinted, input.uid));
+			if (hinted !== undefined && hintMatches) {
 				return { noteIds: [hinted.noteId], removeLegacyTag: hinted.tags.includes(uidTag) };
 			}
 		}
@@ -113,9 +133,6 @@ export class CardSyncService {
 			return { noteIds: legacyMatches, removeLegacyTag: true };
 		}
 
-		const uriField = input.card.type === 'basic'
-			? this.settings.basicObsidianUriField
-			: this.settings.clozeObsidianUriField;
 		const taggedNotes = await this.anki.findNotes('tag:anki-card-link');
 		const matches: number[] = [];
 		for (let start = 0; start < taggedNotes.length; start += 50) {
@@ -159,6 +176,23 @@ export class CardSyncService {
 		return fields;
 	}
 
+	private async validateChoiceConfiguration(models: string[]): Promise<string[]> {
+		if (!models.includes(this.settings.choiceModelName)) {
+			throw new AnkiCardLinkError('CHOICE_MODEL_NOT_FOUND', `Multiple Choice note type was not found: ${this.settings.choiceModelName}.`);
+		}
+		const fields = await this.anki.modelFieldNames(this.settings.choiceModelName);
+		this.requireChoiceFields(fields, [
+			this.settings.choiceCardIdField,
+			this.settings.choiceTitleField,
+			this.settings.choiceFrontField,
+			this.settings.choiceBackField,
+			this.settings.choiceObsidianUrlField,
+			...this.getChoiceOptionFields(),
+			this.settings.choiceCorrectAnswerField,
+		]);
+		return fields;
+	}
+
 	private requireFields(existing: string[], required: string[]): void {
 		for (const field of required) {
 			if (field.trim().length === 0) {
@@ -166,6 +200,14 @@ export class CardSyncService {
 			}
 			if (!existing.includes(field)) {
 				throw new AnkiCardLinkError('FIELD_NOT_FOUND', `Anki field was not found: ${field}.`);
+			}
+		}
+	}
+
+	private requireChoiceFields(existing: string[], required: string[]): void {
+		for (const field of required) {
+			if (field.trim().length === 0 || !existing.includes(field)) {
+				throw new AnkiCardLinkError('CHOICE_FIELD_NOT_FOUND', `Multiple Choice field was not found: ${field || '(empty setting)'}.`);
 			}
 		}
 	}
@@ -220,6 +262,20 @@ export class CardSyncService {
 			}
 			return fields;
 		}
+		if (input.card.type === 'choice') {
+			const fields: Record<string, string> = {
+				[this.settings.choiceCardIdField]: input.uid,
+				[this.settings.choiceTitleField]: toAnkiHtml(input.title),
+				[this.settings.choiceFrontField]: toAnkiHtml(input.card.front, input.imageMedia),
+				[this.settings.choiceBackField]: toAnkiHtml(input.card.back, input.imageMedia),
+				[this.settings.choiceObsidianUrlField]: uri,
+				[this.settings.choiceCorrectAnswerField]: input.card.correctAnswers.join(','),
+			};
+			for (const [index, field] of this.getChoiceOptionFields().entries()) {
+				fields[field] = toAnkiHtml(input.card.options[index] ?? '', input.imageMedia);
+			}
+			return fields;
+		}
 
 		if (input.card.front === undefined || input.card.back === undefined) {
 			throw new AnkiCardLinkError('INVALID_CARD', 'Basic card fields are missing.');
@@ -242,6 +298,25 @@ export class CardSyncService {
 			createdFields[this.settings.basicHintField] = '';
 		}
 		return { ...createdFields, ...fieldsToSync };
+	}
+
+	private getModelName(type: ParsedCard['type']): string {
+		if (type === 'basic') {
+			return this.settings.basicModelName;
+		}
+		return type === 'cloze' ? this.settings.clozeModelName : this.settings.choiceModelName;
+	}
+
+	private getChoiceOptionFields(): string[] {
+		return [
+			this.settings.choiceOptionAField,
+			this.settings.choiceOptionBField,
+			this.settings.choiceOptionCField,
+			this.settings.choiceOptionDField,
+			this.settings.choiceOptionEField,
+			this.settings.choiceOptionFField,
+			this.settings.choiceOptionGField,
+		];
 	}
 }
 

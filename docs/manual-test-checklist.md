@@ -1,6 +1,6 @@
 # Manual platform test checklist
 
-Complete this checklist before publishing version 1.2.0. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+Complete this checklist before publishing version 1.3.0. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
 
 ## Windows/macOS/Linux + Anki Desktop
 
@@ -9,6 +9,17 @@ Complete this checklist before publishing version 1.2.0. Record the Obsidian, An
 - [ ] First sync creates an Anki note before writing one v2 button; no standalone `^acl-xxxxxxxx` remains.
 - [ ] A second sync updates the same note and does not scan all tagged notes when the button noteId is valid.
 - [ ] Single-line basic, multi-line basic, Cloze, fenced code, and Wiki images retain their expected Anki content.
+- [ ] A single-choice card and a multiple-choice card create notes using `Multiple Choice` and all 13 configured fields.
+- [ ] Choice Front hides the answer as `【　】`; OptionA–OptionG preserve Markdown order; `CorrectAnswer` uses values such as `B` or `A,C,D`.
+- [ ] Title uses the vault-relative file path without `.md`, for example `test/Calculation`.
+- [ ] Bold and inline-code Markdown render with their original styles in Anki without visible `**` or backtick markers.
+- [ ] Choice cards with 2 and 7 options synchronize; fewer than 2, more than 7, duplicate/invalid/out-of-range answers, and empty options show understandable errors.
+- [ ] Choice Back stops at the first blank line and may be empty; the cursor can sync from the question, any option, Back, or the existing button.
+- [ ] Changing a synchronized choice card from 7 options to 4 clears OptionE, OptionF, and OptionG in Anki.
+- [ ] A Wiki image in a choice option is uploaded as binary Anki media and rendered through an `<img>` field value.
+- [ ] A choice-like heading inside a fenced code block and an ordinary `###` heading/list are not synchronized.
+- [ ] During whole-file sync, one malformed choice increments the failure count while later valid Basic, Cloze, and choice cards continue.
+- [ ] Without a `Multiple Choice` model, plugin load, Basic/Cloze sync, navigation, and the original configuration checks remain usable; syncing a choice shows a model warning/error.
 - [ ] The button line is absent from `Front`, `Back`, and `Content`.
 - [ ] Stopping Anki before first sync leaves the Markdown card byte-for-byte unchanged.
 - [ ] Simulated Markdown write failure reports the Anki noteId and UID and does not delete the Anki note.
@@ -43,6 +54,7 @@ Complete this checklist before publishing version 1.2.0. Record the Obsidian, An
 ## Data and performance
 
 - [ ] An existing flat settings file loads with language, endpoint, deck, model, field mapping, label, and debug values preserved.
+- [ ] An old settings file without choice keys receives all Multiple Choice defaults without losing existing values.
 - [ ] A subsequent save writes V2 data containing both `settings` and `cardLocations`.
 - [ ] Plugin startup does not scan Markdown files.
 - [ ] Normal source navigation reads only the target Markdown file.

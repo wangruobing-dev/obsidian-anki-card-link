@@ -27,4 +27,11 @@ describe('Anki HTML content conversion', () => {
 			),
 		).toBe('答案 <img src="anki-card-link-12345678.png">');
 	});
+
+	it('renders inline Markdown styles without exposing their markers', () => {
+		expect(toAnkiHtml('**解析：**\n时间复杂度是 `O(1)`，不是 ``O(n)``。')).toBe(
+			'<strong>解析：</strong><br>时间复杂度是 <code>O(1)</code>，不是 <code>O(n)</code>。',
+		);
+		expect(toAnkiHtml('*斜体* __粗体__ ~~删除~~')).toBe('<em>斜体</em> <strong>粗体</strong> <s>删除</s>');
+	});
 });

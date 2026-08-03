@@ -49,6 +49,7 @@ const ENGLISH_STRINGS = {
 		useCurrentFolderAsDeckDesc: 'Uses the current note\'s full folder path with :: hierarchy. Anki creates the deck when needed.',
 		basicModelName: 'Basic note type',
 		basicModelNameDesc: 'The existing Anki note type used for front and back cards.',
+		basicConfiguration: 'Basic cards',
 		basicTitleField: 'Title field',
 		basicFrontField: 'Front field',
 		basicBackField: 'Back field',
@@ -56,11 +57,22 @@ const ENGLISH_STRINGS = {
 		basicObsidianUriField: 'Obsidian URI field',
 		clozeModelName: 'Cloze note type',
 		clozeModelNameDesc: 'Enhanced Cloze must be installed and prepared by you.',
+		clozeConfiguration: 'Cloze cards',
 		clozeContentField: 'Cloze Content field',
 		clozeTitleField: 'Cloze title field',
 		clozeTitleFieldDesc: 'Stores the nearest Markdown heading, or the filename when there is no heading.',
 		clozeObsidianUriField: 'Cloze Obsidian URI field',
 		clozeObsidianUriFieldDesc: 'Stores an Anki Card Link URI that opens the original Obsidian card.',
+		choiceConfiguration: 'Multiple-choice cards',
+		choiceModelName: 'Multiple-choice note type',
+		choiceModelNameDesc: 'The existing note type used for choice cards. The plugin never creates or changes it.',
+		choiceCardIdField: 'Card ID field',
+		choiceTitleField: 'Choice title field',
+		choiceFrontField: 'Choice front field',
+		choiceBackField: 'Choice back field',
+		choiceObsidianUrlField: 'Choice Obsidian URL field',
+		choiceOptionField: (id: string) => `Option ${id} field`,
+		choiceCorrectAnswerField: 'Correct answer field',
 		testSyncConfiguration: 'Test synchronization configuration',
 		testSyncConfigurationDesc: 'Checks AnkiConnect, note types, and configured fields without changing Anki data.',
 		defaultLinkText: 'Default link text',
@@ -78,6 +90,7 @@ const ENGLISH_STRINGS = {
 		clipboardFailed: 'The search failed, and the query could not be copied to the clipboard.',
 		connectionOk: 'Connected to AnkiConnect.',
 		syncConfigurationOk: 'Synchronization configuration is valid.',
+		syncConfigurationChoiceWarning: (message: string) => `Basic and Cloze configuration is valid. Multiple-choice cards are optional and are not ready: ${message}`,
 		cardCreated: 'Created an Anki note for the current card.',
 		cardUpdated: 'Updated the Anki note for the current card.',
 		sourceOpenedWithoutPosition: 'The file was opened, but the current view could not position the card precisely.',
@@ -136,6 +149,7 @@ const CHINESE_STRINGS = {
 		useCurrentFolderAsDeckDesc: '使用当前笔记的完整文件夹路径，并以 :: 表示层级；牌组不存在时由 Anki 自动创建。',
 		basicModelName: '正反面笔记类型',
 		basicModelNameDesc: '用于正反面卡片的已有 Anki 笔记类型。',
+		basicConfiguration: '正反面卡片',
 		basicTitleField: '标题字段',
 		basicFrontField: 'Front 字段',
 		basicBackField: 'Back 字段',
@@ -143,11 +157,22 @@ const CHINESE_STRINGS = {
 		basicObsidianUriField: 'Obsidian URI 字段',
 		clozeModelName: 'Cloze 笔记类型',
 		clozeModelNameDesc: 'Enhanced Cloze 需要由你自行安装并准备。',
+		clozeConfiguration: 'Cloze 卡片',
 		clozeContentField: 'Cloze Content 字段',
 		clozeTitleField: 'Cloze 标题字段',
 		clozeTitleFieldDesc: '写入卡片上方最近的 Markdown 标题；没有标题时写入文件名。',
 		clozeObsidianUriField: 'Cloze Obsidian URI 字段',
 		clozeObsidianUriFieldDesc: '写入由 Anki Card Link 打开并定位原卡片的 URI。',
+		choiceConfiguration: '选择题卡片',
+		choiceModelName: '选择题笔记类型',
+		choiceModelNameDesc: '用于选择题的已有 Anki 笔记类型；插件不会创建或修改该笔记类型。',
+		choiceCardIdField: '卡片 UID 字段',
+		choiceTitleField: '选择题标题字段',
+		choiceFrontField: '选择题 Front 字段',
+		choiceBackField: '选择题 Back 字段',
+		choiceObsidianUrlField: '选择题 Obsidian URL 字段',
+		choiceOptionField: (id: string) => `选项 ${id} 字段`,
+		choiceCorrectAnswerField: '正确答案字段',
 		testSyncConfiguration: '测试同步配置',
 		testSyncConfigurationDesc: '检查 AnkiConnect、笔记类型和配置字段，不会修改 Anki 数据。',
 		defaultLinkText: '默认链接文字',
@@ -165,6 +190,7 @@ const CHINESE_STRINGS = {
 		clipboardFailed: '搜索打开失败，并且无法将查询语句复制到剪贴板。',
 		connectionOk: '已连接到 AnkiConnect。',
 		syncConfigurationOk: '同步配置有效。',
+		syncConfigurationChoiceWarning: (message: string) => `正反面和 Cloze 配置有效。选择题为可选功能，目前尚未就绪：${message}`,
 		cardCreated: '已为当前卡片创建 Anki 笔记。',
 		cardUpdated: '已更新当前卡片对应的 Anki 笔记。',
 		sourceOpenedWithoutPosition: '已打开文件，但当前视图无法精确定位到卡片。',
@@ -205,6 +231,13 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 		'Card back cannot be empty.': '卡片背面不能为空。',
 		'Cloze card does not contain a valid cloze deletion.': 'Cloze 卡片中没有合法的挖空。',
 		'Cloze card does not contain content.': 'Cloze 卡片中没有内容。',
+		'Multiple-choice card must contain at least 2 options.': '选择题至少需要 2 个选项。',
+		'Multiple-choice card cannot contain more than 7 options.': '选择题最多只能有 7 个选项。',
+		'Multiple-choice correct answer cannot be empty.': '选择题正确答案不能为空。',
+		'Multiple-choice correct answer can contain only A-G and supported separators.': '选择题正确答案只能包含 A-G 和允许的分隔符。',
+		'Multiple-choice correct answer contains a duplicate option.': '选择题正确答案中存在重复选项。',
+		'Multiple-choice correct answer is outside the available option range.': '选择题正确答案超出了现有选项范围。',
+		'Multiple-choice option content cannot be empty.': '选择题选项内容不能为空。',
 		'Default deck name cannot be empty.': '默认牌组名称不能为空。',
 		'The Obsidian source URI is invalid.': 'Obsidian 来源链接无效。',
 		'The Obsidian source URI uses an invalid protocol action.': 'Obsidian 来源链接使用了无效的协议动作。',
@@ -240,6 +273,16 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 	const fieldPrefix = 'Anki field was not found: ';
 	if (error.message.startsWith(fieldPrefix)) {
 		return `未找到 Anki 字段：${error.message.slice(fieldPrefix.length)}`;
+	}
+
+	const choiceModelPrefix = 'Multiple Choice note type was not found: ';
+	if (error.message.startsWith(choiceModelPrefix)) {
+		return `未找到选择题 Anki 笔记类型：${error.message.slice(choiceModelPrefix.length)}`;
+	}
+
+	const choiceFieldPrefix = 'Multiple Choice field was not found: ';
+	if (error.message.startsWith(choiceFieldPrefix)) {
+		return `未找到选择题 Anki 字段：${error.message.slice(choiceFieldPrefix.length)}`;
 	}
 
 	const duplicatePrefix = 'More than one Anki note uses ';

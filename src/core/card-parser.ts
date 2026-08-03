@@ -4,10 +4,10 @@ import { hasUnclosedCodeFence } from './markdown-fence';
 import { AnkiCardLinkError } from '../types';
 import { DEFAULT_CARD_SYNTAX, type CardSyntax } from './card-syntax';
 
-export type ParsedCardType = 'basic' | 'cloze';
+export type ChoiceOptionId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+export type ParsedCardType = 'basic' | 'cloze' | 'choice';
 
-export interface ParsedCard {
-	type: ParsedCardType;
+interface ParsedCardBase {
 	startLine: number;
 	endLine: number;
 	contentEndLine: number;
@@ -16,10 +16,28 @@ export interface ParsedCard {
 	linkLine?: number;
 	legacyBlockId?: string;
 	legacyBlockIdInline?: boolean;
-	front?: string;
-	back?: string;
-	content?: string;
 }
+
+export interface ParsedBasicCard extends ParsedCardBase {
+	type: 'basic';
+	front: string;
+	back: string;
+}
+
+export interface ParsedClozeCard extends ParsedCardBase {
+	type: 'cloze';
+	content: string;
+}
+
+export interface ParsedChoiceCard extends ParsedCardBase {
+	type: 'choice';
+	front: string;
+	back: string;
+	options: string[];
+	correctAnswers: ChoiceOptionId[];
+}
+
+export type ParsedCard = ParsedBasicCard | ParsedClozeCard | ParsedChoiceCard;
 
 export interface CardParseCandidate {
 	startLine: number;
@@ -44,6 +62,12 @@ const BLOCK_ID = /^\^?(acl-[a-z0-9]{8})$/u;
 const INLINE_BLOCK_ID = /\s+\^(acl-[a-z0-9]{8})$/u;
 const CLOZE_TOKEN = /\{\{c([1-9]\d*)::([^{}]+?)(?:::[^{}]*?)?\}\}/gu;
 const CLOZE_MARKER = /\{\{c\d+::/u;
+const CHOICE_HEADING = /^\s{0,3}###\s+(.+?)\s*【([^】]*)】([。.!！?？]?)\s*$/u;
+const CHOICE_OPTION = /^\s{0,3}-[ \t]+(.+)$/u;
+const CHOICE_OPTION_PREFIX = /^\s{0,3}-[ \t]*(.*)$/u;
+const TASK_LIST_OPTION = /^\s{0,3}-[ \t]+\[[ xX]\](?:[ \t]+|$)/u;
+const MARKDOWN_HEADING = /^\s{0,3}#{1,6}\s+/u;
+const CHOICE_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
 
 export function parseCards(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard[] {
 	return parseCardCandidates(markdown, syntax).flatMap((candidate) =>
@@ -57,13 +81,18 @@ export function parseCardCandidates(markdown: string, syntax: CardSyntax = DEFAU
 
 function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: boolean, syntax: CardSyntax): CardParseCandidate[] {
 	const lines = markdown.split(/\r?\n/u);
+	const choiceCandidates = findChoiceCandidates(lines);
+	const choiceRanges = choiceCandidates.map(({ startLine, endLine }) => ({ startLine, endLine }));
 	const blocks = findLineBlocks(lines);
-	const candidates: CardParseCandidate[] = [];
+	const candidates: CardParseCandidate[] = [...choiceCandidates];
 
 	for (let index = 0; index < blocks.length; index += 1) {
 		const originalBlock = blocks[index];
+		if (originalBlock === undefined) {
+			continue;
+		}
 		let block = originalBlock;
-		if (block === undefined) {
+		if (choiceRanges.some((range) => rangesOverlap(originalBlock, range))) {
 			continue;
 		}
 		if (getStandaloneCardLink(lines, block) !== undefined) {
@@ -97,9 +126,26 @@ function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: bool
 	}
 
 	if (rejectDuplicateUids) {
+		candidates.sort((left, right) => left.startLine - right.startLine);
 		markDuplicateUids(candidates);
 	}
 	return candidates;
+}
+
+export function normalizeChoiceAnswers(rawAnswer: string): ChoiceOptionId[] {
+	const upper = rawAnswer.toUpperCase();
+	const compact = upper.replace(/[\s,，、;；/\\]+/gu, '');
+	if (compact.length === 0) {
+		throw new AnkiCardLinkError('CHOICE_EMPTY_ANSWER', 'Multiple-choice correct answer cannot be empty.');
+	}
+	if (/[^A-G]/u.test(compact)) {
+		throw new AnkiCardLinkError('CHOICE_INVALID_ANSWER', 'Multiple-choice correct answer can contain only A-G and supported separators.');
+	}
+	const answers = [...compact] as ChoiceOptionId[];
+	if (new Set(answers).size !== answers.length) {
+		throw new AnkiCardLinkError('CHOICE_DUPLICATE_ANSWER', 'Multiple-choice correct answer contains a duplicate option.');
+	}
+	return answers.sort((left, right) => CHOICE_IDS.indexOf(left) - CHOICE_IDS.indexOf(right));
 }
 
 export function findCardAtLine(markdown: string, line: number, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard | undefined {
@@ -141,18 +187,158 @@ export function getClozeNumbers(value: string): number[] {
 	return numbers;
 }
 
-export function getCardTitle(markdown: string, card: ParsedCard, fileName: string): string {
-	const lines = markdown.split(/\r?\n/u);
-	for (let index = card.startLine - 1; index >= 0; index -= 1) {
-		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/u.exec(lines[index] ?? '');
-		if (heading?.[2] !== undefined) {
-			return heading[2].trim();
-		}
-	}
-	return fileName.replace(/\.md$/iu, '').trim();
+export function getCardTitle(filePath: string): string {
+	return filePath.replaceAll('\\', '/').replace(/^\/+|\.md$/giu, '').trim();
 }
 
 export { hasUnclosedCodeFence } from './markdown-fence';
+
+function findChoiceCandidates(lines: string[]): CardParseCandidate[] {
+	const candidates: CardParseCandidate[] = [];
+	const fencedLines = getFencedLines(lines);
+	for (let startLine = 0; startLine < lines.length; startLine += 1) {
+		if (fencedLines.has(startLine)) {
+			continue;
+		}
+		const heading = CHOICE_HEADING.exec(lines[startLine] ?? '');
+		if (heading === null) {
+			continue;
+		}
+		const candidate = parseChoiceCandidate(lines, startLine, heading);
+		candidates.push(candidate);
+		startLine = candidate.endLine;
+	}
+	return candidates;
+}
+
+function parseChoiceCandidate(lines: string[], startLine: number, heading: RegExpExecArray): CardParseCandidate {
+	let optionLine = startLine + 1;
+	if ((lines[optionLine] ?? '').trim().length === 0) {
+		optionLine += 1;
+	}
+	const options: string[] = [];
+	let emptyOption = false;
+	let cursor = optionLine;
+	while (cursor < lines.length) {
+		const line = lines[cursor] ?? '';
+		if (TASK_LIST_OPTION.test(line)) {
+			break;
+		}
+		const option = CHOICE_OPTION.exec(line);
+		if (option?.[1] !== undefined) {
+			const value = option[1].trim();
+			if (value.length === 0) {
+				emptyOption = true;
+				cursor += 1;
+				break;
+			}
+			options.push(value);
+			cursor += 1;
+			continue;
+		}
+		const optionPrefix = CHOICE_OPTION_PREFIX.exec(line);
+		if (optionPrefix !== null && (optionPrefix[1] ?? '').trim().length === 0) {
+			emptyOption = true;
+			cursor += 1;
+		}
+		break;
+	}
+
+	const lastOptionLine = Math.max(startLine, cursor - 1);
+	let contentEndLine = lastOptionLine;
+	while (cursor < lines.length) {
+		const line = lines[cursor] ?? '';
+		if (line.trim().length === 0 || MARKDOWN_HEADING.test(line) || parseCardLinkLine(line, cursor) !== undefined) {
+			break;
+		}
+		contentEndLine = cursor;
+		cursor += 1;
+	}
+	const link = findAttachedChoiceLink(lines, contentEndLine + 1);
+	const endLine = link?.line ?? contentEndLine;
+
+	try {
+		if (emptyOption) {
+			throw new AnkiCardLinkError('CHOICE_EMPTY_OPTION', 'Multiple-choice option content cannot be empty.');
+		}
+		if (options.length < 2) {
+			throw new AnkiCardLinkError('CHOICE_TOO_FEW_OPTIONS', 'Multiple-choice card must contain at least 2 options.');
+		}
+		if (options.length > 7) {
+			throw new AnkiCardLinkError('CHOICE_TOO_MANY_OPTIONS', 'Multiple-choice card cannot contain more than 7 options.');
+		}
+		const correctAnswers = normalizeChoiceAnswers(heading[2] ?? '');
+		const highestAnswer = Math.max(...correctAnswers.map((answer) => CHOICE_IDS.indexOf(answer)));
+		if (highestAnswer >= options.length) {
+			throw new AnkiCardLinkError('CHOICE_ANSWER_OUT_OF_RANGE', 'Multiple-choice correct answer is outside the available option range.');
+		}
+		const question = (heading[1] ?? '').trim();
+		const punctuation = heading[3] ?? '';
+		const backStartLine = lastOptionLine + 1;
+		const back = contentEndLine >= backStartLine
+			? lines.slice(backStartLine, contentEndLine + 1).join('\n').trim()
+			: '';
+		const card: ParsedChoiceCard = {
+			type: 'choice',
+			startLine,
+			endLine,
+			contentEndLine,
+			front: `${question}【\u3000】${punctuation}`,
+			back,
+			options,
+			correctAnswers,
+			uid: link?.uid,
+			noteId: link?.noteId,
+			linkLine: link?.line,
+		};
+		return { startLine, endLine, card };
+	} catch (error) {
+		if (error instanceof AnkiCardLinkError) {
+			return { startLine, endLine, error };
+		}
+		throw error;
+	}
+}
+
+function findAttachedChoiceLink(lines: string[], startLine: number): ParsedCardLink | undefined {
+	const direct = parseCardLinkLine(lines[startLine] ?? '', startLine);
+	if (direct !== undefined) {
+		return direct;
+	}
+	if ((lines[startLine] ?? '').trim().length === 0) {
+		return parseCardLinkLine(lines[startLine + 1] ?? '', startLine + 1);
+	}
+	return undefined;
+}
+
+function getFencedLines(lines: string[]): Set<number> {
+	const fenced = new Set<number>();
+	let openingFence: { marker: '`' | '~'; length: number } | undefined;
+	for (let index = 0; index < lines.length; index += 1) {
+		const match = /^\s*(`{3,}|~{3,})/u.exec(lines[index] ?? '');
+		if (openingFence !== undefined) {
+			fenced.add(index);
+		}
+		if (match?.[1] === undefined) {
+			continue;
+		}
+		const marker = match[1][0];
+		if (marker !== '`' && marker !== '~') {
+			continue;
+		}
+		if (openingFence === undefined) {
+			openingFence = { marker, length: match[1].length };
+			fenced.add(index);
+		} else if (marker === openingFence.marker && match[1].length >= openingFence.length) {
+			openingFence = undefined;
+		}
+	}
+	return fenced;
+}
+
+function rangesOverlap(left: LineBlock, right: LineBlock): boolean {
+	return left.startLine <= right.endLine && right.startLine <= left.endLine;
+}
 
 function findLineBlocks(lines: string[]): LineBlock[] {
 	const blocks: LineBlock[] = [];

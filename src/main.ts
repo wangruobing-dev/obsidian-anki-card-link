@@ -164,8 +164,11 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	async testSyncConfiguration(): Promise<void> {
 		try {
 			this.requireDesktopSync();
-			await new CardSyncService(this.createAnkiConnect(), this.settings).testConfiguration();
-			this.showNotice(getStrings(this.settings.language).notices.syncConfigurationOk);
+			const result = await new CardSyncService(this.createAnkiConnect(), this.settings).testConfiguration();
+			const strings = getStrings(this.settings.language);
+			this.showNotice(result.choiceWarning === undefined
+				? strings.notices.syncConfigurationOk
+				: strings.notices.syncConfigurationChoiceWarning(getLocalizedErrorMessage(result.choiceWarning, this.settings.language)));
 		} catch (error) {
 			this.handleError(error);
 		}
@@ -184,7 +187,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				throw invalid?.error ?? new AnkiCardLinkError('CURRENT_CARD_NOT_FOUND', 'The cursor is not inside a supported card.');
 			}
 			const uid = card.uid ?? generateCardUid();
-			const result = await this.syncCard(card, uid, source, file.name, file.path);
+			const result = await this.syncCard(card, uid, file.path);
 			try {
 				const withLink = ensureCardLink(source, card, { uid, noteId: result.noteId }, getStrings(this.settings.language).labels.openAnkiCard);
 				const updated = ensureObsidianTag(withLink, 'anki-card-link');
@@ -207,21 +210,25 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			const original = editor.getValue();
 			const candidates = parseCardCandidates(original, buildCardSyntax(this.settings));
 			const cards = candidates.flatMap((candidate) => candidate.card === undefined ? [] : [candidate.card]);
-			const parseFailureCount = candidates.filter((candidate) => candidate.error !== undefined).length;
+			const parseErrors = candidates.flatMap((candidate) => candidate.error === undefined ? [] : [candidate.error]);
+			const parseFailureCount = parseErrors.length;
 			if (cards.length === 0 && parseFailureCount === 0) {
 				throw new AnkiCardLinkError('NO_SYNCABLE_CARDS', 'No supported cards were found in the current file.');
 			}
 			const summary: Record<CardSyncStatus | 'skipped' | 'failed', number> = { created: 0, updated: 0, skipped: 0, failed: parseFailureCount };
+			for (const error of parseErrors) {
+				this.showNotice(getLocalizedErrorMessage(error, this.settings.language));
+			}
 			const synchronized: Array<{ card: ParsedCard; uid: string; result: CardSyncResult }> = [];
 			for (const card of cards) {
 				try {
 					const uid = card.uid ?? generateCardUid();
-					const result = await this.syncCard(card, uid, original, file.name, file.path);
+					const result = await this.syncCard(card, uid, file.path);
 					summary[result.status] += 1;
 					synchronized.push({ card, uid, result });
 				} catch (error) {
 					summary.failed += 1;
-					this.debug('A card in the current file could not be synchronized.', error);
+					this.handleError(error);
 				}
 			}
 			try {
@@ -251,14 +258,14 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}
 	}
 
-	private async syncCard(card: ParsedCard, uid: string, source: string, fileName: string, filePath: string): Promise<CardSyncResult> {
+	private async syncCard(card: ParsedCard, uid: string, filePath: string): Promise<CardSyncResult> {
 		const anki = this.createAnkiConnect();
 		const imageMedia = await this.uploadCardImages(card, filePath, anki);
 		return new CardSyncService(anki, this.settings).sync({
 			card,
 			uid,
 			noteIdHint: card.noteId,
-			title: getCardTitle(source, card, fileName),
+			title: getCardTitle(filePath),
 			vaultName: this.app.vault.getName(),
 			filePath,
 			folderDeckName: buildFolderDeckName(filePath),
@@ -267,7 +274,11 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	}
 
 	private async uploadCardImages(card: ParsedCard, filePath: string, anki: AnkiConnectService): Promise<Map<string, string>> {
-		const contents = card.type === 'cloze' ? [card.content] : [card.front, card.back];
+		const contents = card.type === 'cloze'
+			? [card.content]
+			: card.type === 'choice'
+				? [card.front, card.back, ...card.options]
+				: [card.front, card.back];
 		const references = extractObsidianImageReferences(contents.filter((content): content is string => content !== undefined).join('\n'));
 		const imageMedia = new Map<string, string>();
 		for (const reference of references) {

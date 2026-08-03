@@ -92,12 +92,14 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 					void this.plugin.updateSettings({ useCurrentFolderAsDeck: value });
 				});
 			});
+		new Setting(this.containerEl).setName(strings.settings.basicConfiguration).setHeading();
 		this.addTextSetting(strings.settings.basicModelName, strings.settings.basicModelNameDesc, 'basicModelName');
 		this.addTextSetting(strings.settings.basicTitleField, '', 'basicTitleField');
 		this.addTextSetting(strings.settings.basicFrontField, '', 'basicFrontField');
 		this.addTextSetting(strings.settings.basicBackField, '', 'basicBackField');
 		this.addTextSetting(strings.settings.basicHintField, '', 'basicHintField');
 		this.addTextSetting(strings.settings.basicObsidianUriField, '', 'basicObsidianUriField');
+		new Setting(this.containerEl).setName(strings.settings.clozeConfiguration).setHeading();
 		this.addTextSetting(strings.settings.clozeModelName, strings.settings.clozeModelNameDesc, 'clozeModelName');
 		this.addTextSetting(strings.settings.clozeContentField, '', 'clozeContentField');
 		this.addTextSetting(strings.settings.clozeTitleField, strings.settings.clozeTitleFieldDesc, 'clozeTitleField');
@@ -106,6 +108,21 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			strings.settings.clozeObsidianUriFieldDesc,
 			'clozeObsidianUriField',
 		);
+		new Setting(this.containerEl).setName(strings.settings.choiceConfiguration).setHeading();
+		this.addTextSetting(strings.settings.choiceModelName, strings.settings.choiceModelNameDesc, 'choiceModelName');
+		this.addTextSetting(strings.settings.choiceCardIdField, '', 'choiceCardIdField');
+		this.addTextSetting(strings.settings.choiceTitleField, '', 'choiceTitleField');
+		this.addTextSetting(strings.settings.choiceFrontField, '', 'choiceFrontField');
+		this.addTextSetting(strings.settings.choiceBackField, '', 'choiceBackField');
+		this.addTextSetting(strings.settings.choiceObsidianUrlField, '', 'choiceObsidianUrlField');
+		this.addTextSetting(strings.settings.choiceOptionField('A'), '', 'choiceOptionAField');
+		this.addTextSetting(strings.settings.choiceOptionField('B'), '', 'choiceOptionBField');
+		this.addTextSetting(strings.settings.choiceOptionField('C'), '', 'choiceOptionCField');
+		this.addTextSetting(strings.settings.choiceOptionField('D'), '', 'choiceOptionDField');
+		this.addTextSetting(strings.settings.choiceOptionField('E'), '', 'choiceOptionEField');
+		this.addTextSetting(strings.settings.choiceOptionField('F'), '', 'choiceOptionFField');
+		this.addTextSetting(strings.settings.choiceOptionField('G'), '', 'choiceOptionGField');
+		this.addTextSetting(strings.settings.choiceCorrectAnswerField, '', 'choiceCorrectAnswerField');
 
 		if (Platform.isDesktopApp) {
 			new Setting(this.containerEl)
@@ -187,7 +204,21 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			| 'clozeModelName'
 			| 'clozeContentField'
 			| 'clozeTitleField'
-			| 'clozeObsidianUriField',
+			| 'clozeObsidianUriField'
+			| 'choiceModelName'
+			| 'choiceCardIdField'
+			| 'choiceTitleField'
+			| 'choiceFrontField'
+			| 'choiceBackField'
+			| 'choiceObsidianUrlField'
+			| 'choiceOptionAField'
+			| 'choiceOptionBField'
+			| 'choiceOptionCField'
+			| 'choiceOptionDField'
+			| 'choiceOptionEField'
+			| 'choiceOptionFField'
+			| 'choiceOptionGField'
+			| 'choiceCorrectAnswerField',
 	): void {
 		new Setting(this.containerEl)
 			.setName(name)

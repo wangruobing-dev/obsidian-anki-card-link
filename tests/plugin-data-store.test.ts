@@ -9,6 +9,8 @@ describe('plugin data migration', () => {
 		expect(data.cardLocations).toEqual({});
 		expect(data.settings.singleLineSeparators).toBe('::\n：：');
 		expect(data.settings.multiLineSeparators).toBe('?\n？');
+		expect(data.settings.choiceModelName).toBe('Multiple Choice');
+		expect(data.settings.choiceOptionGField).toBe('OptionG');
 	});
 
 	it('loads V2 settings and index together', () => {
