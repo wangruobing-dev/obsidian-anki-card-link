@@ -11,6 +11,8 @@ describe('plugin data migration', () => {
 		expect(data.settings.multiLineSeparators).toBe('?\n？');
 		expect(data.settings.choiceModelName).toBe('Multiple Choice');
 		expect(data.settings.choiceOptionGField).toBe('OptionG');
+		expect(data.settings.readingReviewEnabled).toBe(true);
+		expect(data.settings.readingReviewEdgeTapEnabled).toBe(false);
 	});
 
 	it('loads V2 settings and index together', () => {

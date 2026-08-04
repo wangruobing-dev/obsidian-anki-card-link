@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin, TFile, type Editor, type MarkdownFileInfo } from 'obsidian';
+import { MarkdownView, Notice, Platform, Plugin, TFile, getAllTags, type Editor, type MarkdownFileInfo } from 'obsidian';
 import { generateCardUid } from './core/card-identity';
 import { ensureCardLink } from './core/card-link';
 import {
@@ -45,6 +45,10 @@ import { InsertLinkModal, OpenLinkModal } from './ui/insert-link-modal';
 import { AnkiCardLinkSettingTab } from './ui/settings-tab';
 import { buildCardSyntax } from './core/card-syntax';
 import { ensureObsidianTag } from './core/note-tag';
+import { ReadingReviewControllerRegistry, type ReadingReviewController } from './reading-review/controller';
+import { processReadingReviewSection } from './reading-review/markdown-processor';
+import type { ReadingReviewMaskKind } from './reading-review/mask-model';
+import { LOCALIZED_COMMAND_IDS } from './reading-review/command-ids';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
@@ -53,6 +57,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	private layoutReady = false;
 	private pendingOpenSource?: OpenObsidianSourceParams;
 	private openingSource = false;
+	private readonly readingReviewControllers = new ReadingReviewControllerRegistry(this.app);
 
 	override async onload(): Promise<void> {
 		try {
@@ -96,6 +101,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}));
 
 		this.registerLocalizedCommands();
+		this.registerMarkdownPostProcessor((el, ctx) => processReadingReviewSection(this, this.readingReviewControllers, el, ctx));
 		this.addSettingTab(new AnkiCardLinkSettingTab(this.app, this));
 		this.debug('Plugin loaded.');
 	}
@@ -103,7 +109,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	private registerLocalizedCommands(): void {
 		const strings = getStrings(this.settings.language);
 		if (this.localizedCommandsRegistered) {
-			for (const id of ['insert-link', 'open-link', 'sync-current-card', 'sync-current-file', 'cloze-next-number', 'cloze-current-number']) {
+			for (const id of LOCALIZED_COMMAND_IDS) {
 				this.removeCommand(id);
 			}
 		}
@@ -113,6 +119,10 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		this.addCommand({ id: 'sync-current-file', name: strings.commands.syncCurrentFile, editorCallback: (editor, context) => void this.syncCurrentFile(editor, context) });
 		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
 		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
+		this.addReadingReviewCommand('reveal-next-reading-cloze', strings.commands.revealNextReadingCloze, 'cloze', false);
+		this.addReadingReviewCommand('toggle-all-reading-clozes', strings.commands.toggleAllReadingClozes, 'cloze', true);
+		this.addReadingReviewCommand('reveal-next-reading-back', strings.commands.revealNextReadingBack, 'back', false);
+		this.addReadingReviewCommand('toggle-all-reading-backs', strings.commands.toggleAllReadingBacks, 'back', true);
 		this.localizedCommandsRegistered = true;
 	}
 
@@ -132,8 +142,29 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	}
 
 	async updateSettings(changes: Partial<AnkiCardLinkSettings>): Promise<void> {
+		const refreshReadingReview = changes.readingReviewEnabled !== undefined
+			|| changes.readingReviewEdgeTapEnabled !== undefined;
 		this.settings = { ...this.settings, ...changes };
 		await this.savePluginData();
+		if (refreshReadingReview) {
+			this.rerenderReadingViews();
+		}
+	}
+
+	override onunload(): void {
+		this.readingReviewControllers.clear();
+	}
+
+	resolveReadingReviewRoot(el: HTMLElement): HTMLElement | undefined {
+		for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
+			if (leaf.view instanceof MarkdownView
+				&& leaf.view.previewMode.containerEl.contains(el)) {
+				return leaf.view.previewMode.containerEl;
+			}
+		}
+		return el.closest<HTMLElement>(
+			'.markdown-preview-view, .markdown-reading-view, .workspace-leaf-content, .view-content',
+		) ?? el.parentElement ?? undefined;
 	}
 
 	async updateLanguage(language: Language): Promise<void> {
@@ -331,6 +362,55 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		editor.replaceSelection(buildClozeReplacement(selection, number));
 		if (selection.length === 0) {
 			editor.setCursor({ line: cursor.line, ch: cursor.ch + getClozeContentCursorOffset(number) });
+		}
+	}
+
+	private addReadingReviewCommand(
+		id: string,
+		name: string,
+		kind: ReadingReviewMaskKind,
+		toggleAll: boolean,
+	): void {
+		this.addCommand({
+			id,
+			name,
+			checkCallback: (checking) => {
+				const controller = this.getActiveReadingReviewController();
+				if (controller === undefined) {
+					return false;
+				}
+				if (!checking) {
+					if (toggleAll) {
+						controller.toggleAll(kind);
+					} else {
+						controller.revealNext(kind);
+					}
+				}
+				return true;
+			},
+		});
+	}
+
+	private getActiveReadingReviewController(): ReadingReviewController | undefined {
+		if (!this.settings.readingReviewEnabled) {
+			return undefined;
+		}
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view === null || view.getMode() !== 'preview' || view.file === null) {
+			return undefined;
+		}
+		const tags = getAllTags(this.app.metadataCache.getFileCache(view.file) ?? {});
+		if (!tags?.some((tag) => tag.replace(/^#/u, '').toLowerCase() === 'anki-card-link')) {
+			return undefined;
+		}
+		return this.readingReviewControllers.getForContainer(view.previewMode.containerEl);
+	}
+
+	private rerenderReadingViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
+			if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+				leaf.view.previewMode.rerender(true);
+			}
 		}
 	}
 

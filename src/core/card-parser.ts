@@ -22,6 +22,11 @@ export interface ParsedBasicCard extends ParsedCardBase {
 	type: 'basic';
 	front: string;
 	back: string;
+	separatorLine?: number;
+	separatorStartColumn?: number;
+	separatorEndColumn?: number;
+	backStartLine?: number;
+	backStartColumn?: number;
 }
 
 export interface ParsedClozeCard extends ParsedCardBase {
@@ -35,6 +40,10 @@ export interface ParsedChoiceCard extends ParsedCardBase {
 	back: string;
 	options: string[];
 	correctAnswers: ChoiceOptionId[];
+	answerStartColumn?: number;
+	answerEndColumn?: number;
+	lastOptionLine?: number;
+	backStartLine?: number;
 }
 
 export type ParsedCard = ParsedBasicCard | ParsedClozeCard | ParsedChoiceCard;
@@ -287,6 +296,10 @@ function parseChoiceCandidate(lines: string[], startLine: number, heading: RegEx
 			back,
 			options,
 			correctAnswers,
+			answerStartColumn: heading[0].indexOf('【') + 1,
+			answerEndColumn: heading[0].indexOf('】'),
+			lastOptionLine,
+			backStartLine: back.length > 0 ? backStartLine : undefined,
 			uid: link?.uid,
 			noteId: link?.noteId,
 			linkLine: link?.line,
@@ -417,7 +430,20 @@ function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | un
 		const front = details.lines.slice(0, separator).join('\n').trim();
 		const back = details.lines.slice(separator + 1).join('\n').trim();
 		validateBasicFields(front, back);
-		return { type: 'basic', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, front, back, ...identity };
+		return {
+			type: 'basic',
+			startLine: block.startLine,
+			endLine,
+			contentEndLine: details.contentEndLine,
+			front,
+			back,
+			separatorLine: block.startLine + separator,
+			separatorStartColumn: 0,
+			separatorEndColumn: details.lines[separator]?.length ?? 0,
+			backStartLine: block.startLine + separator + 1,
+			backStartColumn: 0,
+			...identity,
+		};
 	}
 
 	const firstLine = details.lines[0] ?? '';
@@ -426,9 +452,24 @@ function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | un
 		return null;
 	}
 	const front = firstLine.slice(0, separator.index).trim();
-	const back = [firstLine.slice(separator.index + separator.value.length), ...details.lines.slice(1)].join('\n').trim();
+	const rawFirstBackLine = firstLine.slice(separator.index + separator.value.length);
+	const back = [rawFirstBackLine, ...details.lines.slice(1)].join('\n').trim();
+	const leadingBackWhitespace = rawFirstBackLine.length - rawFirstBackLine.trimStart().length;
 	validateBasicFields(front, back);
-	return { type: 'basic', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, front, back, ...identity };
+	return {
+		type: 'basic',
+		startLine: block.startLine,
+		endLine,
+		contentEndLine: details.contentEndLine,
+		front,
+		back,
+		separatorLine: block.startLine,
+		separatorStartColumn: separator.index,
+		separatorEndColumn: separator.index + separator.value.length,
+		backStartLine: block.startLine,
+		backStartColumn: separator.index + separator.value.length + leadingBackWhitespace,
+		...identity,
+	};
 }
 
 function findSingleLineSeparator(line: string, separators: readonly string[]): { index: number; value: string } | undefined {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.4.0 - 2026-08-04
+
+- Add reading-mode review masks for tagged Basic, Cloze, and choice cards without changing Markdown or Anki synchronization fields.
+- Add independent Cloze and choice-answer reveals, grouped Basic/choice backs, keyboard-accessible masks, and four localized commands.
+- Add optional mobile left/right edge gestures with scroll, selection, control, link, code, and mask exclusions.
+- Add two backward-compatible settings, theme-aware styles, 28 focused review tests, bilingual guides, and an expanded manual checklist.
+
 ## 1.3.1 - 2026-08-03
 
 - Use the configured default link text for synchronized card buttons, including renaming existing buttons during resynchronization.

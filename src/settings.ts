@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	defaultSearchType: 'nid',
 	debugLogging: false,
 	copyQueryOnFailure: true,
+	readingReviewEnabled: true,
+	readingReviewEdgeTapEnabled: false,
 	defaultDeckName: 'Default',
 	useCurrentFolderAsDeck: true,
 	singleLineSeparators: DEFAULT_SINGLE_LINE_SEPARATORS,

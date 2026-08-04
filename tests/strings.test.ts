@@ -8,6 +8,9 @@ describe('localized strings', () => {
 		expect(getStrings('zh-CN').settings.language).toBe('界面语言');
 		expect(getStrings('zh-CN').searchTypes.nid).toBe('笔记 ID');
 		expect(getStrings('zh-CN').settings.choiceConfiguration).toBe('选择题卡片');
+		expect(getStrings('en').commands.revealNextReadingCloze).toBe('Reading review: Reveal next cloze');
+		expect(getStrings('zh-CN').commands.toggleAllReadingBacks).toBe('阅读复习：显示或隐藏全部背面');
+		expect(getStrings('zh-CN').settings.readingReviewEnabled).toBe('隐藏阅读模式中的答案');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {

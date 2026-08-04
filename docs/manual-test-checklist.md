@@ -1,6 +1,25 @@
 # Manual platform test checklist
 
-Complete this checklist before publishing version 1.3.0. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+Complete this checklist before publishing version 1.4.0. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+
+## Reading-mode review masks
+
+- [ ] With **Hide answers in reading mode** enabled, a YAML scalar `tags: anki-card-link`, YAML tag array, and inline `#anki-card-link` each activate masks in reading mode.
+- [ ] An untagged note and a note with the setting disabled render normally.
+- [ ] Source mode, live preview, and normal editing always show the original Markdown and accept ordinary J/N typing.
+- [ ] Single-line `::`, `：：`, no-space separators, customized separators, and multi-line `?`/`？` keep Front and separators visible while hiding the complete Back.
+- [ ] A Basic Back keeps its width, height, line breaks, multiple lines, fenced code, images, Markdown formatting, and Anki button/link placement.
+- [ ] Each Cloze token is hidden independently; repeated numbers reveal in DOM order; hints show without exposing answers; fenced-code examples stay unchanged.
+- [ ] Choice `【A】`, `【A,C,D】`, and `【A、C、D】` keep both brackets visible, hide only the answer, and participate in next-cloze order.
+- [ ] Choice options stay visible; a non-empty explanation is hidden as one Back group; an empty explanation creates no Back mask.
+- [ ] Clicking, Enter, and Space reveal one mask. Revealed masks stay visible during pointer movement.
+- [ ] Reveal-next stops after the last hidden mask. Toggle-all reveals all when any are hidden and hides all when all are shown.
+- [ ] The four commands are available only for the active tagged reading view and do not affect another tab. Switching UI language does not duplicate commands.
+- [ ] Reopening the file, rerendering reading mode, or switching away and back resets every mask to hidden.
+- [ ] Turning the setting off immediately restores normal reading rendering without changing the file or requiring a plugin restart.
+- [ ] Light and dark themes both show a subtle mask; focus outlines and revealed text remain readable.
+- [ ] On Android and iOS, direct mask taps work. With edge gestures enabled, left reveals Cloze and right reveals Back.
+- [ ] Mobile scrolling, clear finger movement, text selection, links, buttons, inputs, code/pre blocks, masks, sidebars, and normal navigation do not trigger edge actions.
 
 ## Windows/macOS/Linux + Anki Desktop
 

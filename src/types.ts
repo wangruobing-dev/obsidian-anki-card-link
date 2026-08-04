@@ -13,6 +13,8 @@ export interface AnkiCardLinkSettings {
 	defaultSearchType: SearchType;
 	debugLogging: boolean;
 	copyQueryOnFailure: boolean;
+	readingReviewEnabled: boolean;
+	readingReviewEdgeTapEnabled: boolean;
 	defaultDeckName: string;
 	useCurrentFolderAsDeck: boolean;
 	singleLineSeparators: string;

@@ -70,6 +70,26 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 				});
 		}
 
+		new Setting(this.containerEl).setName(strings.settings.readingReview).setHeading();
+		new Setting(this.containerEl)
+			.setName(strings.settings.readingReviewEnabled)
+			.setDesc(strings.settings.readingReviewEnabledDesc)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.readingReviewEnabled);
+				toggle.onChange((value) => {
+					void this.plugin.updateSettings({ readingReviewEnabled: value });
+				});
+			});
+		new Setting(this.containerEl)
+			.setName(strings.settings.readingReviewEdgeTapEnabled)
+			.setDesc(strings.settings.readingReviewEdgeTapEnabledDesc)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.readingReviewEdgeTapEnabled);
+				toggle.onChange((value) => {
+					void this.plugin.updateSettings({ readingReviewEdgeTapEnabled: value });
+				});
+			});
+
 		new Setting(this.containerEl).setName(strings.settings.synchronization).setHeading();
 
 		this.addTextSetting(strings.settings.defaultDeckName, strings.settings.defaultDeckNameDesc, 'defaultDeckName');

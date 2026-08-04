@@ -13,3 +13,111 @@
 	color: var(--text-normal);
 	border-color: var(--background-modifier-border);
 }
+
+.acl-review-mask {
+	position: relative;
+	align-items: center;
+	justify-content: center;
+	gap: 0.38em;
+	min-width: 2.8em;
+	min-height: 1.45em;
+	box-sizing: border-box;
+	padding: 0.02em 0.42em;
+	cursor: pointer;
+	border-radius: 1px;
+	background-color: var(--color-blue, #82aaff);
+	color: var(--text-on-accent, #fff);
+	font-weight: var(--font-semibold);
+	line-height: 1.2;
+	vertical-align: baseline;
+	transition: background-color 120ms ease, color 120ms ease;
+}
+
+.acl-review-mask::before {
+	content: '[';
+}
+
+.acl-review-mask::after {
+	content: ']';
+}
+
+.acl-review-mask--inline {
+	display: inline-flex;
+}
+
+.acl-review-mask--block {
+	display: flex;
+	width: max-content;
+	max-width: 100%;
+	margin-block: var(--size-2-2);
+}
+
+.acl-review-mask__content {
+	display: none;
+}
+
+.acl-review-mask__content > :first-child {
+	margin-top: 0;
+}
+
+.acl-review-mask__content > :last-child {
+	margin-bottom: 0;
+}
+
+.acl-review-mask__hint {
+	max-width: 12em;
+	overflow: hidden;
+	color: inherit;
+	font-size: var(--font-smallest);
+	font-weight: var(--font-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.acl-review-mask:hover,
+.acl-review-mask:focus-visible {
+	background-color: var(--color-pink, #e57ba7);
+}
+
+.acl-review-mask:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.acl-review-mask--revealed {
+	display: inline;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	background-color: transparent;
+	color: inherit;
+	font-weight: inherit;
+}
+
+.acl-review-mask--block.acl-review-mask--revealed {
+	display: block;
+	width: auto;
+	margin-block: var(--size-2-2);
+}
+
+.acl-review-mask--revealed::before,
+.acl-review-mask--revealed::after {
+	content: none;
+}
+
+.acl-review-mask--inline.acl-review-mask--revealed .acl-review-mask__content {
+	display: inline;
+}
+
+.acl-review-mask--block.acl-review-mask--revealed .acl-review-mask__content {
+	display: block;
+}
+
+.acl-review-mask--revealed .acl-review-mask__hint {
+	display: none;
+}
+
+.acl-review-mask--revealed:hover {
+	background-color: var(--background-modifier-hover);
+}

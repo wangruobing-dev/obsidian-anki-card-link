@@ -6,6 +6,8 @@
 
 Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. It supports Basic, Cloze, and dedicated single-choice/multiple-choice Markdown cards. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
 
+Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
+
 ## Platform scope
 
 | Feature | Windows/macOS/Linux | Android | iOS/iPadOS |
@@ -13,6 +15,7 @@ Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki sea
 | Obsidian → Anki navigation | Anki Desktop + AnkiConnect | AnkiDroid deep link | AnkiMobile deep link |
 | Obsidian → Anki content sync | Supported | Not supported | Not supported |
 | Anki → Obsidian source navigation | Supported when this plugin is enabled | Supported when this plugin is enabled | Supported when this plugin is enabled |
+| Reading-mode review masks | Supported | Supported | Supported |
 
 Mobile behavior still depends on the installed Anki app and its URI support. `isDesktopOnly: false` is not evidence that every mobile combination has been physically tested.
 
@@ -49,6 +52,19 @@ Use `【B】` for single choice and forms such as `【A,C,D】`, `【ACD】`, `�
 The synchronized title is the vault-relative Markdown file path without `.md`, for example `test/Calculation.md` becomes `test/Calculation`. Inline Markdown formatting is converted to Anki HTML: `**bold**` remains bold, while backticks around inline code are removed and the code style is preserved.
 
 The stable UID is stored only in the button URL, the Anki `ObsidianURI` field, and the plugin's local location index. It is not derived from the file path, title, content, line number, noteId, or cardId.
+
+## Reading-mode review masks
+
+Enable **Settings → Anki Card Link → Reading review → Hide answers in reading mode**. The feature only processes Markdown notes whose MetadataCache contains the `anki-card-link` tag, whether the tag comes from YAML or inline `#anki-card-link` syntax. It runs only in reading mode; source mode, live preview, and normal editing continue to show the original Markdown.
+
+- Basic: Front and the configured separator remain visible; the complete Back is one reveal group and keeps its rendered layout, code blocks, and images.
+- Cloze: each `{{cN::answer}}` token becomes an independent clickable blank. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
+- Choice: the content inside `【】` is one cloze-style blank, while the optional explanation after the options is one Back reveal group.
+- Click or focus a mask and press Enter/Space to reveal it. Reopening or rerendering the reading view resets all masks to hidden.
+- The four reading-review commands operate only on the active tagged reading view. Configure optional shortcuts under **Settings → Hotkeys**, search for **Anki Card Link**. Suggested keys are J, Shift+J, N, and Shift+N; the plugin does not bind them automatically.
+- On mobile, direct taps work normally. Optional left/right edge gestures are disabled by default; when enabled, the left 11% reveals the next cloze and the right 11% reveals the next Back. Scrolling, text selection, links, controls, code, and existing masks are excluded from edge handling.
+
+This is a visual review aid, not encryption. Answers remain visible in editing modes and in the Markdown source.
 
 ## Synchronization
 

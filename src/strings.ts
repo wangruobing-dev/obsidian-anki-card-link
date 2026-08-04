@@ -8,6 +8,10 @@ const ENGLISH_STRINGS = {
 		syncCurrentFile: 'Sync all cards in current file to Anki',
 		clozeNextNumber: 'Cloze selection with next number',
 		clozeCurrentNumber: 'Cloze selection with current number',
+		revealNextReadingCloze: 'Reading review: Reveal next cloze',
+		toggleAllReadingClozes: 'Reading review: Toggle all clozes',
+		revealNextReadingBack: 'Reading review: Reveal next back',
+		toggleAllReadingBacks: 'Reading review: Toggle all backs',
 	},
 	titles: {
 		insertLink: 'Insert Anki link',
@@ -22,6 +26,8 @@ const ENGLISH_STRINGS = {
 		openAnkiCard: 'Open corresponding Anki card',
 		cancel: 'Cancel',
 		valuePlaceholder: 'Enter an ID or Anki query',
+		revealReadingCloze: 'Reveal this cloze answer',
+		revealReadingBack: 'Reveal this card back',
 	},
 	searchTypes: {
 		nid: 'Note ID',
@@ -82,6 +88,11 @@ const ENGLISH_STRINGS = {
 		debugLoggingDesc: 'Writes diagnostic messages to the developer console. No telemetry is collected.',
 		copyQueryOnFailure: 'Copy query when opening fails',
 		copyQueryOnFailureDesc: 'Copies the generated Anki search query to the clipboard as a fallback.',
+		readingReview: 'Reading review',
+		readingReviewEnabled: 'Hide answers in reading mode',
+		readingReviewEnabledDesc: 'Only tagged anki-card-link notes are processed. Hides Basic backs, Cloze answers, choice answers, and explanations.',
+		readingReviewEdgeTapEnabled: 'Enable left/right edge gestures',
+		readingReviewEdgeTapEnabledDesc: 'On mobile, tap the left reading edge for the next cloze or the right edge for the next back.',
 	},
 	defaultLinkText: 'Open corresponding Anki card',
 	notices: {
@@ -108,6 +119,10 @@ const CHINESE_STRINGS = {
 		syncCurrentFile: '同步当前文件中的全部卡片到 Anki',
 		clozeNextNumber: '挖空：使用新编号',
 		clozeCurrentNumber: '挖空：沿用当前编号',
+		revealNextReadingCloze: '阅读复习：揭示下一个填空',
+		toggleAllReadingClozes: '阅读复习：显示或隐藏全部填空',
+		revealNextReadingBack: '阅读复习：揭示下一个背面',
+		toggleAllReadingBacks: '阅读复习：显示或隐藏全部背面',
 	},
 	titles: {
 		insertLink: '插入 Anki 链接',
@@ -122,6 +137,8 @@ const CHINESE_STRINGS = {
 		openAnkiCard: '打开对应 Anki 卡片',
 		cancel: '取消',
 		valuePlaceholder: '输入 ID 或 Anki 查询语句',
+		revealReadingCloze: '揭示当前填空答案',
+		revealReadingBack: '揭示当前卡片背面',
 	},
 	searchTypes: {
 		nid: '笔记 ID',
@@ -182,6 +199,11 @@ const CHINESE_STRINGS = {
 		debugLoggingDesc: '将诊断信息写入开发者控制台，不会收集遥测数据。',
 		copyQueryOnFailure: '打开失败时复制查询语句',
 		copyQueryOnFailureDesc: '打开失败时，将生成的 Anki 查询语句复制到剪贴板作为备用。',
+		readingReview: '阅读模式复习',
+		readingReviewEnabled: '隐藏阅读模式中的答案',
+		readingReviewEnabledDesc: '仅处理带 anki-card-link 标签的笔记。隐藏正反面卡片的 Back、Cloze 答案、选择题答案和解析。',
+		readingReviewEdgeTapEnabled: '启用左右边缘触控',
+		readingReviewEdgeTapEnabledDesc: '移动端点击阅读区域左侧边缘揭示下一个填空，点击右侧边缘揭示下一个背面。',
 	},
 	defaultLinkText: '打开对应的 Anki 卡片',
 	notices: {

@@ -238,6 +238,35 @@ A、C、D 正确。
 - 更新时始终写入全部七个选项字段。题目从七项改成四项后，OptionE、OptionF、OptionG 会被清空；
 - 题目、Back 和选项中的 Obsidian Wiki 图片会上传为 Anki 媒体，并替换成 `<img>`。
 
+## 八点二、阅读模式复习遮罩
+
+进入 **设置 → Anki Card Link → 阅读模式复习**：
+
+- **隐藏阅读模式中的答案**：默认开启。只处理带 `anki-card-link` 标签的笔记；插件使用 Obsidian MetadataCache 判断，因此支持 YAML 单值、YAML 数组和行内 `#anki-card-link`。
+- **启用左右边缘触控**：默认关闭。只在移动端生效；点击阅读区域左侧边缘揭示下一个填空，点击右侧边缘揭示下一个背面。
+
+阅读复习不会修改 Markdown 原文，不会把揭示状态写入插件数据，也不会改变同步到 Anki 的 Front、Back、Content、OptionA～OptionG、CorrectAnswer 等字段。只有阅读模式会隐藏；源码模式、实时预览和普通编辑模式仍显示全部答案。重新打开文件、重新渲染或重新切换阅读模式后，所有答案恢复隐藏。
+
+点击填空或背面即可揭示；也可以用 Tab 聚焦后按 Enter 或空格。四个命令只在当前活动的、已带标签的阅读视图中可用：
+
+- `reveal-next-reading-cloze` — **阅读复习：揭示下一个填空**
+- `toggle-all-reading-clozes` — **阅读复习：显示或隐藏全部填空**
+- `reveal-next-reading-back` — **阅读复习：揭示下一个背面**
+- `toggle-all-reading-backs` — **阅读复习：显示或隐藏全部背面**
+
+进入 **设置 → 快捷键**，搜索 **Anki Card Link**。以下只是推荐快捷键，可以按照自己的习惯修改：
+
+| 命令 | 推荐快捷键 |
+| --- | --- |
+| 挖空：使用新编号 | Ctrl + Shift + C |
+| 挖空：沿用当前编号 | Ctrl + Alt + Shift + C |
+| 阅读复习：揭示下一个填空 | J |
+| 阅读复习：显示或隐藏全部填空 | Shift + J |
+| 阅读复习：揭示下一个背面 | N |
+| 阅读复习：显示或隐藏全部背面 | Shift + N |
+
+手机端可以直接点击遮罩。边缘触控会避开明显滚动、文本选择、链接、按钮、输入控件、代码块和遮罩本身。这只是视觉复习遮罩，不是安全加密；Markdown 原文在编辑模式中仍然可见。
+
 ## 九、同步和验收步骤
 
 1. 启动 Anki Desktop。

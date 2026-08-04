@@ -215,6 +215,35 @@ A, C, and D are correct.
 - Every update writes all seven option fields. If a card changes from seven options to four, OptionE, OptionF, and OptionG become empty.
 - Wiki images in the question, Back, or options are uploaded to Anki media and replaced with `<img>` references.
 
+## 8B. Reading-mode review masks
+
+Open **Settings → Anki Card Link → Reading review**:
+
+- **Hide answers in reading mode** is enabled by default. It only processes notes tagged `anki-card-link`, using Obsidian MetadataCache so YAML scalar tags, YAML arrays, and inline tags are supported.
+- **Enable left/right edge gestures** is disabled by default. On mobile only, the left reading edge reveals the next Cloze/choice answer and the right edge reveals the next Basic/choice Back.
+
+Reading review never changes the Markdown source, plugin data reveal state, Anki fields, or synchronization output. It runs only in reading mode. Source mode, live preview, and normal editing still display every answer. Reopening or rerendering the view resets all answers to hidden.
+
+Click a blank or Back to reveal it. Masks also support keyboard focus, Enter, and Space. The four commands operate only on the active tagged reading view:
+
+- `reveal-next-reading-cloze` — **Reading review: Reveal next cloze**
+- `toggle-all-reading-clozes` — **Reading review: Toggle all clozes**
+- `reveal-next-reading-back` — **Reading review: Reveal next back**
+- `toggle-all-reading-backs` — **Reading review: Toggle all backs**
+
+To configure shortcuts, open **Settings → Hotkeys** and search for **Anki Card Link**. Suggested, not mandatory, shortcuts are:
+
+| Command | Suggested shortcut |
+| --- | --- |
+| Cloze selection with next number | Ctrl + Shift + C |
+| Cloze selection with current number | Ctrl + Alt + Shift + C |
+| Reading review: Reveal next cloze | J |
+| Reading review: Toggle all clozes | Shift + J |
+| Reading review: Reveal next back | N |
+| Reading review: Toggle all backs | Shift + N |
+
+Direct tapping works on phones. Edge gestures ignore clear finger movement, text selections, links, buttons, form controls, code/pre blocks, and the masks themselves. This is a visual review aid rather than encryption; the Markdown source remains readable in editing modes.
+
 ## 9. Synchronize and verify
 
 1. Start Anki Desktop.

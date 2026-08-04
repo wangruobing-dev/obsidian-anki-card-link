@@ -12,6 +12,8 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 1.2.0 起，新同步卡片不再依赖 Advanced URI，也不再显示独立的 `^acl-xxxxxxxx` 块 ID。
 
+1.4.0 新增可选的“阅读模式复习遮罩”：只对带 `anki-card-link` 标签的笔记隐藏答案，不修改 Markdown 原文，也不改变同步到 Anki 的任何字段。
+
 ## 平台范围
 
 | 功能 | Windows/macOS/Linux | Android | iOS/iPadOS |
@@ -19,6 +21,7 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 | Obsidian → Anki 跳转 | Anki Desktop + AnkiConnect | AnkiDroid 深度链接 | AnkiMobile 深度链接 |
 | Obsidian → Anki 内容同步 | 支持 | 不支持 | 不支持 |
 | Anki → Obsidian 跳转定位 | 安装并启用本插件后支持 | 安装并启用本插件后支持 | 安装并启用本插件后支持 |
+| 阅读模式复习遮罩 | 支持 | 支持 | 支持 |
 
 移动端能否打开 Anki 还取决于对应 Anki 应用及其 URI 支持。插件清单设置为 `isDesktopOnly: false`，但这不等于所有移动设备均已真机验证。
 
@@ -92,6 +95,29 @@ A、C、D 正确。
 - OptionA～OptionG 严格保持 Markdown 原始顺序，随机打乱和答题判色由 Anki 模板负责。
 - 同步后的标题为 Vault 内的相对文件路径，并去掉 `.md`；例如 `test/Calculation.md` 写入 `test/Calculation`。
 - Markdown 行内样式会转换为 Anki HTML：`**加粗**` 保持加粗，行内代码两侧的反引号不会显示，但保留代码样式。
+
+## 阅读模式复习遮罩
+
+进入 **设置 → Anki Card Link → 阅读模式复习**，开启“隐藏阅读模式中的答案”。插件通过 Obsidian MetadataCache 判断标签，YAML 单值、YAML 数组和行内 `#anki-card-link` 都支持。只有阅读模式会隐藏；源码模式、实时预览和普通编辑模式仍显示 Markdown 原文。
+
+- Basic：Front 和原分隔符正常显示，整个 Back 作为一个背面揭示组，保留原有换行、代码块、图片和布局。
+- Cloze：每个 `{{cN::答案}}` 独立变成可点击填空；带 `::提示` 时，隐藏状态可以显示提示，但不显示答案。
+- 选择题：三级标题 `【】` 内的答案作为一个填空；选项后的解析作为一个背面揭示组。没有解析时不会生成空遮罩。
+- 点击遮罩即可揭示；也可以用 Tab 聚焦后按 Enter 或空格。重新打开、重新渲染或重新切换阅读模式后，答案恢复隐藏。
+- 手机端可以直接点击。可选的“启用左右边缘触控”默认关闭；开启后，阅读区域左侧约 11% 揭示下一个填空，右侧约 11% 揭示下一个背面。滚动、文本选择、链接、按钮、输入控件、代码和遮罩本身不会触发边缘操作。
+
+推荐快捷键只作为教程建议，插件不会强制绑定。进入 **设置 → 快捷键**，搜索 **Anki Card Link**：
+
+| 命令 | 推荐快捷键 |
+| --- | --- |
+| 挖空：使用新编号 | Ctrl + Shift + C |
+| 挖空：沿用当前编号 | Ctrl + Alt + Shift + C |
+| 阅读复习：揭示下一个填空 | J |
+| 阅读复习：显示或隐藏全部填空 | Shift + J |
+| 阅读复习：揭示下一个背面 | N |
+| 阅读复习：显示或隐藏全部背面 | Shift + N |
+
+这些快捷键都可以按自己的习惯修改。阅读遮罩只是视觉复习辅助，不是安全加密；编辑模式和 Markdown 原文中仍然可以看到答案。
 
 ## 同步流程
 
