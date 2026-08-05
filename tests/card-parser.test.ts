@@ -111,6 +111,16 @@ describe('card parser', () => {
 	});
 
 	it.each([
+		['### 平均需要移动【B】个元素。', '平均需要移动【　】个元素。', ['B']],
+		['### 最少需要进行关键字比较【C】次。', '最少需要进行关键字比较【　】次。', ['C']],
+		['### 下列说法【A,C,D】中正确的是哪些？', '下列说法【　】中正确的是哪些？', ['A', 'C', 'D']],
+		['### 【B】是正确答案。', '【　】是正确答案。', ['B']],
+	])('parses a choice answer marker anywhere in the heading: %s', (heading, front, correctAnswers) => {
+		const card = parseCardBlock(`${heading}\n- 选项 A\n- 选项 B\n- 选项 C\n- 选项 D`);
+		expect(card).toMatchObject({ type: 'choice', front, correctAnswers });
+	});
+
+	it.each([
 		['A,C,D', ['A', 'C', 'D']],
 		['ACD', ['A', 'C', 'D']],
 		['A C D', ['A', 'C', 'D']],

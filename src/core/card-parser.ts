@@ -84,7 +84,8 @@ const INLINE_BLOCK_ID = /\s+\^(acl-[a-z0-9]{8})$/u;
 const CLOZE_TOKEN = /\{\{c([1-9]\d*)::([^{}]+?)(?:::[^{}]*?)?\}\}/gu;
 const CLOZE_MARKER = /\{\{c\d+::/u;
 const CLOZE_SYNTAX = /\{\{c\d+::.*?\}\}/gu;
-const CHOICE_HEADING = /^\s{0,3}###\s+(.+?)\s*【([^】]*)】([。.!！?？]?)\s*$/u;
+// 答案标记可以位于三级标题的任意位置，例如“平均需要移动【B】个元素”。
+const CHOICE_HEADING = /^\s{0,3}###\s+(.*?)\s*【([^】]*)】(.*?)\s*$/u;
 const CHOICE_OPTION = /^\s{0,3}-[ \t]+(.+)$/u;
 const CHOICE_OPTION_PREFIX = /^\s{0,3}-[ \t]*(.*)$/u;
 const TASK_LIST_OPTION = /^\s{0,3}-[ \t]+\[[ xX]\](?:[ \t]+|$)/u;
@@ -564,7 +565,7 @@ function parseChoiceCandidate(lines: string[], startLine: number, heading: RegEx
 			throw new AnkiCardLinkError('CHOICE_ANSWER_OUT_OF_RANGE', 'Multiple-choice correct answer is outside the available option range.');
 		}
 		const question = (heading[1] ?? '').trim();
-		const punctuation = heading[3] ?? '';
+		const trailingText = heading[3] ?? '';
 		const backStartLine = lastOptionLine + 1;
 		const back = contentEndLine >= backStartLine
 			? lines.slice(backStartLine, contentEndLine + 1).join('\n').trim()
@@ -574,7 +575,7 @@ function parseChoiceCandidate(lines: string[], startLine: number, heading: RegEx
 			startLine,
 			endLine,
 			contentEndLine,
-			front: `${question}【\u3000】${punctuation}`,
+			front: `${question}【\u3000】${trailingText}`,
 			back,
 			options,
 			correctAnswers,
@@ -754,9 +755,14 @@ function findSingleLineSeparator(line: string, separators: readonly string[]): {
 		start: match.index,
 		end: match.index + match[0].length,
 	}));
+	const clozeOpeningSeparators = [...line.matchAll(/\{\{c[1-9]\d*(::)/gu)].map((match) => ({
+		start: match.index + match[0].length - (match[1]?.length ?? 0),
+		end: match.index + match[0].length,
+	}));
 	for (const value of separators) {
 		let index = line.indexOf(value);
-		while (index >= 0 && clozeRanges.some((range) => index >= range.start && index < range.end)) {
+		while (index >= 0 && [...clozeRanges, ...clozeOpeningSeparators]
+			.some((range) => index >= range.start && index < range.end)) {
 			index = line.indexOf(value, index + value.length);
 		}
 		if (index >= 0 && (result === undefined || index < result.index || (index === result.index && value.length > result.value.length))) {

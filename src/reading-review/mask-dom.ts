@@ -15,7 +15,7 @@ export async function replaceTextWithMask(
 	component: Component,
 	labels: ReadingReviewMaskLabels,
 ): Promise<boolean> {
-	const range = findCompactTextRange(root, text);
+	const range = findCompactTextRange(root, text) ?? findCompactTextRange(root, markdownToRenderedText(text));
 	if (range === undefined) {
 		return false;
 	}
@@ -23,6 +23,30 @@ export async function replaceTextWithMask(
 	range.deleteContents();
 	range.insertNode(maskElement);
 	return true;
+}
+
+export async function replaceCodeTextWithMask(
+	app: App,
+	root: HTMLElement,
+	mask: ReadingReviewMask,
+	sourcePath: string,
+	component: Component,
+	labels: ReadingReviewMaskLabels,
+): Promise<boolean> {
+	const codeElements = root.matches('code')
+		? [root, ...Array.from(root.querySelectorAll<HTMLElement>('code'))]
+		: Array.from(root.querySelectorAll<HTMLElement>('code'));
+	for (const codeElement of codeElements) {
+		const range = findCompactTextRange(codeElement, mask.matchText);
+		if (range === undefined) {
+			continue;
+		}
+		const maskElement = await createMaskElement(app, mask, sourcePath, component, labels);
+		range.deleteContents();
+		range.insertNode(maskElement);
+		return true;
+	}
+	return false;
 }
 
 export function wrapRenderedTextWithMask(
@@ -68,7 +92,11 @@ export async function createMaskElement(
 		return element;
 	}
 	content.dataset.aclReviewRendering = 'true';
-	await MarkdownRenderer.render(app, mask.answer, content, sourcePath, component);
+	if (mask.renderAsCode) {
+		content.textContent = mask.answer;
+	} else {
+		await MarkdownRenderer.render(app, mask.answer, content, sourcePath, component);
+	}
 	if (mask.kind === 'cloze') {
 		flattenSingleParagraph(content);
 	}

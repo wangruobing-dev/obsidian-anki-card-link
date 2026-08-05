@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.2 - 2026-08-05
+
+- Recognize valid A–G single-choice and multiple-choice answer markers anywhere in a level-three heading, replace only the marker with `【　】`, and preserve all surrounding question text.
+- Keep multi-line Cloze answers together as one block reveal in reading mode.
+- Mask fenced-code Cloze answers with code rendering when their note or explicit region already contains a valid Cloze, without letting fenced examples create review cards by themselves.
+
 ## 1.4.1 - 2026-08-05
 
 - Add the repeated `<!-- anki-card-link:cloze -->` marker: each marker starts one multi-paragraph Cloze card that continues to the next marker or EOF.

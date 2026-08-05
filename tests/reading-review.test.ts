@@ -89,9 +89,32 @@ describe('reading review model', () => {
 		expect(model.masks[0]).toMatchObject({ answer: '垃圾回收器', hint: '内存管理' });
 	});
 
-	it('ignores Cloze-looking text inside a code fence', () => {
+	it('keeps a multi-line Cloze as one block mask without a false Basic back', () => {
+		const source = '{{c1::1. 打开底部 `Git`\n2. 进入 `Log`\n3. 复制 hash}}';
+		const model = buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX);
+		expect(model.cards.map((card) => card.type)).toEqual(['cloze']);
+		expect(model.masks).toMatchObject([{
+			kind: 'cloze',
+			display: 'block',
+			startLine: 0,
+			endLine: 2,
+			startColumn: 0,
+			endColumn: 12,
+			answer: '1. 打开底部 `Git`\n2. 进入 `Log`\n3. 复制 hash',
+		}]);
+	});
+
+	it('masks fenced-code Cloze when the note is already a Cloze card', () => {
 		const source = '{{c1::real}}\n```md\n{{c2::example}}\n```';
-		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['real']);
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks).toMatchObject([
+			{ answer: 'real', renderAsCode: undefined },
+			{ answer: 'example', renderAsCode: true },
+		]);
+	});
+
+	it('does not let fenced-code Cloze alone create a reading-review card', () => {
+		const source = '```md\n{{c2::example}}\n```';
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks).toEqual([]);
 	});
 
 	it('describes a single-choice answer marker', () => {
@@ -206,9 +229,12 @@ describe('reading review model', () => {
 		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['一', '二', '三']);
 	});
 
-	it('does not mask fenced-code Cloze inside an explicit region', () => {
+	it('masks fenced-code Cloze inside an explicit region as code text', () => {
 		const source = `${CLOZE_REGION_START}\n\`\`\`markdown\n{{c9::示例}}\n\`\`\`\n真实 {{c1::答案}}\n${CLOZE_REGION_END}`;
-		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['答案']);
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks).toMatchObject([
+			{ answer: '示例', renderAsCode: true },
+			{ answer: '答案', renderAsCode: undefined },
+		]);
 	});
 
 	it('keeps Basic and Choice review behavior outside explicit regions', () => {

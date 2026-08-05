@@ -10,6 +10,8 @@ Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. I
 
 Version 1.4.1 simplifies Cloze regions to one repeated marker and converts Markdown headings, lists, quotes, and other supported blocks to Anki HTML. Legacy paired start/end markers remain readable.
 
+Version 1.4.2 recognizes choice answer markers anywhere in the question heading and improves reading review for multi-line and fenced-code Cloze answers.
+
 ## Platform scope
 
 | Feature | Windows/macOS/Linux | Android | iOS/iPadOS |
@@ -70,7 +72,7 @@ Multiple-choice cards use a level-three heading followed by 2–7 consecutive on
 A, C, and D are correct.
 ```
 
-Use `【B】` for single choice and forms such as `【A,C,D】`, `【ACD】`, `【A C D】`, or `【A、C、D】` for multiple choice. The question and options may have at most one blank line between them; options cannot span multiple lines. Back starts immediately after the final option and stops at the first blank line. Back may be empty. The answer marker is replaced with `【　】` in Anki Front, while the original OptionA–OptionG order is preserved. Anki templates, not this plugin, are responsible for shuffling and answer feedback.
+Use `【B】` for single choice and forms such as `【A,C,D】`, `【ACD】`, `【A C D】`, or `【A、C、D】` for multiple choice. A valid A–G answer marker may appear anywhere in the level-three heading, and normal question text before and after it is preserved. The question and options may have at most one blank line between them; options cannot span multiple lines. Back starts immediately after the final option and stops at the first blank line. Back may be empty. The answer marker is replaced with `【　】` in Anki Front, while the original OptionA–OptionG order is preserved. Anki templates, not this plugin, are responsible for shuffling and answer feedback.
 
 The synchronized title is the vault-relative Markdown file path without `.md`, for example `test/Calculation.md` becomes `test/Calculation`. Inline Markdown formatting is converted to Anki HTML: `**bold**` remains bold, while backticks around inline code are removed and the code style is preserved.
 
@@ -81,7 +83,7 @@ The stable UID is stored only in the button URL, the Anki `ObsidianURI` field, a
 Enable **Settings → Anki Card Link → Reading review → Hide answers in reading mode**. The feature only processes Markdown notes whose MetadataCache contains the `anki-card-link` tag, whether the tag comes from YAML or inline `#anki-card-link` syntax. It runs only in reading mode; source mode, live preview, and normal editing continue to show the original Markdown.
 
 - Basic: Front and the configured separator remain visible; the complete Back is one reveal group and keeps its rendered layout, code blocks, and images.
-- Cloze: each valid token in an explicit region becomes an independent clickable blank. In an unmarked compatibility note, valid tokens in the whole note body are processed. Tokens outside explicit regions and tokens inside fenced code are ignored. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
+- Cloze: each valid token in an explicit region becomes an independent clickable blank. In an unmarked compatibility note, valid tokens in the whole note body are processed. Multi-line answers stay one block blank. Fenced-code Cloze does not create a review card by itself, but it is masked as code when the surrounding note or explicit region already contains a valid Cloze. Tokens outside explicit regions remain ignored. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
 - Choice: the content inside `【】` is one cloze-style blank, while the optional explanation after the options is one Back reveal group.
 - Cloze blanks, Basic backs, choice answers, and choice explanations use the same blue `#87b1ff` hidden state and pink `#ff96af` hover/focus state.
 - YAML frontmatter never belongs to a card block, so a Basic card may start immediately after the closing `---` without an extra blank line. In an old unmarked mixed note, reading review still hides recognizable Basic/Choice backs while synchronization retains whole-note Cloze compatibility.

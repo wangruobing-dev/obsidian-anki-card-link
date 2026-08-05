@@ -1,5 +1,11 @@
 import { Component, Platform, type App, type MarkdownSectionInformation } from 'obsidian';
-import { replaceTextWithMask, setMaskRevealed, wrapRenderedTextWithMask, type ReadingReviewMaskLabels } from './mask-dom';
+import {
+	replaceCodeTextWithMask,
+	replaceTextWithMask,
+	setMaskRevealed,
+	wrapRenderedTextWithMask,
+	type ReadingReviewMaskLabels,
+} from './mask-dom';
 import type { ReadingReviewMaskKind, ReadingReviewModel } from './mask-model';
 
 export interface ReadingReviewControllerOptions {
@@ -59,6 +65,17 @@ export class ReadingReviewController extends Component {
 			}
 			if (mask.kind === 'back') {
 				wrapRenderedTextWithMask(el, mask, this.options.labels);
+				continue;
+			}
+			if (mask.renderAsCode) {
+				await replaceCodeTextWithMask(
+					this.app,
+					el,
+					mask,
+					this.options.sourcePath,
+					this,
+					this.options.labels,
+				);
 				continue;
 			}
 			await replaceTextWithMask(

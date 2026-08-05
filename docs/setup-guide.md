@@ -159,7 +159,7 @@ This is one Cloze note.
 The JVM is the {{c1::Java Virtual Machine}}.
 ```
 
-Each marker starts one Cloze note, and its content continues to the next identical marker or the end of the file. A file may therefore contain multiple cards with one marker before each card. The marker must occupy its own line and never enters Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code after a marker remain ordinary Cloze Content. Cloze-looking code examples do not validate a region and are not masked.
+Each marker starts one Cloze note, and its content continues to the next identical marker or the end of the file. A file may therefore contain multiple cards with one marker before each card. The marker must occupy its own line and never enters Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code after a marker remain ordinary Cloze Content. Cloze-looking code examples do not validate a region or create a review card by themselves. Once the note or explicit region already contains a valid Cloze, reading review also masks its fenced-code Cloze while preserving code rendering.
 
 Basic and Choice cards before the first single marker continue to work. Once a marker starts a Cloze card, all content belongs to that card until the next marker or EOF. Empty regions and regions without a valid Cloze show localized errors and never fall back to whole-note mode.
 
@@ -225,7 +225,7 @@ Do not print `{{ObsidianURI}}` as ordinary text because it exposes the full Vaul
 A, C, and D are correct.
 ```
 
-- The question must be a level-three heading beginning with `### ` and ending with a full-width `【...】` answer marker, optionally followed by punctuation.
+- The question must be a level-three heading beginning with `### `. A valid full-width A–G answer marker such as `【B】` or `【A,C,D】` may appear anywhere in the heading; normal question text before and after the marker is preserved, and the marker becomes `【　】` in Anki Front.
 - Use `【B】` for single choice. Multiple-choice answers may use `【A,C,D】`, `【ACD】`, `【A C D】`, `【A、C、D】`, or Chinese commas.
 - Add 2–7 consecutive `- ` list items. The question and first option may have at most one blank line. Task-list items and multi-line options are not supported.
 - Back starts on the line immediately after the last option and stops at the first blank line, next heading, generated Anki button, or end of file. Back may be empty.

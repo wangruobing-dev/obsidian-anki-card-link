@@ -1,6 +1,6 @@
 # Manual platform test checklist
 
-Complete this checklist before publishing version 1.4.1. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+Complete this checklist before publishing the next version. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
 
 ## Cloze note regions and editor commands
 
@@ -9,7 +9,7 @@ Complete this checklist before publishing version 1.4.1. Record the Obsidian, An
 - [ ] Legacy paired start/end regions remain readable and synchronizable without automatic migration.
 - [ ] Basic and Choice cards outside explicit regions still synchronize; Basic/Choice syntax inside a region stays ordinary Cloze Content.
 - [ ] Cloze syntax outside explicit regions is neither synchronized nor masked.
-- [ ] Marker examples inside backtick and tilde fences are ignored. Cloze examples in fenced code do not validate a region, trigger implicit mode, or create a mask.
+- [ ] Marker examples inside backtick and tilde fences are ignored. Fenced-code Cloze does not validate a region or trigger implicit mode by itself; when its note or explicit region already contains a valid Cloze, reading review masks it while preserving code rendering.
 - [ ] Legacy missing start/end, nested/extra markers, plus empty/whitespace-only single-marker regions and regions without a valid Cloze show localized errors for both current-card and current-file sync.
 - [ ] A marker error does not fall back to implicit whole-note mode or synchronize an incomplete region.
 - [ ] An unmarked legacy note with Cloze across headings and paragraphs becomes one whole-note card; frontmatter, buttons, and legacy UID metadata stay outside Content.
@@ -31,7 +31,7 @@ Complete this checklist before publishing version 1.4.1. Record the Obsidian, An
 - [ ] A first Basic card immediately after YAML frontmatter is masked without requiring a blank line after the closing `---`.
 - [ ] An old unmarked note mixing Basic, Cloze, and Choice hides every recognizable answer in reading mode while synchronization remains one compatibility Cloze note.
 - [ ] A Basic Back keeps its width, height, line breaks, multiple lines, fenced code, images, Markdown formatting, and Anki button/link placement.
-- [ ] Each Cloze token is hidden independently; repeated numbers reveal in DOM order; hints show without exposing answers; fenced-code examples stay unchanged.
+- [ ] Each Cloze token is hidden independently; repeated numbers reveal in DOM order; hints show without exposing answers; a multi-line answer stays one block mask; eligible fenced-code Cloze is masked as code.
 - [ ] Choice `【A】`, `【A,C,D】`, and `【A、C、D】` keep both brackets visible, hide only the answer, and participate in next-cloze order.
 - [ ] Choice options stay visible; a non-empty explanation is hidden as one Back group; an empty explanation creates no Back mask.
 - [ ] Clicking, Enter, and Space reveal one mask. Revealed masks stay visible during pointer movement.
@@ -53,6 +53,7 @@ Complete this checklist before publishing version 1.4.1. Record the Obsidian, An
 - [ ] Single-line basic, multi-line basic, Cloze, fenced code, and Wiki images retain their expected Anki content.
 - [ ] A single-choice card and a multiple-choice card create notes using `Multiple Choice` and all 13 configured fields.
 - [ ] Choice Front hides the answer as `【　】`; OptionA–OptionG preserve Markdown order; `CorrectAnswer` uses values such as `B` or `A,C,D`.
+- [ ] A valid answer marker at the beginning or middle of a level-three heading is recognized, replaced with `【　】`, and keeps all normal question text before and after it.
 - [ ] Title uses the vault-relative file path without `.md`, for example `test/Calculation`.
 - [ ] Bold and inline-code Markdown render with their original styles in Anki without visible `**` or backtick markers.
 - [ ] Choice cards with 2 and 7 options synchronize; fewer than 2, more than 7, duplicate/invalid/out-of-range answers, and empty options show understandable errors.

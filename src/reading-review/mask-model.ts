@@ -16,6 +16,7 @@ export interface ReadingReviewMask {
 	answer: string;
 	matchText: string;
 	hint?: string;
+	renderAsCode?: boolean;
 }
 
 export interface ReadingReviewModel {
@@ -136,35 +137,42 @@ function buildBackMask(
 function buildClozeMasks(markdown: string, card: Extract<ParsedCard, { type: 'cloze' }>, cardIndex: number): ReadingReviewMask[] {
 	const lines = markdown.split(/\r?\n/u);
 	const fencedLines = getFencedLines(lines);
+	const content = lines.slice(card.contentStartLine, card.contentEndLine + 1).join('\n');
 	const masks: ReadingReviewMask[] = [];
-	for (let lineNumber = card.contentStartLine; lineNumber <= card.contentEndLine; lineNumber += 1) {
-		if (fencedLines.has(lineNumber)) {
+	CLOZE_TOKEN.lastIndex = 0;
+	for (const match of content.matchAll(CLOZE_TOKEN)) {
+		const raw = match[0];
+		const answer = match[2];
+		if (answer === undefined) {
 			continue;
 		}
-		const line = getLine(markdown, lineNumber);
-		CLOZE_TOKEN.lastIndex = 0;
-		for (const match of line.matchAll(CLOZE_TOKEN)) {
-			const raw = match[0];
-			const answer = match[2];
-			if (answer === undefined) {
-				continue;
-			}
-			masks.push({
-				id: `card-${cardIndex}-cloze-${masks.length}`,
-				kind: 'cloze',
-				display: 'inline',
-				cardType: 'cloze',
-				startLine: lineNumber,
-				endLine: lineNumber,
-				startColumn: match.index,
-				endColumn: match.index + raw.length,
-				answer,
-				matchText: raw,
-				hint: match[3]?.trim() || undefined,
-			});
-		}
+		const start = getPositionAtOffset(content, match.index);
+		const end = getPositionAtOffset(content, match.index + raw.length);
+		const startLine = card.contentStartLine + start.line;
+		const endLine = card.contentStartLine + end.line;
+		masks.push({
+			id: `card-${cardIndex}-cloze-${masks.length}`,
+			kind: 'cloze',
+			display: startLine === endLine ? 'inline' : 'block',
+			cardType: 'cloze',
+			startLine,
+			endLine,
+			startColumn: start.column,
+			endColumn: end.column,
+			answer,
+			matchText: raw,
+			hint: match[3]?.trim() || undefined,
+			renderAsCode: fencedLines.has(startLine) || undefined,
+		});
 	}
 	return masks;
+}
+
+function getPositionAtOffset(value: string, offset: number): { line: number; column: number } {
+	const before = value.slice(0, offset);
+	const line = before.split('\n').length - 1;
+	const lastBreak = before.lastIndexOf('\n');
+	return { line, column: offset - lastBreak - 1 };
 }
 
 function getLine(markdown: string, line: number): string {
