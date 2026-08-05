@@ -1,5 +1,6 @@
 import { parseCards, type ParsedCard } from '../core/card-parser';
 import type { CardSyntax } from '../core/card-syntax';
+import { getFencedLines } from '../core/markdown-fence';
 
 export type ReadingReviewMaskKind = 'cloze' | 'back';
 
@@ -131,9 +132,10 @@ function buildBackMask(
 }
 
 function buildClozeMasks(markdown: string, card: Extract<ParsedCard, { type: 'cloze' }>, cardIndex: number): ReadingReviewMask[] {
-	const fencedLines = getFencedLines(markdown);
+	const lines = markdown.split(/\r?\n/u);
+	const fencedLines = getFencedLines(lines);
 	const masks: ReadingReviewMask[] = [];
-	for (let lineNumber = card.startLine; lineNumber <= card.contentEndLine; lineNumber += 1) {
+	for (let lineNumber = card.contentStartLine; lineNumber <= card.contentEndLine; lineNumber += 1) {
 		if (fencedLines.has(lineNumber)) {
 			continue;
 		}
@@ -165,27 +167,4 @@ function buildClozeMasks(markdown: string, card: Extract<ParsedCard, { type: 'cl
 
 function getLine(markdown: string, line: number): string {
 	return markdown.split(/\r?\n/u)[line] ?? '';
-}
-
-function getFencedLines(markdown: string): Set<number> {
-	const lines = markdown.split(/\r?\n/u);
-	const fenced = new Set<number>();
-	let opening: { marker: '`' | '~'; length: number } | undefined;
-	for (let index = 0; index < lines.length; index += 1) {
-		const match = /^\s*(`{3,}|~{3,})/u.exec(lines[index] ?? '');
-		if (opening !== undefined) {
-			fenced.add(index);
-		}
-		const marker = match?.[1]?.[0];
-		if (marker !== '`' && marker !== '~') {
-			continue;
-		}
-		if (opening === undefined) {
-			opening = { marker, length: match?.[1]?.length ?? 3 };
-			fenced.add(index);
-		} else if (marker === opening.marker && (match?.[1]?.length ?? 0) >= opening.length) {
-			opening = undefined;
-		}
-	}
-	return fenced;
 }

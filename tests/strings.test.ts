@@ -11,6 +11,8 @@ describe('localized strings', () => {
 		expect(getStrings('en').commands.revealNextReadingCloze).toBe('Reading review: Reveal next cloze');
 		expect(getStrings('zh-CN').commands.toggleAllReadingBacks).toBe('阅读复习：显示或隐藏全部背面');
 		expect(getStrings('zh-CN').settings.readingReviewEnabled).toBe('隐藏阅读模式中的答案');
+		expect(getStrings('en').commands.insertClozeRegion).toBe('Cloze: Insert note region');
+		expect(getStrings('zh-CN').commands.insertClozeRegion).toBe('Cloze：插入笔记区域');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {
@@ -31,5 +33,9 @@ describe('localized strings', () => {
 			new AnkiCardLinkError('CHOICE_ANSWER_OUT_OF_RANGE', 'Multiple-choice correct answer is outside the available option range.'),
 			'zh-CN',
 		)).toBe('选择题正确答案超出了现有选项范围。');
+		expect(getLocalizedErrorMessage(
+			new AnkiCardLinkError('CLOZE_REGION_UNMATCHED_START', 'Cloze start marker is missing its matching end marker.'),
+			'zh-CN',
+		)).toBe('Cloze 开始标签缺少对应的结束标签。');
 	});
 });

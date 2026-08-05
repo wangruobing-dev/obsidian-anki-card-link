@@ -149,7 +149,27 @@ Write standard Anki Cloze markup:
 The JVM uses {{c1::garbage collection}} to manage memory automatically.
 ```
 
-With text selection in Obsidian, the plugin commands can create a new Cloze number or reuse the current number.
+For a Cloze note that spans paragraphs, headings, lists, images, formulas, or code blocks, use the standard explicit region:
+
+```markdown
+<!-- anki-card-link:cloze:start -->
+
+This is one Cloze note.
+
+The JVM is the {{c1::Java Virtual Machine}}.
+
+<!-- anki-card-link:cloze:end -->
+```
+
+The marker pair defines one Cloze note, and a file may contain multiple regions. Markers must occupy separate lines, must be paired, and cannot be nested. They never enter Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a region remain ordinary Content. Cloze-looking code examples do not validate a region and are not masked.
+
+If a file contains any start or end marker, it uses explicit mode: only valid paired regions become Cloze cards, Cloze syntax outside them is ignored, and Basic/Choice cards outside them continue to work. Marker errors show localized notices and never fall back to whole-note mode.
+
+If a file contains no boundary marker at all, a valid Cloze outside fenced code makes the entire note body one compatibility Cloze note. YAML frontmatter, generated Anki buttons, legacy UID blocks, and plugin metadata are excluded. Existing notes remain supported without automatic migration. When mixing Basic, Choice, and Cloze, explicit regions are strongly recommended.
+
+The localized editor command has ID `insert-cloze-region` and is named **Cloze: Insert note region**. With a selection, it preserves and wraps the selected Markdown. Without a selection, it inserts an empty region and places the cursor on the body line. It refuses insertion inside, across, or around an existing region.
+
+With text selection in Obsidian, the existing Cloze commands can create a new number or reuse the current number. Inside an explicit region, numbering uses that complete region across paragraphs; other regions do not affect it. In a file without markers, numbering uses the complete implicit note body. Fenced-code examples are ignored.
 
 The provided `Enhanced Cloze 2.1 v2` template uses front-template version `1.14`. Its back template reveals the genuine Cloze answers after rendering:
 
@@ -235,6 +255,7 @@ To configure shortcuts, open **Settings → Hotkeys** and search for **Anki Card
 
 | Command | Suggested shortcut |
 | --- | --- |
+| Cloze: Insert note region | Ctrl + Alt + C |
 | Cloze selection with next number | Ctrl + Shift + C |
 | Cloze selection with current number | Ctrl + Alt + Shift + C |
 | Reading review: Reveal next cloze | J |
@@ -242,7 +263,7 @@ To configure shortcuts, open **Settings → Hotkeys** and search for **Anki Card
 | Reading review: Reveal next back | N |
 | Reading review: Toggle all backs | Shift + N |
 
-Direct tapping works on phones. Edge gestures ignore clear finger movement, text selections, links, buttons, form controls, code/pre blocks, and the masks themselves. This is a visual review aid rather than encryption; the Markdown source remains readable in editing modes.
+On macOS, use Command/Option equivalents, including Command + Option + C for region insertion. These are suggestions only; the plugin does not register default hotkeys or replace existing bindings. Direct tapping works on phones. Edge gestures ignore clear finger movement, text selections, links, buttons, form controls, code/pre blocks, and the masks themselves. This is a visual review aid rather than encryption; the Markdown source remains readable in editing modes.
 
 ## 9. Synchronize and verify
 

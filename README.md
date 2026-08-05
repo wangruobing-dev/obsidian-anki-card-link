@@ -8,6 +8,8 @@ Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki sea
 
 Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
 
+Version 1.4.1 adds explicit Cloze note regions, whole-note compatibility for unmarked legacy Cloze notes, and the localized `insert-cloze-region` editor command.
+
 ## Platform scope
 
 | Feature | Windows/macOS/Linux | Android | iOS/iPadOS |
@@ -32,6 +34,27 @@ What is the JVM?::The Java Virtual Machine.
 ```
 
 Single-line cards support both `::` and `：：` by default, without requiring spaces. Multi-line basic cards use a line containing only `?` or `？`. Both separator lists are configurable, one value per line. Cloze cards use `{{c1::text}}` or `{{c1::text::hint}}`. The card and button are separated by one blank line. The button label may be customized because recognition is based on the URL, not fixed text. The button is excluded from Anki `Front`, `Back`, and `Content` fields.
+
+For mixed or multi-section notes, use an explicit Cloze note region:
+
+```markdown
+<!-- anki-card-link:cloze:start -->
+
+This is one Cloze note.
+
+The JVM is the {{c1::Java Virtual Machine}}.
+
+<!-- anki-card-link:cloze:end -->
+```
+
+- The content between one marker pair is one Cloze note, and one file may contain multiple independent regions.
+- Markers must occupy their own lines, must be paired, and cannot be nested. They are not synchronized to Anki.
+- Once any boundary marker exists in a file, Cloze syntax outside valid regions is not synchronized or masked. Basic and Choice cards outside regions continue to work.
+- Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a region remain ordinary Cloze `Content`.
+- If a file contains no boundary marker at all, any valid Cloze outside fenced code makes the complete note body one compatibility Cloze card. YAML frontmatter, generated buttons, and legacy UID metadata are excluded.
+- Existing unmarked notes remain supported and are not migrated automatically. Explicit regions are recommended whenever Basic, Choice, and Cloze syntax are mixed.
+
+Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze-region` command is named **Cloze: Insert note region**. It wraps the current selection or inserts an empty marker pair with the cursor between them. It rejects existing/overlapping regions. Suggested shortcuts are Ctrl+Alt+C on Windows/Linux and Command+Option+C on macOS; the plugin does not bind them automatically.
 
 Multiple-choice cards use a level-three heading followed by 2–7 consecutive one-line list items:
 
@@ -58,7 +81,7 @@ The stable UID is stored only in the button URL, the Anki `ObsidianURI` field, a
 Enable **Settings → Anki Card Link → Reading review → Hide answers in reading mode**. The feature only processes Markdown notes whose MetadataCache contains the `anki-card-link` tag, whether the tag comes from YAML or inline `#anki-card-link` syntax. It runs only in reading mode; source mode, live preview, and normal editing continue to show the original Markdown.
 
 - Basic: Front and the configured separator remain visible; the complete Back is one reveal group and keeps its rendered layout, code blocks, and images.
-- Cloze: each `{{cN::answer}}` token becomes an independent clickable blank. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
+- Cloze: each valid token in an explicit region becomes an independent clickable blank. In an unmarked compatibility note, valid tokens in the whole note body are processed. Tokens outside explicit regions and tokens inside fenced code are ignored. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
 - Choice: the content inside `【】` is one cloze-style blank, while the optional explanation after the options is one Back reveal group.
 - Click or focus a mask and press Enter/Space to reveal it. Reopening or rerendering the reading view resets all masks to hidden.
 - The four reading-review commands operate only on the active tagged reading view. Configure optional shortcuts under **Settings → Hotkeys**, search for **Anki Card Link**. Suggested keys are J, Shift+J, N, and Shift+N; the plugin does not bind them automatically.
@@ -136,7 +159,7 @@ Do not render `{{ObsidianURI}}` directly because that exposes the full URI, path
 - Validated `nid`, `cid`, text, and custom-query links
 - Folder-path to Anki `::` deck mapping
 - Obsidian Wiki-image upload to Anki media
-- Cloze next/current-number commands
+- Cloze region insertion and region-aware next/current-number commands
 - English and Simplified Chinese UI, debug logging, and clipboard fallback
 
 ## Installation and development

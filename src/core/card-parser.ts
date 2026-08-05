@@ -1,8 +1,15 @@
 import { isCardUid } from './card-identity';
 import { parseCardLinkLine, type ParsedCardLink } from './card-link';
-import { hasUnclosedCodeFence } from './markdown-fence';
+import { getFencedLines, hasUnclosedCodeFence } from './markdown-fence';
 import { AnkiCardLinkError } from '../types';
 import { DEFAULT_CARD_SYNTAX, type CardSyntax } from './card-syntax';
+import {
+	getMarkdownBodyRange,
+	hasValidClozeOutsideFences,
+	parseClozeRegions,
+	type ClozeRegion,
+	type ClozeRegionIssue,
+} from './cloze-region';
 
 export type ChoiceOptionId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
 export type ParsedCardType = 'basic' | 'cloze' | 'choice';
@@ -32,6 +39,10 @@ export interface ParsedBasicCard extends ParsedCardBase {
 export interface ParsedClozeCard extends ParsedCardBase {
 	type: 'cloze';
 	content: string;
+	contentStartLine: number;
+	clozeRegionStartLine?: number;
+	clozeRegionEndLine?: number;
+	explicitRegion: boolean;
 }
 
 export interface ParsedChoiceCard extends ParsedCardBase {
@@ -71,6 +82,7 @@ const BLOCK_ID = /^\^?(acl-[a-z0-9]{8})$/u;
 const INLINE_BLOCK_ID = /\s+\^(acl-[a-z0-9]{8})$/u;
 const CLOZE_TOKEN = /\{\{c([1-9]\d*)::([^{}]+?)(?:::[^{}]*?)?\}\}/gu;
 const CLOZE_MARKER = /\{\{c\d+::/u;
+const CLOZE_SYNTAX = /\{\{c\d+::.*?\}\}/gu;
 const CHOICE_HEADING = /^\s{0,3}###\s+(.+?)\s*【([^】]*)】([。.!！?？]?)\s*$/u;
 const CHOICE_OPTION = /^\s{0,3}-[ \t]+(.+)$/u;
 const CHOICE_OPTION_PREFIX = /^\s{0,3}-[ \t]*(.*)$/u;
@@ -90,10 +102,29 @@ export function parseCardCandidates(markdown: string, syntax: CardSyntax = DEFAU
 
 function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: boolean, syntax: CardSyntax): CardParseCandidate[] {
 	const lines = markdown.split(/\r?\n/u);
-	const choiceCandidates = findChoiceCandidates(lines);
+	const clozeScan = parseClozeRegions(markdown);
+	if (!clozeScan.explicitMode) {
+		const implicitCloze = parseImplicitCloze(lines);
+		if (implicitCloze !== undefined) {
+			const candidates = [implicitCloze];
+			if (rejectDuplicateUids) {
+				markDuplicateUids(candidates);
+			}
+			return candidates;
+		}
+	}
+
+	const protectedRanges = clozeScan.explicitMode ? clozeScan.protectedRanges : [];
+	const choiceCandidates = findChoiceCandidates(lines, protectedRanges);
 	const choiceRanges = choiceCandidates.map(({ startLine, endLine }) => ({ startLine, endLine }));
 	const blocks = findLineBlocks(lines);
-	const candidates: CardParseCandidate[] = [...choiceCandidates];
+	const candidates: CardParseCandidate[] = clozeScan.explicitMode
+		? [
+			...clozeScan.regions.map((region) => parseExplicitCloze(lines, region)),
+			...clozeScan.issues.map((issue) => buildClozeIssueCandidate(issue)),
+			...choiceCandidates,
+		]
+		: [...choiceCandidates];
 
 	for (let index = 0; index < blocks.length; index += 1) {
 		const originalBlock = blocks[index];
@@ -101,7 +132,8 @@ function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: bool
 			continue;
 		}
 		let block = originalBlock;
-		if (choiceRanges.some((range) => rangesOverlap(originalBlock, range))) {
+		if (choiceRanges.some((range) => rangesOverlap(originalBlock, range))
+			|| protectedRanges.some((range) => rangesOverlap(originalBlock, range))) {
 			continue;
 		}
 		if (getStandaloneCardLink(lines, block) !== undefined) {
@@ -121,7 +153,7 @@ function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: bool
 			: undefined;
 		const attachedLink = inlineFollowingLink ?? separateLink;
 		try {
-			const card = parseBlock(lines, block, attachedLink, syntax);
+			const card = parseBlock(lines, block, attachedLink, syntax, !clozeScan.explicitMode);
 			candidates.push(card === null
 				? { ...block }
 				: { startLine: card.startLine, endLine: card.endLine, card });
@@ -202,11 +234,143 @@ export function getCardTitle(filePath: string): string {
 
 export { hasUnclosedCodeFence } from './markdown-fence';
 
-function findChoiceCandidates(lines: string[]): CardParseCandidate[] {
+function parseExplicitCloze(lines: string[], region: ClozeRegion): CardParseCandidate {
+	const link = findAttachedCardLink(lines, region.endLine + 1);
+	const card: ParsedClozeCard = {
+		type: 'cloze',
+		startLine: region.startLine,
+		endLine: link?.line ?? region.endLine,
+		contentStartLine: region.contentStartLine,
+		contentEndLine: region.contentEndLine,
+		clozeRegionStartLine: region.startLine,
+		clozeRegionEndLine: region.endLine,
+		explicitRegion: true,
+		content: region.content,
+		uid: link?.uid,
+		noteId: link?.noteId,
+		linkLine: link?.line,
+	};
+	return { startLine: card.startLine, endLine: card.endLine, card };
+}
+
+function parseImplicitCloze(lines: string[]): CardParseCandidate | undefined {
+	const body = getMarkdownBodyRange(lines);
+	if (body === undefined) {
+		return undefined;
+	}
+	const fencedLines = getFencedLines(lines);
+	const contentLines = lines.slice(body.startLine, body.endLine + 1);
+	const links: ParsedCardLink[] = [];
+	let legacyBlockId: string | undefined;
+	let legacyBlockIdInline: boolean | undefined;
+
+	for (let line = body.startLine; line <= body.endLine; line += 1) {
+		if (fencedLines.has(line)) {
+			continue;
+		}
+		const localIndex = line - body.startLine;
+		const value = contentLines[localIndex] ?? '';
+		const link = parseCardLinkLine(value, line);
+		if (link !== undefined) {
+			links.push(link);
+			contentLines[localIndex] = '';
+			continue;
+		}
+		const standaloneId = BLOCK_ID.exec(value.trim());
+		if (standaloneId?.[1] !== undefined && isCardUid(standaloneId[1])) {
+			legacyBlockId = standaloneId[1];
+			legacyBlockIdInline = false;
+			contentLines[localIndex] = '';
+		}
+	}
+
+	let localEnd = contentLines.length - 1;
+	while (localEnd >= 0 && (contentLines[localEnd] ?? '').trim().length === 0) localEnd -= 1;
+	const finalLine = contentLines[localEnd] ?? '';
+	const inlineId = INLINE_BLOCK_ID.exec(finalLine);
+	if (inlineId?.[1] !== undefined && isCardUid(inlineId[1])) {
+		legacyBlockId = inlineId[1];
+		legacyBlockIdInline = true;
+		contentLines[localEnd] = finalLine.slice(0, inlineId.index).trimEnd();
+	}
+	if (!hasValidClozeOutsideFences(contentLines)) {
+		return undefined;
+	}
+	if (links.length > 1) {
+		return {
+			...body,
+			error: new AnkiCardLinkError(
+				'INVALID_CARD',
+				'Implicit Cloze note contains more than one synchronized Anki button.',
+			),
+		};
+	}
+
+	let localStart = 0;
+	while (localStart < contentLines.length && (contentLines[localStart] ?? '').trim().length === 0) localStart += 1;
+	localEnd = contentLines.length - 1;
+	while (localEnd >= localStart && (contentLines[localEnd] ?? '').trim().length === 0) localEnd -= 1;
+	if (localStart > localEnd) {
+		return {
+			...body,
+			error: new AnkiCardLinkError('INVALID_CLOZE', 'Cloze card does not contain content.'),
+		};
+	}
+
+	const link = links[0];
+	if (link?.uid !== undefined && legacyBlockId !== undefined && link.uid !== legacyBlockId) {
+		return {
+			...body,
+			error: new AnkiCardLinkError('INVALID_CARD', 'Card link UID does not match the legacy block ID.'),
+		};
+	}
+	const card: ParsedClozeCard = {
+		type: 'cloze',
+		startLine: body.startLine,
+		endLine: body.endLine,
+		contentStartLine: body.startLine + localStart,
+		contentEndLine: body.startLine + localEnd,
+		content: contentLines.slice(localStart, localEnd + 1).join('\n'),
+		explicitRegion: false,
+		uid: link?.uid ?? legacyBlockId,
+		noteId: link?.noteId,
+		linkLine: link?.line,
+		legacyBlockId,
+		legacyBlockIdInline,
+	};
+	return { startLine: card.startLine, endLine: card.endLine, card };
+}
+
+function buildClozeIssueCandidate(issue: ClozeRegionIssue): CardParseCandidate {
+	const messages: Record<ClozeRegionIssue['code'], string> = {
+		CLOZE_REGION_UNMATCHED_START: 'Cloze start marker is missing its matching end marker.',
+		CLOZE_REGION_UNMATCHED_END: 'Cloze end marker is missing its matching start marker.',
+		CLOZE_REGION_NESTED: 'Cloze note regions cannot be nested.',
+		CLOZE_REGION_EMPTY: 'Cloze note region cannot be empty.',
+		CLOZE_REGION_NO_CLOZE: 'Cloze note region does not contain a valid cloze deletion.',
+	};
+	return {
+		startLine: issue.startLine,
+		endLine: issue.endLine,
+		error: new AnkiCardLinkError(issue.code, messages[issue.code]),
+	};
+}
+
+function findAttachedCardLink(lines: string[], startLine: number): ParsedCardLink | undefined {
+	const direct = parseCardLinkLine(lines[startLine] ?? '', startLine);
+	if (direct !== undefined) {
+		return direct;
+	}
+	return (lines[startLine] ?? '').trim().length === 0
+		? parseCardLinkLine(lines[startLine + 1] ?? '', startLine + 1)
+		: undefined;
+}
+
+function findChoiceCandidates(lines: string[], excludedRanges: readonly LineBlock[] = []): CardParseCandidate[] {
 	const candidates: CardParseCandidate[] = [];
 	const fencedLines = getFencedLines(lines);
 	for (let startLine = 0; startLine < lines.length; startLine += 1) {
-		if (fencedLines.has(startLine)) {
+		if (fencedLines.has(startLine) || excludedRanges.some((range) => startLine >= range.startLine && startLine <= range.endLine)) {
 			continue;
 		}
 		const heading = CHOICE_HEADING.exec(lines[startLine] ?? '');
@@ -214,6 +378,9 @@ function findChoiceCandidates(lines: string[]): CardParseCandidate[] {
 			continue;
 		}
 		const candidate = parseChoiceCandidate(lines, startLine, heading);
+		if (excludedRanges.some((range) => rangesOverlap(candidate, range))) {
+			continue;
+		}
 		candidates.push(candidate);
 		startLine = candidate.endLine;
 	}
@@ -324,31 +491,6 @@ function findAttachedChoiceLink(lines: string[], startLine: number): ParsedCardL
 	return undefined;
 }
 
-function getFencedLines(lines: string[]): Set<number> {
-	const fenced = new Set<number>();
-	let openingFence: { marker: '`' | '~'; length: number } | undefined;
-	for (let index = 0; index < lines.length; index += 1) {
-		const match = /^\s*(`{3,}|~{3,})/u.exec(lines[index] ?? '');
-		if (openingFence !== undefined) {
-			fenced.add(index);
-		}
-		if (match?.[1] === undefined) {
-			continue;
-		}
-		const marker = match[1][0];
-		if (marker !== '`' && marker !== '~') {
-			continue;
-		}
-		if (openingFence === undefined) {
-			openingFence = { marker, length: match[1].length };
-			fenced.add(index);
-		} else if (marker === openingFence.marker && match[1].length >= openingFence.length) {
-			openingFence = undefined;
-		}
-	}
-	return fenced;
-}
-
 function rangesOverlap(left: LineBlock, right: LineBlock): boolean {
 	return left.startLine <= right.endLine && right.startLine <= left.endLine;
 }
@@ -394,7 +536,13 @@ function getStandaloneCardLink(lines: string[], block: LineBlock): ParsedCardLin
 	return parseCardLinkLine(lines[block.startLine] ?? '', block.startLine);
 }
 
-function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | undefined, syntax: CardSyntax): ParsedCard | null {
+function parseBlock(
+	lines: string[],
+	block: LineBlock,
+	link: ParsedCardLink | undefined,
+	syntax: CardSyntax,
+	allowCloze: boolean,
+): ParsedCard | null {
 	const details = getBlockContent(lines, block);
 	const content = details.lines.join('\n').trim();
 	if (content.length === 0) {
@@ -412,11 +560,24 @@ function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | un
 	};
 	const endLine = link?.line ?? block.endLine;
 
-	if (CLOZE_MARKER.test(content)) {
-		if (!hasValidCloze(content)) {
+	const fencedLines = getFencedLines(details.lines);
+	const clozeDetectionText = details.lines
+		.map((line, index) => fencedLines.has(index) ? '' : line)
+		.join('\n');
+	if (allowCloze && CLOZE_MARKER.test(clozeDetectionText)) {
+		if (!hasValidCloze(clozeDetectionText)) {
 			throw new AnkiCardLinkError('INVALID_CLOZE', 'Cloze card does not contain a valid cloze deletion.');
 		}
-		return { type: 'cloze', startLine: block.startLine, endLine, contentEndLine: details.contentEndLine, content, ...identity };
+		return {
+			type: 'cloze',
+			startLine: block.startLine,
+			endLine,
+			contentStartLine: block.startLine,
+			contentEndLine: details.contentEndLine,
+			content,
+			explicitRegion: false,
+			...identity,
+		};
 	}
 
 	const separatorLines = details.lines
@@ -474,8 +635,15 @@ function parseBlock(lines: string[], block: LineBlock, link: ParsedCardLink | un
 
 function findSingleLineSeparator(line: string, separators: readonly string[]): { index: number; value: string } | undefined {
 	let result: { index: number; value: string } | undefined;
+	const clozeRanges = [...line.matchAll(CLOZE_SYNTAX)].map((match) => ({
+		start: match.index,
+		end: match.index + match[0].length,
+	}));
 	for (const value of separators) {
-		const index = line.indexOf(value);
+		let index = line.indexOf(value);
+		while (index >= 0 && clozeRanges.some((range) => index >= range.start && index < range.end)) {
+			index = line.indexOf(value, index + value.length);
+		}
 		if (index >= 0 && (result === undefined || index < result.index || (index === result.index && value.length > result.value.length))) {
 			result = { index, value };
 		}

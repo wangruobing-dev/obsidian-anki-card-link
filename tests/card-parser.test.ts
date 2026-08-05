@@ -148,10 +148,10 @@ describe('card parser', () => {
 		expect(parseCards('### 任务列表【A】\n- [ ] A\n- [x] B')).toHaveLength(0);
 	});
 
-	it('keeps valid basic and Cloze cards around a malformed choice candidate', () => {
+	it('gives an implicit whole-note Cloze priority when no boundary markers exist', () => {
 		const source = '前面 :: 正常\n\n### 错题【D】\n- A\n- B\n\n后面 {{c1::正常}}';
 		const candidates = parseCardCandidates(source);
-		expect(candidates.filter((candidate) => candidate.card !== undefined).map((candidate) => candidate.card?.type)).toEqual(['basic', 'cloze']);
-		expect(candidates.filter((candidate) => candidate.error !== undefined)).toHaveLength(1);
+		expect(candidates.filter((candidate) => candidate.card !== undefined).map((candidate) => candidate.card?.type)).toEqual(['cloze']);
+		expect(candidates.filter((candidate) => candidate.error !== undefined)).toHaveLength(0);
 	});
 });

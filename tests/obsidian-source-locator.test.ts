@@ -7,6 +7,7 @@ import {
 	type SourceFile,
 } from '../src/services/obsidian-source-locator';
 import { buildCardSyntax } from '../src/core/card-syntax';
+import { CLOZE_REGION_END, CLOZE_REGION_START } from '../src/core/cloze-region';
 
 class FakeHost implements ObsidianSourceHost {
 	vaultName = '若冰的知识库';
@@ -63,6 +64,14 @@ describe('Obsidian source locator', () => {
 		host.files.set('a.md', markdown);
 		host.provideEditor = false;
 		await expect(new ObsidianSourceLocator(host, new CardLocationIndex()).open({ vaultName: host.vaultName, filePath: 'a.md', uid: 'acl-1234abcd' })).resolves.toMatchObject({ positioned: false });
+	});
+
+	it('positions an explicit Cloze card at its first body line instead of the HTML marker', async () => {
+		const host = new FakeHost();
+		host.files.set('cloze.md', `${CLOZE_REGION_START}\n\n### JVM\n{{c1::答案}}\n\n${CLOZE_REGION_END}\n\n[Open](obsidian://anki-card-link?type=nid&value=10&uid=acl-1234abcd&v=2)`);
+		const result = await new ObsidianSourceLocator(host, new CardLocationIndex()).open({ vaultName: host.vaultName, filePath: 'cloze.md', uid: 'acl-1234abcd' });
+		expect(result.line).toBe(2);
+		expect(host.cursors).toEqual([{ line: 2, ch: 0 }]);
 	});
 
 	it('rejects vault mismatch, missing files, missing UID, and duplicate UID', async () => {

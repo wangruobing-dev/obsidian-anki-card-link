@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCardSyntax, DEFAULT_CARD_SYNTAX } from '../src/core/card-syntax';
 import { LOCALIZED_COMMAND_IDS, READING_REVIEW_COMMAND_IDS } from '../src/reading-review/command-ids';
+import { CLOZE_REGION_END, CLOZE_REGION_START } from '../src/core/cloze-region';
 import {
 	buildReadingReviewModel,
 	createMaskStates,
@@ -138,9 +139,9 @@ describe('reading review model', () => {
 		expect(buildReadingReviewModel('Q :: A', DEFAULT_CARD_SYNTAX, false)).toEqual({ cards: [], masks: [] });
 	});
 
-	it('keeps multiple cards in source order', () => {
+	it('uses one implicit Cloze card when an unmarked file also contains Basic syntax', () => {
 		const source = 'Q1 :: A1\n\nQ2 {{c1::A2}}';
-		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['A1', 'A2']);
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['A2']);
 	});
 
 	it('supports Chinese emoji and mixed characters', () => {
@@ -156,5 +157,31 @@ describe('reading review model', () => {
 	it('keeps localized command IDs unique across language re-registration', () => {
 		expect(new Set(LOCALIZED_COMMAND_IDS).size).toBe(LOCALIZED_COMMAND_IDS.length);
 		expect(LOCALIZED_COMMAND_IDS.slice(-4)).toEqual(READING_REVIEW_COMMAND_IDS);
+		expect(LOCALIZED_COMMAND_IDS).toContain('insert-cloze-region');
+	});
+
+	it('masks only Cloze tokens inside explicit regions', () => {
+		const source = `外部 {{c9::不遮挡}}\n\n${CLOZE_REGION_START}\n内部 {{c1::遮挡}}\n${CLOZE_REGION_END}`;
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['遮挡']);
+	});
+
+	it('keeps multiple explicit regions in document reveal order', () => {
+		const source = `${CLOZE_REGION_START}\n{{c1::一}} {{c2::二}}\n${CLOZE_REGION_END}\n\n${CLOZE_REGION_START}\n{{c1::三}}\n${CLOZE_REGION_END}`;
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['一', '二', '三']);
+	});
+
+	it('does not mask fenced-code Cloze inside an explicit region', () => {
+		const source = `${CLOZE_REGION_START}\n\`\`\`markdown\n{{c9::示例}}\n\`\`\`\n真实 {{c1::答案}}\n${CLOZE_REGION_END}`;
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['答案']);
+	});
+
+	it('keeps Basic and Choice review behavior outside explicit regions', () => {
+		const source = `${CLOZE_REGION_START}\n{{c1::填空}}\n${CLOZE_REGION_END}\n\n问题::答案\n\n### 题目【B】\n- A\n- B\n解析`;
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => [mask.cardType, mask.answer])).toEqual([
+			['cloze', '填空'],
+			['basic', '答案'],
+			['choice', 'B'],
+			['choice', '解析'],
+		]);
 	});
 });

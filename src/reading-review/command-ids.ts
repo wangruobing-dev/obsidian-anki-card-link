@@ -12,5 +12,6 @@ export const LOCALIZED_COMMAND_IDS = [
 	'sync-current-file',
 	'cloze-next-number',
 	'cloze-current-number',
+	'insert-cloze-region',
 	...READING_REVIEW_COMMAND_IDS,
 ] as const;

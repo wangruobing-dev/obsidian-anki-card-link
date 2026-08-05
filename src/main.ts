@@ -17,8 +17,10 @@ import {
 	buildClozeReplacement,
 	getClozeContentCursorOffset,
 	getClozeNumber,
+	insertClozeRegion as insertClozeRegionInMarkdown,
 	type ClozeNumberMode,
 } from './core/cloze-editor';
+import { getClozeScopeAtOffset } from './core/cloze-region';
 import { buildAnkiQuery } from './core/query-builder';
 import {
 	OPEN_OBSIDIAN_PROTOCOL_ACTION,
@@ -119,6 +121,7 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		this.addCommand({ id: 'sync-current-file', name: strings.commands.syncCurrentFile, editorCallback: (editor, context) => void this.syncCurrentFile(editor, context) });
 		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
 		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
+		this.addCommand({ id: 'insert-cloze-region', name: strings.commands.insertClozeRegion, editorCallback: (editor) => this.insertClozeRegion(editor) });
 		this.addReadingReviewCommand('reveal-next-reading-cloze', strings.commands.revealNextReadingCloze, 'cloze', false);
 		this.addReadingReviewCommand('toggle-all-reading-clozes', strings.commands.toggleAllReadingClozes, 'cloze', true);
 		this.addReadingReviewCommand('reveal-next-reading-back', strings.commands.revealNextReadingBack, 'back', false);
@@ -357,12 +360,29 @@ export default class AnkiCardLinkPlugin extends Plugin {
 
 	private insertCloze(editor: Editor, mode: ClozeNumberMode): void {
 		const cursor = editor.getCursor();
-		const number = getClozeNumber(this.getCurrentParagraph(editor, cursor.line), mode);
+		const source = editor.getValue();
+		const scope = getClozeScopeAtOffset(source, editor.posToOffset(cursor));
+		const fallback = this.getCurrentParagraph(editor, cursor.line);
+		const number = getClozeNumber(scope?.text ?? fallback, mode, scope?.beforeCursor ?? fallback);
 		const selection = editor.getSelection();
 		editor.replaceSelection(buildClozeReplacement(selection, number));
 		if (selection.length === 0) {
 			editor.setCursor({ line: cursor.line, ch: cursor.ch + getClozeContentCursorOffset(number) });
 		}
+	}
+
+	private insertClozeRegion(editor: Editor): void {
+		const source = editor.getValue();
+		const start = editor.posToOffset(editor.getCursor('from'));
+		const end = editor.posToOffset(editor.getCursor('to'));
+		const result = insertClozeRegionInMarkdown(source, start, end);
+		if (!result.ok) {
+			const notices = getStrings(this.settings.language).notices;
+			this.showNotice(result.reason === 'inside-region' ? notices.clozeRegionInside : notices.clozeRegionOverlap);
+			return;
+		}
+		editor.setValue(result.markdown);
+		editor.setSelection(editor.offsetToPos(result.selectionStart), editor.offsetToPos(result.selectionEnd));
 	}
 
 	private addReadingReviewCommand(

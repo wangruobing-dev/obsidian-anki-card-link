@@ -14,6 +14,8 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 1.4.0 新增可选的“阅读模式复习遮罩”：只对带 `anki-card-link` 标签的笔记隐藏答案，不修改 Markdown 原文，也不改变同步到 Anki 的任何字段。
 
+1.4.1 新增明确的 Cloze 笔记区域、无标签旧笔记的整篇兼容模式，以及 `insert-cloze-region` 快捷命令。
+
 ## 平台范围
 
 | 功能 | Windows/macOS/Linux | Android | iOS/iPadOS |
@@ -67,6 +69,37 @@ Java 的 {{c1::垃圾回收器}} 可以自动管理内存。
 [打开对应 Anki 卡片](obsidian://anki-card-link?type=nid&value=1754000000000&uid=acl-6a0f08df&v=2)
 ```
 
+### Cloze 笔记区域
+
+混合 Basic、Choice 和 Cloze，或者一张 Cloze 需要跨多个段落、标题、列表、图片、公式和代码块时，推荐使用标准区域：
+
+```markdown
+<!-- anki-card-link:cloze:start -->
+
+这里是一张 Cloze 笔记。
+
+JVM 是 {{c1::Java Virtual Machine}}。
+
+<!-- anki-card-link:cloze:end -->
+```
+
+规则：
+
+- 标签之间是一张 Cloze 笔记，一篇 Markdown 可以包含多个互相独立的 Cloze 区域；
+- 标签必须单独占一行、成对出现，不允许嵌套；标签本身不会同步到 Anki；
+- 区域内部的标题、空行、列表、引用、表格、公式、图片、代码块、Basic 分隔符和 Choice 语法都属于同一张 Cloze 的 `Content`；
+- 一旦文件中出现任意边界标签，只有完整区域内的有效 Cloze 才会同步和产生阅读遮罩，区域外 Cloze 不再自动同步；区域外 Basic 和 Choice 仍正常解析；
+- 如果文件中完全没有开始、结束标签，只要围栏代码块外存在有效 Cloze，整篇正文就是一张兼容 Cloze；YAML Frontmatter、同步按钮和旧 UID 元数据不会写入 `Content`；
+- 旧笔记可以继续使用，不强制迁移，也不会自动批量插入标签；混合三种卡片时建议始终使用边界标签。
+
+进入 **设置 → 快捷键**，搜索 **Anki Card Link**，可以找到：
+
+- 命令 ID：`insert-cloze-region`
+- 中文名称：**Cloze：插入笔记区域**
+- 英文名称：**Cloze: Insert note region**
+
+有选区时会用标准标签包裹原文；没有选区时插入空区域，并把光标放到中间正文行。命令会拒绝区域内部、包含标签或与已有区域重叠的操作。
+
 选择题：
 
 ```markdown
@@ -101,7 +134,7 @@ A、C、D 正确。
 进入 **设置 → Anki Card Link → 阅读模式复习**，开启“隐藏阅读模式中的答案”。插件通过 Obsidian MetadataCache 判断标签，YAML 单值、YAML 数组和行内 `#anki-card-link` 都支持。只有阅读模式会隐藏；源码模式、实时预览和普通编辑模式仍显示 Markdown 原文。
 
 - Basic：Front 和原分隔符正常显示，整个 Back 作为一个背面揭示组，保留原有换行、代码块、图片和布局。
-- Cloze：每个 `{{cN::答案}}` 独立变成可点击填空；带 `::提示` 时，隐藏状态可以显示提示，但不显示答案。
+- Cloze：显式模式只遮挡区域正文中的有效填空；无标签兼容模式遮挡整篇正文中的有效填空。区域外 Cloze 和围栏代码块中的示例不遮挡；带 `::提示` 时，隐藏状态可以显示提示，但不显示答案。
 - 选择题：三级标题 `【】` 内的答案作为一个填空；选项后的解析作为一个背面揭示组。没有解析时不会生成空遮罩。
 - 点击遮罩即可揭示；也可以用 Tab 聚焦后按 Enter 或空格。重新打开、重新渲染或重新切换阅读模式后，答案恢复隐藏。
 - 手机端可以直接点击。可选的“启用左右边缘触控”默认关闭；开启后，阅读区域左侧约 11% 揭示下一个填空，右侧约 11% 揭示下一个背面。滚动、文本选择、链接、按钮、输入控件、代码和遮罩本身不会触发边缘操作。
@@ -110,6 +143,7 @@ A、C、D 正确。
 
 | 命令 | 推荐快捷键 |
 | --- | --- |
+| Cloze：插入笔记区域 | Ctrl + Alt + C |
 | 挖空：使用新编号 | Ctrl + Shift + C |
 | 挖空：沿用当前编号 | Ctrl + Alt + Shift + C |
 | 阅读复习：揭示下一个填空 | J |
@@ -117,7 +151,7 @@ A、C、D 正确。
 | 阅读复习：揭示下一个背面 | N |
 | 阅读复习：显示或隐藏全部背面 | Shift + N |
 
-这些快捷键都可以按自己的习惯修改。阅读遮罩只是视觉复习辅助，不是安全加密；编辑模式和 Markdown 原文中仍然可以看到答案。
+macOS 对应使用 Command / Option，例如区域命令推荐 Command + Option + C。这些都只是推荐快捷键，插件不会强制注册或覆盖已有绑定。阅读遮罩只是视觉复习辅助，不是安全加密；编辑模式和 Markdown 原文中仍然可以看到答案。
 
 ## 同步流程
 
@@ -148,7 +182,7 @@ obsidian://anki-card-link-open?v=2&vault=若冰的知识库&filePath=test%2Flinu
 2. 优先按 URI 中的相对路径打开文件；
 3. 路径失效时使用本地 UID → 当前路径索引；
 4. 只读取目标 Markdown 文件，找到对应按钮；
-5. 将光标和视口定位到 `card.startLine`，而不是按钮行。
+5. 将光标和视口定位到卡片正文第一行；显式 Cloze 优先使用 `contentStartLine`，不会定位到 HTML 注释标签或按钮行。
 
 这里保留 Obsidian 的 `vault` 参数，以便冷启动时先打开正确的 Vault；Vault 相对路径使用插件专用的 `filePath`。不能使用 Obsidian 保留的 `path` 参数，因为主进程会把它当成磁盘绝对路径，并在请求到达插件前显示 `Vault not found`。
 
@@ -217,7 +251,7 @@ obsidian://anki-card-link-open?v=2&vault=若冰的知识库&filePath=test%2Flinu
 - `nid`、`cid`、普通文本、自定义查询链接；
 - 当前文件夹路径映射为 Anki `::` 层级牌组；
 - Obsidian Wiki 图片上传到 Anki 媒体库；
-- Cloze 新编号/沿用编号命令；
+- Cloze 区域插入命令，以及按当前区域/整篇兼容正文计算的新编号、沿用编号命令；
 - 中英文界面、调试日志、打开失败复制查询。
 
 ## 常见错误

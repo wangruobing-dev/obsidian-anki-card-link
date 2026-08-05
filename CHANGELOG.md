@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.4.1 - 2026-08-05
+
+- Add paired Cloze note regions that preserve multi-paragraph Markdown as one card, reject malformed/nested markers, ignore marker examples in fenced code, and keep Basic/Choice parsing outside regions.
+- Change unmarked Cloze compatibility to one whole-note card while excluding frontmatter, generated buttons, legacy UID metadata, and fenced-code-only examples.
+- Add precise Cloze marker/body/button ranges, body-first Anki-to-Obsidian positioning, region-safe button writeback, and independent UID/noteId handling for multiple regions.
+- Add the localized `insert-cloze-region` editor command with selection wrapping, empty-region insertion, LF/CRLF preservation, and overlap/nesting prevention.
+- Make Cloze numbering use the current explicit region or complete implicit note body, and make reading-mode masks follow the same parser ranges.
+- Add 61 regression tests and expand bilingual setup guides and the manual checklist.
+
 ## 1.4.0 - 2026-08-04
 
 - Add reading-mode review masks for tagged Basic, Cloze, and choice cards without changing Markdown or Anki synchronization fields.

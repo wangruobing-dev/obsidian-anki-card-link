@@ -71,7 +71,11 @@ export function ensureCardLink(
 ): string {
 	const lines = markdown.split(/\r?\n/u);
 	const lineEnding = markdown.includes('\r\n') ? '\r\n' : '\n';
-	const contentLines = lines.slice(card.startLine, card.contentEndLine + 1);
+	const contentLines = card.type === 'cloze' && card.explicitRegion
+		? lines.slice(card.startLine, (card.clozeRegionEndLine ?? card.contentEndLine) + 1)
+		: card.type === 'cloze'
+			? card.content.split('\n')
+			: lines.slice(card.startLine, card.contentEndLine + 1);
 	if (card.legacyBlockIdInline && card.legacyBlockId !== undefined) {
 		const lastIndex = contentLines.length - 1;
 		contentLines[lastIndex] = (contentLines[lastIndex] ?? '').replace(
@@ -79,7 +83,7 @@ export function ensureCardLink(
 			'',
 		);
 	}
-	if (hasUnclosedCodeFence(contentLines, 0, contentLines.length)) {
+	if (card.type !== 'cloze' && hasUnclosedCodeFence(contentLines, 0, contentLines.length)) {
 		contentLines.push('```');
 	}
 	const replacement = [...contentLines, '', buildCardLink(identity.noteId, identity.uid, label)];

@@ -67,15 +67,16 @@ export class ObsidianSourceLocator {
 		if (card === undefined) {
 			throw new AnkiCardLinkError('SOURCE_POSITION_FAILED', 'The source card position could not be determined.');
 		}
+		const targetLine = card.type === 'cloze' ? card.contentStartLine : card.startLine;
 		const editor = await this.host.openFile(file);
 		if (editor === undefined) {
-			return { path: file.path, line: card.startLine, positioned: false };
+			return { path: file.path, line: targetLine, positioned: false };
 		}
 		try {
-			const position = { line: card.startLine, ch: 0 };
+			const position = { line: targetLine, ch: 0 };
 			editor.setCursor(position);
 			editor.scrollIntoView({ from: position, to: position }, true);
-			return { path: file.path, line: card.startLine, positioned: true };
+			return { path: file.path, line: targetLine, positioned: true };
 		} catch (error) {
 			throw new AnkiCardLinkError('SOURCE_POSITION_FAILED', 'The file was opened, but the card position could not be shown.', { cause: error });
 		}
