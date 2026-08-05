@@ -25,7 +25,7 @@
 	padding: 0.02em 0.42em;
 	cursor: pointer;
 	border-radius: 1px;
-	background-color: var(--color-blue, #82aaff);
+	background-color: #87b1ff;
 	color: var(--text-on-accent, #fff);
 	font-weight: var(--font-semibold);
 	line-height: 1.2;
@@ -77,7 +77,7 @@
 
 .acl-review-mask:hover,
 .acl-review-mask:focus-visible {
-	background-color: var(--color-pink, #e57ba7);
+	background-color: #ff96af;
 }
 
 .acl-review-mask:focus-visible {
