@@ -1,6 +1,6 @@
 # Manual platform test checklist
 
-Complete this checklist before publishing version 1.4.2. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+Complete this checklist before publishing version 1.4.1. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
 
 ## Cloze note regions and editor commands
 
@@ -28,6 +28,8 @@ Complete this checklist before publishing version 1.4.2. Record the Obsidian, An
 - [ ] An untagged note and a note with the setting disabled render normally.
 - [ ] Source mode, live preview, and normal editing always show the original Markdown and accept ordinary J/N typing.
 - [ ] Single-line `::`, `：：`, no-space separators, customized separators, and multi-line `?`/`？` keep Front and separators visible while hiding the complete Back.
+- [ ] A first Basic card immediately after YAML frontmatter is masked without requiring a blank line after the closing `---`.
+- [ ] An old unmarked note mixing Basic, Cloze, and Choice hides every recognizable answer in reading mode while synchronization remains one compatibility Cloze note.
 - [ ] A Basic Back keeps its width, height, line breaks, multiple lines, fenced code, images, Markdown formatting, and Anki button/link placement.
 - [ ] Each Cloze token is hidden independently; repeated numbers reveal in DOM order; hints show without exposing answers; fenced-code examples stay unchanged.
 - [ ] Choice `【A】`, `【A,C,D】`, and `【A、C、D】` keep both brackets visible, hide only the answer, and participate in next-cloze order.
@@ -38,6 +40,7 @@ Complete this checklist before publishing version 1.4.2. Record the Obsidian, An
 - [ ] Reopening the file, rerendering reading mode, or switching away and back resets every mask to hidden.
 - [ ] Turning the setting off immediately restores normal reading rendering without changing the file or requiring a plugin restart.
 - [ ] Light and dark themes both show a subtle mask; focus outlines and revealed text remain readable.
+- [ ] Cloze, Basic Back, choice answer, and choice explanation masks all use blue `#87b1ff`, changing to pink `#ff96af` on hover/focus.
 - [ ] On Android and iOS, direct mask taps work. With edge gestures enabled, left reveals Cloze and right reveals Back.
 - [ ] Mobile scrolling, clear finger movement, text selection, links, buttons, inputs, code/pre blocks, masks, sidebars, and normal navigation do not trigger edge actions.
 

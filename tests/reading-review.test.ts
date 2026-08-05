@@ -139,9 +139,40 @@ describe('reading review model', () => {
 		expect(buildReadingReviewModel('Q :: A', DEFAULT_CARD_SYNTAX, false)).toEqual({ cards: [], masks: [] });
 	});
 
-	it('uses one implicit Cloze card when an unmarked file also contains Basic syntax', () => {
+	it('keeps legacy Basic backs visible to reading review beside an implicit Cloze note', () => {
 		const source = 'Q1 :: A1\n\nQ2 {{c1::A2}}';
-		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['A2']);
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['A1', 'A2']);
+	});
+
+	it('masks every back in a legacy mixed Basic, Cloze, and Choice note', () => {
+		const source = [
+			'---',
+			'tags:',
+			'  - anki-card-link',
+			'---',
+			'9+1=：：10',
+			'',
+			'10+2=？',
+			'？',
+			'12',
+			'',
+			'11+11={{c1::22}} 2+3={{c1::5}} 1+3={{c2::4}}',
+			'',
+			'### Question【B】',
+			'- A',
+			'- B',
+			'**Explanation:**',
+			'Because B.',
+		].join('\n');
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => [mask.kind, mask.answer])).toEqual([
+			['back', '10'],
+			['back', '12'],
+			['cloze', '22'],
+			['cloze', '5'],
+			['cloze', '4'],
+			['cloze', 'B'],
+			['back', '**Explanation:**\nBecause B.'],
+		]);
 	});
 
 	it('supports Chinese emoji and mixed characters', () => {

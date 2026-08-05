@@ -97,14 +97,38 @@ export function parseCards(markdown: string, syntax: CardSyntax = DEFAULT_CARD_S
 	);
 }
 
-export function parseCardCandidates(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): CardParseCandidate[] {
-	return parseCardCandidatesInternal(markdown, true, syntax);
+/**
+ * 阅读模式需要继续遮挡旧混合笔记中的 Basic/Choice 背面。
+ * 同步解析仍保持“无边界 Cloze 优先整篇笔记”的兼容规则；这里仅额外读取同一文件中
+ * 明确的 Basic/Choice 语法，避免整篇 Cloze 兼容模式让这些背面直接暴露。
+ */
+export function parseCardsForReadingReview(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard[] {
+	const cards = parseCards(markdown, syntax);
+	const implicitCloze = cards.length === 1 && cards[0]?.type === 'cloze' && !cards[0].explicitRegion;
+	if (!implicitCloze) {
+		return cards;
+	}
+
+	const companionCards = parseCardCandidatesInternal(markdown, true, syntax, false, false)
+		.flatMap((candidate) => candidate.card === undefined || candidate.card.type === 'cloze' ? [] : [candidate.card]);
+	return [...cards, ...companionCards].sort((left, right) => left.startLine - right.startLine);
 }
 
-function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: boolean, syntax: CardSyntax): CardParseCandidate[] {
+export function parseCardCandidates(markdown: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): CardParseCandidate[] {
+	return parseCardCandidatesInternal(markdown, true, syntax, true, true);
+}
+
+function parseCardCandidatesInternal(
+	markdown: string,
+	rejectDuplicateUids: boolean,
+	syntax: CardSyntax,
+	allowImplicitWholeNoteCloze: boolean,
+	allowBlockCloze: boolean,
+): CardParseCandidate[] {
 	const lines = markdown.split(/\r?\n/u);
 	const clozeScan = parseClozeRegions(markdown);
-	if (!clozeScan.explicitMode) {
+	const bodyStartLine = getMarkdownBodyRange(lines)?.startLine ?? lines.length;
+	if (!clozeScan.explicitMode && allowImplicitWholeNoteCloze) {
 		const implicitCloze = parseImplicitCloze(lines);
 		if (implicitCloze !== undefined) {
 			const candidates = [implicitCloze];
@@ -116,9 +140,9 @@ function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: bool
 	}
 
 	const protectedRanges = clozeScan.explicitMode ? clozeScan.protectedRanges : [];
-	const choiceCandidates = findChoiceCandidates(lines, protectedRanges);
+	const choiceCandidates = findChoiceCandidates(lines, protectedRanges, bodyStartLine);
 	const choiceRanges = choiceCandidates.map(({ startLine, endLine }) => ({ startLine, endLine }));
-	const blocks = findLineBlocks(lines);
+	const blocks = findLineBlocks(lines, bodyStartLine);
 	const candidates: CardParseCandidate[] = clozeScan.explicitMode
 		? [
 			...clozeScan.regions.map((region) => parseExplicitCloze(lines, region)),
@@ -154,7 +178,7 @@ function parseCardCandidatesInternal(markdown: string, rejectDuplicateUids: bool
 			: undefined;
 		const attachedLink = inlineFollowingLink ?? separateLink;
 		try {
-			const card = parseBlock(lines, block, attachedLink, syntax, !clozeScan.explicitMode);
+			const card = parseBlock(lines, block, attachedLink, syntax, allowBlockCloze && !clozeScan.explicitMode);
 			candidates.push(card === null
 				? { ...block }
 				: { startLine: card.startLine, endLine: card.endLine, card });
@@ -195,7 +219,7 @@ export function findCardAtLine(markdown: string, line: number, syntax: CardSynta
 }
 
 export function findCardsByUid(markdown: string, uid: string, syntax: CardSyntax = DEFAULT_CARD_SYNTAX): ParsedCard[] {
-	return parseCardCandidatesInternal(markdown, false, syntax).flatMap((candidate) =>
+	return parseCardCandidatesInternal(markdown, false, syntax, true, true).flatMap((candidate) =>
 		candidate.card?.uid === uid ? [candidate.card] : [],
 	);
 }
@@ -453,10 +477,14 @@ function findAttachedCardLink(lines: string[], startLine: number): ParsedCardLin
 		: undefined;
 }
 
-function findChoiceCandidates(lines: string[], excludedRanges: readonly LineBlock[] = []): CardParseCandidate[] {
+function findChoiceCandidates(
+	lines: string[],
+	excludedRanges: readonly LineBlock[] = [],
+	startAtLine = 0,
+): CardParseCandidate[] {
 	const candidates: CardParseCandidate[] = [];
 	const fencedLines = getFencedLines(lines);
-	for (let startLine = 0; startLine < lines.length; startLine += 1) {
+	for (let startLine = startAtLine; startLine < lines.length; startLine += 1) {
 		if (fencedLines.has(startLine) || excludedRanges.some((range) => startLine >= range.startLine && startLine <= range.endLine)) {
 			continue;
 		}
@@ -582,12 +610,12 @@ function rangesOverlap(left: LineBlock, right: LineBlock): boolean {
 	return left.startLine <= right.endLine && right.startLine <= left.endLine;
 }
 
-function findLineBlocks(lines: string[]): LineBlock[] {
+function findLineBlocks(lines: string[], startAtLine = 0): LineBlock[] {
 	const blocks: LineBlock[] = [];
 	let startLine: number | undefined;
 	let fence: { marker: '`' | '~'; length: number } | undefined;
 
-	for (let index = 0; index <= lines.length; index += 1) {
+	for (let index = startAtLine; index <= lines.length; index += 1) {
 		const line = lines[index] ?? '';
 		const fenceMatch = /^\s*(`{3,}|~{3,})/u.exec(line);
 		const wasInsideFence = fence !== undefined;

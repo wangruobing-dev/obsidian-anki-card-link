@@ -2,21 +2,19 @@
 
 ## Unreleased
 
-## 1.4.2 - 2026-08-05
-
-- Replace the recommended paired Cloze boundary with one repeated `<!-- anki-card-link:cloze -->` marker: each marker starts a card that continues to the next marker or EOF.
-- Keep unmarked whole-note Cloze files and 1.4.1 paired start/end regions readable for backward compatibility.
-- Render Markdown headings, unordered and ordered lists, blockquotes, and horizontal rules as Anki HTML while preserving existing inline formatting, code, and image conversion.
-- Update the editor command, numbering scopes, reading-review ranges, card-link writeback, bilingual guides, and regression coverage for single-marker cards.
-
 ## 1.4.1 - 2026-08-05
 
-- Add paired Cloze note regions that preserve multi-paragraph Markdown as one card, reject malformed/nested markers, ignore marker examples in fenced code, and keep Basic/Choice parsing outside regions.
+- Add the repeated `<!-- anki-card-link:cloze -->` marker: each marker starts one multi-paragraph Cloze card that continues to the next marker or EOF.
+- Keep unmarked whole-note Cloze files and legacy paired start/end regions readable for backward compatibility.
+- Validate legacy paired regions, ignore markers and Cloze examples in fenced code, and keep Basic/Choice parsing outside explicit regions.
 - Change unmarked Cloze compatibility to one whole-note card while excluding frontmatter, generated buttons, legacy UID metadata, and fenced-code-only examples.
 - Add precise Cloze marker/body/button ranges, body-first Anki-to-Obsidian positioning, region-safe button writeback, and independent UID/noteId handling for multiple regions.
-- Add the localized `insert-cloze-region` editor command with selection wrapping, empty-region insertion, LF/CRLF preservation, and overlap/nesting prevention.
+- Add the localized `insert-cloze-region` editor command with selection insertion, editable empty-body insertion, LF/CRLF preservation, and legacy-region overlap prevention.
 - Make Cloze numbering use the current explicit region or complete implicit note body, and make reading-mode masks follow the same parser ranges.
-- Add 61 regression tests and expand bilingual setup guides and the manual checklist.
+- Render Markdown headings, unordered and ordered lists, blockquotes, and horizontal rules as Anki HTML while preserving inline formatting, code, and image conversion.
+- Use the same blue `#87b1ff` mask and pink `#ff96af` hover style for Cloze, Basic Back, choice answers, and choice explanations.
+- Restore Basic/Choice Back masks in legacy mixed whole-note Cloze files and exclude YAML frontmatter from card blocks even when the first card immediately follows it.
+- Expand bilingual setup guides, the manual checklist, and the complete 220-test regression suite.
 
 ## 1.4.0 - 2026-08-04
 

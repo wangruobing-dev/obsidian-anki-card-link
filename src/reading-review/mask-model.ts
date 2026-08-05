@@ -1,4 +1,4 @@
-import { parseCards, type ParsedCard } from '../core/card-parser';
+import { parseCardsForReadingReview, type ParsedCard } from '../core/card-parser';
 import type { CardSyntax } from '../core/card-syntax';
 import { getFencedLines } from '../core/markdown-fence';
 
@@ -50,8 +50,10 @@ export function buildReadingReviewModel(
 	if (!enabled) {
 		return { cards: [], masks: [] };
 	}
-	const cards = parseCards(markdown, syntax);
-	const masks = cards.flatMap((card, cardIndex) => buildCardMasks(markdown, card, cardIndex));
+	const cards = parseCardsForReadingReview(markdown, syntax);
+	const masks = cards
+		.flatMap((card, cardIndex) => buildCardMasks(markdown, card, cardIndex))
+		.sort((left, right) => left.startLine - right.startLine || left.startColumn - right.startColumn);
 	return { cards, masks };
 }
 

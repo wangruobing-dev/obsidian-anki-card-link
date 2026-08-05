@@ -27,6 +27,13 @@ describe('card parser', () => {
 		expect(cloze).toMatchObject({ type: 'cloze', content: '{{c1::甲}}\n{{c2::乙}}', uid: 'acl-87654321' });
 	});
 
+	it('parses a Basic card immediately after YAML frontmatter', () => {
+		const source = '---\ntags:\n  - anki-card-link\n---\nQuestion::Answer';
+		expect(parseCards(source)).toMatchObject([
+			{ type: 'basic', front: 'Question', back: 'Answer', startLine: 4 },
+		]);
+	});
+
 	it('supports English and Chinese separators without requiring spaces', () => {
 		expect(parseCardBlock('英文问题::英文答案')).toMatchObject({ front: '英文问题', back: '英文答案' });
 		expect(parseCardBlock('中文问题：：中文答案')).toMatchObject({ front: '中文问题', back: '中文答案' });

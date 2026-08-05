@@ -282,6 +282,8 @@ A、C、D 正确。
 
 阅读复习不会修改 Markdown 原文，不会把揭示状态写入插件数据，也不会改变同步到 Anki 的 Front、Back、Content、OptionA～OptionG、CorrectAnswer 等字段。只有阅读模式会隐藏；源码模式、实时预览和普通编辑模式仍显示全部答案。重新打开文件、重新渲染或重新切换阅读模式后，所有答案恢复隐藏。
 
+Cloze 答案、Basic 背面、选择题答案和选择题解析统一使用蓝色 `#87b1ff` 遮罩，鼠标悬停或键盘聚焦时变为粉色 `#ff96af`。YAML Frontmatter 不参与卡片分块，即使第一张 Basic 紧跟在结束标记 `---` 后面也能正常识别。旧版没有区域标记、同时混有 Cloze 与 Basic/Choice 语法的笔记，阅读模式仍会遮挡可识别的 Basic/Choice 背面；同步规则仍保持整篇兼容 Cloze，不会因此改变 Anki 数据。
+
 点击填空或背面即可揭示；也可以用 Tab 聚焦后按 Enter 或空格。四个命令只在当前活动的、已带标签的阅读视图中可用：
 
 - `reveal-next-reading-cloze` — **阅读复习：揭示下一个填空**

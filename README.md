@@ -8,7 +8,7 @@ Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki sea
 
 Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
 
-Version 1.4.2 simplifies Cloze regions to one repeated marker and converts Markdown headings, lists, quotes, and other supported blocks to Anki HTML. The 1.4.1 start/end markers remain readable.
+Version 1.4.1 simplifies Cloze regions to one repeated marker and converts Markdown headings, lists, quotes, and other supported blocks to Anki HTML. Legacy paired start/end markers remain readable.
 
 ## Platform scope
 
@@ -83,6 +83,8 @@ Enable **Settings → Anki Card Link → Reading review → Hide answers in read
 - Basic: Front and the configured separator remain visible; the complete Back is one reveal group and keeps its rendered layout, code blocks, and images.
 - Cloze: each valid token in an explicit region becomes an independent clickable blank. In an unmarked compatibility note, valid tokens in the whole note body are processed. Tokens outside explicit regions and tokens inside fenced code are ignored. A `{{cN::answer::hint}}` blank may show the hint while the answer stays hidden.
 - Choice: the content inside `【】` is one cloze-style blank, while the optional explanation after the options is one Back reveal group.
+- Cloze blanks, Basic backs, choice answers, and choice explanations use the same blue `#87b1ff` hidden state and pink `#ff96af` hover/focus state.
+- YAML frontmatter never belongs to a card block, so a Basic card may start immediately after the closing `---` without an extra blank line. In an old unmarked mixed note, reading review still hides recognizable Basic/Choice backs while synchronization retains whole-note Cloze compatibility.
 - Click or focus a mask and press Enter/Space to reveal it. Reopening or rerendering the reading view resets all masks to hidden.
 - The four reading-review commands operate only on the active tagged reading view. Configure optional shortcuts under **Settings → Hotkeys**, search for **Anki Card Link**. Suggested keys are J, Shift+J, N, and Shift+N; the plugin does not bind them automatically.
 - On mobile, direct taps work normally. Optional left/right edge gestures are disabled by default; when enabled, the left 11% reveals the next cloze and the right 11% reveals the next Back. Scrolling, text selection, links, controls, code, and existing masks are excluded from edge handling.

@@ -244,6 +244,8 @@ Open **Settings → Anki Card Link → Reading review**:
 
 Reading review never changes the Markdown source, plugin data reveal state, Anki fields, or synchronization output. It runs only in reading mode. Source mode, live preview, and normal editing still display every answer. Reopening or rerendering the view resets all answers to hidden.
 
+All hidden Cloze answers, Basic backs, choice answer markers, and choice explanations share the blue `#87b1ff` mask. Hover and keyboard focus use pink `#ff96af`. YAML frontmatter is excluded from card blocks even when the first Basic card starts immediately after the closing `---`. For old unmarked files that mix Cloze with Basic/Choice syntax, reading mode also hides the recognizable Basic/Choice backs while synchronization keeps the whole-note Cloze compatibility rule.
+
 Click a blank or Back to reveal it. Masks also support keyboard focus, Enter, and Space. The four commands operate only on the active tagged reading view:
 
 - `reveal-next-reading-cloze` — **Reading review: Reveal next cloze**
