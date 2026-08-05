@@ -42,6 +42,7 @@ export interface ParsedClozeCard extends ParsedCardBase {
 	contentStartLine: number;
 	clozeRegionStartLine?: number;
 	clozeRegionEndLine?: number;
+	clozeRegionStyle?: 'paired' | 'single';
 	explicitRegion: boolean;
 }
 
@@ -235,6 +236,9 @@ export function getCardTitle(filePath: string): string {
 export { hasUnclosedCodeFence } from './markdown-fence';
 
 function parseExplicitCloze(lines: string[], region: ClozeRegion): CardParseCandidate {
+	if (region.style === 'single') {
+		return parseSingleMarkerCloze(lines, region);
+	}
 	const link = findAttachedCardLink(lines, region.endLine + 1);
 	const card: ParsedClozeCard = {
 		type: 'cloze',
@@ -244,11 +248,94 @@ function parseExplicitCloze(lines: string[], region: ClozeRegion): CardParseCand
 		contentEndLine: region.contentEndLine,
 		clozeRegionStartLine: region.startLine,
 		clozeRegionEndLine: region.endLine,
+		clozeRegionStyle: 'paired',
 		explicitRegion: true,
 		content: region.content,
 		uid: link?.uid,
 		noteId: link?.noteId,
 		linkLine: link?.line,
+	};
+	return { startLine: card.startLine, endLine: card.endLine, card };
+}
+
+function parseSingleMarkerCloze(lines: string[], region: ClozeRegion): CardParseCandidate {
+	const contentLines = lines.slice(region.startLine + 1, region.endLine + 1);
+	const fencedLines = getFencedLines(lines);
+	const links: ParsedCardLink[] = [];
+	let legacyBlockId: string | undefined;
+	let legacyBlockIdInline: boolean | undefined;
+
+	for (let line = region.startLine + 1; line <= region.endLine; line += 1) {
+		if (fencedLines.has(line)) {
+			continue;
+		}
+		const localIndex = line - region.startLine - 1;
+		const value = contentLines[localIndex] ?? '';
+		const link = parseCardLinkLine(value, line);
+		if (link !== undefined) {
+			links.push(link);
+			contentLines[localIndex] = '';
+			continue;
+		}
+		const standaloneId = BLOCK_ID.exec(value.trim());
+		if (standaloneId?.[1] !== undefined && isCardUid(standaloneId[1])) {
+			legacyBlockId = standaloneId[1];
+			legacyBlockIdInline = false;
+			contentLines[localIndex] = '';
+		}
+	}
+	if (links.length > 1) {
+		return {
+			startLine: region.startLine,
+			endLine: region.endLine,
+			error: new AnkiCardLinkError('INVALID_CARD', 'Cloze note region contains more than one synchronized Anki button.'),
+		};
+	}
+
+	let localEnd = contentLines.length - 1;
+	while (localEnd >= 0 && (contentLines[localEnd] ?? '').trim().length === 0) localEnd -= 1;
+	const finalLine = contentLines[localEnd] ?? '';
+	const inlineId = INLINE_BLOCK_ID.exec(finalLine);
+	if (inlineId?.[1] !== undefined && isCardUid(inlineId[1])) {
+		legacyBlockId = inlineId[1];
+		legacyBlockIdInline = true;
+		contentLines[localEnd] = finalLine.slice(0, inlineId.index).trimEnd();
+	}
+	let localStart = 0;
+	while (localStart < contentLines.length && (contentLines[localStart] ?? '').trim().length === 0) localStart += 1;
+	localEnd = contentLines.length - 1;
+	while (localEnd >= localStart && (contentLines[localEnd] ?? '').trim().length === 0) localEnd -= 1;
+	if (localStart > localEnd || !hasValidClozeOutsideFences(contentLines, localStart, localEnd)) {
+		return {
+			startLine: region.startLine,
+			endLine: region.endLine,
+			error: new AnkiCardLinkError('CLOZE_REGION_NO_CLOZE', 'Cloze note region does not contain a valid cloze deletion.'),
+		};
+	}
+
+	const link = links[0];
+	if (link?.uid !== undefined && legacyBlockId !== undefined && link.uid !== legacyBlockId) {
+		return {
+			startLine: region.startLine,
+			endLine: region.endLine,
+			error: new AnkiCardLinkError('INVALID_CARD', 'Card link UID does not match the legacy block ID.'),
+		};
+	}
+	const card: ParsedClozeCard = {
+		type: 'cloze',
+		startLine: region.startLine,
+		endLine: region.endLine,
+		contentStartLine: region.startLine + 1 + localStart,
+		contentEndLine: region.startLine + 1 + localEnd,
+		clozeRegionStartLine: region.startLine,
+		clozeRegionStyle: 'single',
+		explicitRegion: true,
+		content: contentLines.slice(localStart, localEnd + 1).join('\n'),
+		uid: link?.uid ?? legacyBlockId,
+		noteId: link?.noteId,
+		linkLine: link?.line,
+		legacyBlockId,
+		legacyBlockIdInline,
 	};
 	return { startLine: card.startLine, endLine: card.endLine, card };
 }

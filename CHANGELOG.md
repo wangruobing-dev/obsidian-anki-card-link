@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.4.2 - 2026-08-05
+
+- Replace the recommended paired Cloze boundary with one repeated `<!-- anki-card-link:cloze -->` marker: each marker starts a card that continues to the next marker or EOF.
+- Keep unmarked whole-note Cloze files and 1.4.1 paired start/end regions readable for backward compatibility.
+- Render Markdown headings, unordered and ordered lists, blockquotes, and horizontal rules as Anki HTML while preserving existing inline formatting, code, and image conversion.
+- Update the editor command, numbering scopes, reading-review ranges, card-link writeback, bilingual guides, and regression coverage for single-marker cards.
+
 ## 1.4.1 - 2026-08-05
 
 - Add paired Cloze note regions that preserve multi-paragraph Markdown as one card, reject malformed/nested markers, ignore marker examples in fenced code, and keep Basic/Choice parsing outside regions.

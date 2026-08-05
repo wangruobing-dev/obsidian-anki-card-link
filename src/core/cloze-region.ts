@@ -3,17 +3,20 @@ import type { ErrorCode } from '../types';
 
 export const CLOZE_REGION_START = '<!-- anki-card-link:cloze:start -->';
 export const CLOZE_REGION_END = '<!-- anki-card-link:cloze:end -->';
+export const CLOZE_REGION_MARKER = '<!-- anki-card-link:cloze -->';
 
 const START_MARKER = /^\s*<!--\s*anki-card-link:cloze:start\s*-->\s*$/u;
 const END_MARKER = /^\s*<!--\s*anki-card-link:cloze:end\s*-->\s*$/u;
+const REGION_MARKER = /^\s*<!--\s*anki-card-link:cloze\s*-->\s*$/u;
 const CLOZE_TOKEN = /\{\{c([1-9]\d*)::([^{}]+?)(?:::[^{}]*?)?\}\}/gu;
 
 export interface ClozeRegionMarker {
-	kind: 'start' | 'end';
+	kind: 'start' | 'end' | 'region';
 	line: number;
 }
 
 export interface ClozeRegion {
+	style: 'paired' | 'single';
 	startLine: number;
 	endLine: number;
 	contentStartLine: number;
@@ -61,9 +64,15 @@ export function findClozeRegionMarkers(markdown: string): ClozeRegionMarker[] {
 			markers.push({ kind: 'start', line });
 		} else if (END_MARKER.test(value)) {
 			markers.push({ kind: 'end', line });
+		} else if (REGION_MARKER.test(value)) {
+			markers.push({ kind: 'region', line });
 		}
 	}
 	return markers;
+}
+
+export function isClozeRegionMarkerLine(value: string): boolean {
+	return START_MARKER.test(value) || END_MARKER.test(value) || REGION_MARKER.test(value);
 }
 
 export function parseClozeRegions(markdown: string): ClozeRegionScan {
@@ -76,7 +85,7 @@ export function parseClozeRegions(markdown: string): ClozeRegionScan {
 	let openLine: number | undefined;
 	let nested = false;
 
-	for (const marker of markers) {
+	for (const marker of markers.filter((item) => item.kind !== 'region')) {
 		if (marker.kind === 'start') {
 			if (openLine === undefined) {
 				openLine = marker.line;
@@ -105,6 +114,7 @@ export function parseClozeRegions(markdown: string): ClozeRegionScan {
 				issues.push({ code: 'CLOZE_REGION_NO_CLOZE', ...range });
 			} else {
 				regions.push({
+					style: 'paired',
 					...range,
 					contentStartLine: contentRange.startLine,
 					contentEndLine: contentRange.endLine,
@@ -122,6 +132,45 @@ export function parseClozeRegions(markdown: string): ClozeRegionScan {
 		issues.push({ code: nested ? 'CLOZE_REGION_NESTED' : 'CLOZE_REGION_UNMATCHED_START', ...range });
 	}
 
+	const pairedRanges = [...protectedRanges];
+	const singleMarkers = markers.filter((marker) =>
+		marker.kind === 'region'
+		&& !pairedRanges.some((range) => marker.line >= range.startLine && marker.line <= range.endLine),
+	);
+	for (let index = 0; index < singleMarkers.length; index += 1) {
+		const marker = singleMarkers[index];
+		if (marker === undefined) {
+			continue;
+		}
+		const nextSingleLine = singleMarkers[index + 1]?.line ?? lines.length;
+		const nextPairedLine = pairedRanges
+			.filter((range) => range.startLine > marker.line)
+			.map((range) => range.startLine)
+			.sort((left, right) => left - right)[0] ?? lines.length;
+		const range = {
+			startLine: marker.line,
+			endLine: Math.max(marker.line, Math.min(nextSingleLine, nextPairedLine) - 1),
+		};
+		protectedRanges.push(range);
+		const contentRange = trimLineRange(lines, marker.line + 1, range.endLine);
+		if (contentRange === undefined) {
+			issues.push({ code: 'CLOZE_REGION_EMPTY', ...range });
+		} else if (!hasValidClozeInRange(lines, contentRange.startLine, contentRange.endLine, fencedLines)) {
+			issues.push({ code: 'CLOZE_REGION_NO_CLOZE', ...range });
+		} else {
+			regions.push({
+				style: 'single',
+				...range,
+				contentStartLine: contentRange.startLine,
+				contentEndLine: contentRange.endLine,
+				content: lines.slice(contentRange.startLine, contentRange.endLine + 1).join('\n'),
+			});
+		}
+	}
+	regions.sort((left, right) => left.startLine - right.startLine);
+	issues.sort((left, right) => left.startLine - right.startLine);
+	protectedRanges.sort((left, right) => left.startLine - right.startLine);
+
 	return {
 		explicitMode: markers.length > 0,
 		markers,
@@ -137,9 +186,9 @@ export function findClozeRegionAtLine(markdown: string, line: number): ClozeRegi
 
 export function buildClozeRegionWrapper(selection: string, lineEnding: '\n' | '\r\n'): string {
 	if (selection.length === 0) {
-		return `${CLOZE_REGION_START}${lineEnding}${lineEnding}${CLOZE_REGION_END}`;
+		return `${CLOZE_REGION_MARKER}${lineEnding}`;
 	}
-	return `${CLOZE_REGION_START}${lineEnding}${lineEnding}${selection}${lineEnding}${lineEnding}${CLOZE_REGION_END}`;
+	return `${CLOZE_REGION_MARKER}${lineEnding}${lineEnding}${selection}`;
 }
 
 export function getClozeScopeAtOffset(markdown: string, offset: number): ClozeScope | undefined {

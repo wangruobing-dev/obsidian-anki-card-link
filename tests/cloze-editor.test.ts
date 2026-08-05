@@ -5,7 +5,7 @@ import {
 	getClozeContentCursorOffset,
 	insertClozeRegion,
 } from '../src/core/cloze-editor';
-import { CLOZE_REGION_END, CLOZE_REGION_START, getClozeScopeAtOffset } from '../src/core/cloze-region';
+import { CLOZE_REGION_END, CLOZE_REGION_MARKER, CLOZE_REGION_START, getClozeScopeAtOffset } from '../src/core/cloze-region';
 
 describe('cloze editor helpers', () => {
 	it('uses c1 when the current card has no cloze', () => {
@@ -25,20 +25,20 @@ describe('cloze editor helpers', () => {
 		expect(getClozeContentCursorOffset(1)).toBe(6);
 	});
 
-	it('wraps a selected line with standard independent marker lines', () => {
+	it('starts a selected Cloze card with the single standard marker', () => {
 		const source = 'JVM 是 {{c1::Java Virtual Machine}}。';
 		const result = insertClozeRegion(source, 0, source.length);
 		expect(result).toMatchObject({
 			ok: true,
-			markdown: `${CLOZE_REGION_START}\n\n${source}\n\n${CLOZE_REGION_END}`,
+			markdown: `${CLOZE_REGION_MARKER}\n\n${source}`,
 		});
 		if (result.ok) expect(result.markdown.slice(result.selectionStart, result.selectionEnd)).toBe(source);
 	});
 
 	it('inserts an empty region and places the cursor on the editable body line', () => {
 		const result = insertClozeRegion('', 0, 0);
-		expect(result).toMatchObject({ ok: true, markdown: `${CLOZE_REGION_START}\n\n${CLOZE_REGION_END}` });
-		if (result.ok) expect(result.markdown.slice(0, result.selectionStart)).toBe(`${CLOZE_REGION_START}\n`);
+		expect(result).toMatchObject({ ok: true, markdown: `${CLOZE_REGION_MARKER}\n` });
+		if (result.ok) expect(result.markdown.slice(0, result.selectionStart)).toBe(`${CLOZE_REGION_MARKER}\n`);
 	});
 
 	it.each([
@@ -48,7 +48,7 @@ describe('cloze editor helpers', () => {
 		const source = `前${eol}正文${eol}后`;
 		const start = source.indexOf('正文');
 		const result = insertClozeRegion(source, start, start + 2);
-		expect(result.ok && result.markdown.includes(`${CLOZE_REGION_START}${eol}${eol}正文${eol}${eol}${CLOZE_REGION_END}`)).toBe(true);
+		expect(result.ok && result.markdown.includes(`${CLOZE_REGION_MARKER}${eol}${eol}正文`)).toBe(true);
 		if (result.ok && eol === '\r\n') expect(result.markdown.replaceAll('\r\n', '')).not.toContain('\n');
 	});
 
@@ -57,7 +57,13 @@ describe('cloze editor helpers', () => {
 		const start = source.indexOf('选中');
 		const end = start + '选中文字'.length;
 		const result = insertClozeRegion(source, start, end);
-		expect(result.ok && result.markdown).toBe(`前缀\n${CLOZE_REGION_START}\n\n选中文字\n\n${CLOZE_REGION_END}\n后缀`);
+		expect(result.ok && result.markdown).toBe(`前缀\n${CLOZE_REGION_MARKER}\n\n选中文字\n后缀`);
+	});
+
+	it('allows inserting the next single marker after an existing single-marker card', () => {
+		const source = `${CLOZE_REGION_MARKER}\n第一张 {{c1::答案}}\n`;
+		const result = insertClozeRegion(source, source.length, source.length);
+		expect(result).toMatchObject({ ok: true, markdown: `${source}${CLOZE_REGION_MARKER}\n` });
 	});
 
 	it('rejects a cursor inside an existing region', () => {

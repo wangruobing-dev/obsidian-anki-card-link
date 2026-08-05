@@ -80,12 +80,94 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		.replace(/__([^_\n]+)__/gu, '<strong>$1</strong>')
 		.replace(/~~([^~\n]+)~~/gu, '<s>$1</s>')
 		.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/gu, '<em>$1</em>')
-		.replace(/(?<!_)_([^_\n]+)_(?!_)/gu, '<em>$1</em>')
-		.replaceAll('\n', '<br>');
+		.replace(/(?<!_)_([^_\n]+)_(?!_)/gu, '<em>$1</em>');
+	html = renderMarkdownBlocks(html);
 	for (const [index, value] of atomicHtml.entries()) {
 		html = html.replaceAll(`\u0000anki-card-link-${index}\u0000`, value);
 	}
 	return html;
+}
+
+function renderMarkdownBlocks(markdown: string): string {
+	if (markdown.length === 0) {
+		return '';
+	}
+	const lines = markdown.split('\n');
+	const result: string[] = [];
+	let index = 0;
+	while (index < lines.length) {
+		const line = lines[index] ?? '';
+		const heading = /^\s{0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?\s*$/u.exec(line);
+		if (heading?.[1] !== undefined && heading[2] !== undefined) {
+			const level = heading[1].length;
+			result.push(`<h${level}>${heading[2]}</h${level}>`);
+			index += 1;
+			continue;
+		}
+		if (/^\s{0,3}[-*_](?:\s*[-*_]){2,}\s*$/u.test(line)) {
+			result.push('<hr>');
+			index += 1;
+			continue;
+		}
+		const unordered = /^\s{0,3}[-+*][ \t]+(.+)$/u.exec(line);
+		if (unordered !== null) {
+			const items: string[] = [];
+			while (index < lines.length) {
+				const item = /^\s{0,3}[-+*][ \t]+(.+)$/u.exec(lines[index] ?? '');
+				if (item?.[1] === undefined) break;
+				items.push(`<li>${item[1]}</li>`);
+				index += 1;
+			}
+			result.push(`<ul>${items.join('')}</ul>`);
+			continue;
+		}
+		const ordered = /^\s{0,3}\d+[.)][ \t]+(.+)$/u.exec(line);
+		if (ordered !== null) {
+			const items: string[] = [];
+			while (index < lines.length) {
+				const item = /^\s{0,3}\d+[.)][ \t]+(.+)$/u.exec(lines[index] ?? '');
+				if (item?.[1] === undefined) break;
+				items.push(`<li>${item[1]}</li>`);
+				index += 1;
+			}
+			result.push(`<ol>${items.join('')}</ol>`);
+			continue;
+		}
+		const quote = /^\s{0,3}&gt;[ \t]?(.*)$/u.exec(line);
+		if (quote !== null) {
+			const quoteLines: string[] = [];
+			while (index < lines.length) {
+				const quoted = /^\s{0,3}&gt;[ \t]?(.*)$/u.exec(lines[index] ?? '');
+				if (quoted?.[1] === undefined) break;
+				quoteLines.push(quoted[1]);
+				index += 1;
+			}
+			result.push(`<blockquote>${quoteLines.join('<br>')}</blockquote>`);
+			continue;
+		}
+		if (line.length === 0) {
+			result.push('<br>');
+			index += 1;
+			continue;
+		}
+
+		const paragraph: string[] = [];
+		while (index < lines.length && !isMarkdownBlockStart(lines[index] ?? '')) {
+			paragraph.push(lines[index] ?? '');
+			index += 1;
+		}
+		result.push(paragraph.join('<br>'));
+	}
+	return result.join('');
+}
+
+function isMarkdownBlockStart(line: string): boolean {
+	return line.length === 0
+		|| /^\s{0,3}#{1,6}[ \t]+/u.test(line)
+		|| /^\s{0,3}[-*_](?:\s*[-*_]){2,}\s*$/u.test(line)
+		|| /^\s{0,3}[-+*][ \t]+/u.test(line)
+		|| /^\s{0,3}\d+[.)][ \t]+/u.test(line)
+		|| /^\s{0,3}&gt;(?:[ \t]|$)/u.test(line);
 }
 
 function renderCodeBlock(codeBlock: { language?: string; lines: string[] }): string {

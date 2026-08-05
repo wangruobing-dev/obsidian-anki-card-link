@@ -149,25 +149,25 @@ Write standard Anki Cloze markup:
 The JVM uses {{c1::garbage collection}} to manage memory automatically.
 ```
 
-For a Cloze note that spans paragraphs, headings, lists, images, formulas, or code blocks, use the standard explicit region:
+For a Cloze note that spans paragraphs, headings, lists, images, formulas, or code blocks, place the standard marker before the card:
 
 ```markdown
-<!-- anki-card-link:cloze:start -->
+<!-- anki-card-link:cloze -->
 
 This is one Cloze note.
 
 The JVM is the {{c1::Java Virtual Machine}}.
-
-<!-- anki-card-link:cloze:end -->
 ```
 
-The marker pair defines one Cloze note, and a file may contain multiple regions. Markers must occupy separate lines, must be paired, and cannot be nested. They never enter Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a region remain ordinary Content. Cloze-looking code examples do not validate a region and are not masked.
+Each marker starts one Cloze note, and its content continues to the next identical marker or the end of the file. A file may therefore contain multiple cards with one marker before each card. The marker must occupy its own line and never enters Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code after a marker remain ordinary Cloze Content. Cloze-looking code examples do not validate a region and are not masked.
 
-If a file contains any start or end marker, it uses explicit mode: only valid paired regions become Cloze cards, Cloze syntax outside them is ignored, and Basic/Choice cards outside them continue to work. Marker errors show localized notices and never fall back to whole-note mode.
+Basic and Choice cards before the first single marker continue to work. Once a marker starts a Cloze card, all content belongs to that card until the next marker or EOF. Empty regions and regions without a valid Cloze show localized errors and never fall back to whole-note mode.
 
-If a file contains no boundary marker at all, a valid Cloze outside fenced code makes the entire note body one compatibility Cloze note. YAML frontmatter, generated Anki buttons, legacy UID blocks, and plugin metadata are excluded. Existing notes remain supported without automatic migration. When mixing Basic, Choice, and Cloze, explicit regions are strongly recommended.
+If a file contains no region marker at all, a valid Cloze outside fenced code makes the entire note body one compatibility Cloze note. YAML frontmatter, generated Anki buttons, legacy UID blocks, and plugin metadata are excluded. Existing unmarked notes and paired `cloze:start` / `cloze:end` regions remain supported without automatic migration. Paired legacy regions remain useful when Basic or Choice cards must follow a Cloze region.
 
-The localized editor command has ID `insert-cloze-region` and is named **Cloze: Insert note region**. With a selection, it preserves and wraps the selected Markdown. Without a selection, it inserts an empty region and places the cursor on the body line. It refuses insertion inside, across, or around an existing region.
+The localized editor command has ID `insert-cloze-region` and is named **Cloze: Insert note region**. With a selection, it preserves the selected Markdown and inserts the marker before it. Without a selection, it inserts the marker plus an editable blank body line. Run it again to start the next Cloze card. It still refuses insertion inside a paired legacy region.
+
+During synchronization, Markdown headings level 1–6 become Anki `<h1>`–`<h6>` elements. Unordered/ordered lists, blockquotes, horizontal rules, bold, italic, strikethrough, inline/fenced code, and uploaded images are also rendered as HTML, so Anki no longer exposes their Markdown markers.
 
 With text selection in Obsidian, the existing Cloze commands can create a new number or reuse the current number. Inside an explicit region, numbering uses that complete region across paragraphs; other regions do not affect it. In a file without markers, numbering uses the complete implicit note body. Fenced-code examples are ignored.
 

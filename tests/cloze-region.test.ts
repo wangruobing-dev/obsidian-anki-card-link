@@ -6,6 +6,7 @@ import {
 } from '../src/core/card-parser';
 import {
 	CLOZE_REGION_END,
+	CLOZE_REGION_MARKER,
 	CLOZE_REGION_START,
 	findClozeRegionMarkers,
 	parseClozeRegions,
@@ -100,6 +101,53 @@ describe('explicit Cloze note regions', () => {
 		const button = '[Open](obsidian://anki-card-link?type=nid&value=10&uid=acl-1234abcd&v=2)';
 		const source = `${start}\n{{c1::一}}\n${end}\n\n${button}\n\n${start}\n{{c1::二}}\n${end}\n\n${button}`;
 		expect(parseCardCandidates(source).filter((candidate) => candidate.error?.code === 'DUPLICATE_CARD_UID')).toHaveLength(2);
+	});
+});
+
+describe('single-marker Cloze note regions', () => {
+	it('uses one marker to start a card that continues to the end of the file', () => {
+		const source = `${CLOZE_REGION_MARKER}\n\n# JVM\n\nJVM 是 {{c1::Java Virtual Machine}}。`;
+		expect(parseCards(source)).toEqual([
+			expect.objectContaining({
+				type: 'cloze',
+				startLine: 0,
+				endLine: 4,
+				contentStartLine: 2,
+				contentEndLine: 4,
+				clozeRegionStartLine: 0,
+				clozeRegionStyle: 'single',
+				explicitRegion: true,
+				content: '# JVM\n\nJVM 是 {{c1::Java Virtual Machine}}。',
+			}),
+		]);
+	});
+
+	it('starts a new independent card at every following marker', () => {
+		const source = `${CLOZE_REGION_MARKER}\n第一张 {{c1::一}}\n\n${CLOZE_REGION_MARKER}\n第二张 {{c1::二}}`;
+		const cards = parseCards(source);
+		expect(cards.map((card) => card.type === 'cloze' ? card.content : '')).toEqual([
+			'第一张 {{c1::一}}',
+			'第二张 {{c1::二}}',
+		]);
+		expect(cards.map((card) => card.startLine)).toEqual([0, 3]);
+	});
+
+	it('ignores single-marker examples inside fenced code', () => {
+		const source = `\`\`\`markdown\n${CLOZE_REGION_MARKER}\n{{c1::示例}}\n\`\`\``;
+		expect(findClozeRegionMarkers(source)).toHaveLength(0);
+		expect(parseCards(source)).toHaveLength(0);
+	});
+
+	it('does not parse Basic or Choice syntax inside a single-marker card', () => {
+		const source = `${CLOZE_REGION_MARKER}\n问题::答案\n\n### 题目【A】\n- A\n- B\n\n{{c1::填空}}`;
+		const cards = parseCards(source);
+		expect(cards).toHaveLength(1);
+		expect(cards[0]).toMatchObject({ type: 'cloze' });
+	});
+
+	it('reports an empty or non-Cloze single-marker card without falling back to implicit mode', () => {
+		expect(parseCardCandidates(CLOZE_REGION_MARKER)[0]?.error?.code).toBe('CLOZE_REGION_EMPTY');
+		expect(parseCardCandidates(`${CLOZE_REGION_MARKER}\n普通正文`)[0]?.error?.code).toBe('CLOZE_REGION_NO_CLOZE');
 	});
 });
 

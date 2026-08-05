@@ -1,7 +1,7 @@
 {
   "id": "anki-card-link",
   "name": "Anki Card Link",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "minAppVersion": "1.12.7",
   "description": "Open Anki searches, sync Markdown cards on desktop, and navigate from Anki back to their source.",
   "author": "王若冰",

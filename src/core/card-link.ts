@@ -1,6 +1,7 @@
 import { isCardUid } from './card-identity';
 import type { ParsedCard } from './card-parser';
 import { hasUnclosedCodeFence } from './markdown-fence';
+import { isClozeRegionMarkerLine } from './cloze-region';
 import { buildObsidianUri, OPEN_ANKI_PROTOCOL_ACTION } from './uri-parser';
 import { AnkiCardLinkError } from '../types';
 
@@ -87,6 +88,9 @@ export function ensureCardLink(
 		contentLines.push('```');
 	}
 	const replacement = [...contentLines, '', buildCardLink(identity.noteId, identity.uid, label)];
+	if (card.type === 'cloze' && card.clozeRegionStyle === 'single' && isClozeRegionMarkerLine(lines[card.endLine + 1] ?? '')) {
+		replacement.push('');
+	}
 	lines.splice(card.startLine, card.endLine - card.startLine + 1, ...replacement);
 	return lines.join(lineEnding);
 }

@@ -1,22 +1,24 @@
 # Manual platform test checklist
 
-Complete this checklist before publishing version 1.4.1. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
+Complete this checklist before publishing version 1.4.2. Record the Obsidian, Anki, AnkiConnect, AnkiDroid, and AnkiMobile versions used.
 
 ## Cloze note regions and editor commands
 
-- [ ] One explicit region spanning blank lines, headings, lists, quotes, tables, formulas, Wiki images, and fenced code synchronizes as exactly one Cloze note.
-- [ ] Two explicit regions maintain independent UIDs, noteIds, buttons, Content, and numbering scopes.
+- [ ] One `<!-- anki-card-link:cloze -->` marker starts a card spanning blank lines, headings, lists, quotes, tables, formulas, Wiki images, and fenced code through EOF.
+- [ ] Repeating the single marker starts the next card; two cards maintain independent UIDs, noteIds, buttons, Content, and numbering scopes.
+- [ ] Legacy paired start/end regions remain readable and synchronizable without automatic migration.
 - [ ] Basic and Choice cards outside explicit regions still synchronize; Basic/Choice syntax inside a region stays ordinary Cloze Content.
 - [ ] Cloze syntax outside explicit regions is neither synchronized nor masked.
 - [ ] Marker examples inside backtick and tilde fences are ignored. Cloze examples in fenced code do not validate a region, trigger implicit mode, or create a mask.
-- [ ] Missing start/end, nested markers, extra end markers, empty/whitespace-only regions, and regions without a valid Cloze show localized errors for both current-card and current-file sync.
+- [ ] Legacy missing start/end, nested/extra markers, plus empty/whitespace-only single-marker regions and regions without a valid Cloze show localized errors for both current-card and current-file sync.
 - [ ] A marker error does not fall back to implicit whole-note mode or synchronize an incomplete region.
 - [ ] An unmarked legacy note with Cloze across headings and paragraphs becomes one whole-note card; frontmatter, buttons, and legacy UID metadata stay outside Content.
-- [ ] First explicit sync writes the button after the end marker with one blank line. Repeated sync updates one button and preserves both markers and all body text.
+- [ ] First single-marker sync writes the button after the card body with one blank line. Repeated sync updates one button and preserves the marker and all body text.
 - [ ] Deleting the explicit button and syncing again recreates it. Syncing one region does not modify another; whole-file sync remains correct after reverse-order line updates.
 - [ ] **Cloze: Insert note region** appears under Anki Card Link hotkeys after switching either UI language, without duplicates.
 - [ ] With a selection, the region command preserves Markdown and LF/CRLF. A partial-line selection keeps surrounding text. Without a selection, the cursor lands on the editable blank body line.
-- [ ] The region command rejects a cursor inside a region and selections containing, partially overlapping, or fully covering an existing region.
+- [ ] Running the region command again starts the next single-marker card; it still rejects insertion inside or across a legacy paired region and selections containing an existing marker.
+- [ ] Heading levels 1–6, unordered/ordered lists, blockquotes, horizontal rules, inline formatting, code, and uploaded images render as Anki HTML without visible Markdown markers.
 - [ ] New-number searches the whole current explicit region; current-number uses the last number before the cursor. Other regions and fenced-code examples do not affect either result.
 - [ ] In an unmarked file, new/current numbering uses the complete note body across headings and paragraphs.
 

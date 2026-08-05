@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCardSyntax, DEFAULT_CARD_SYNTAX } from '../src/core/card-syntax';
 import { LOCALIZED_COMMAND_IDS, READING_REVIEW_COMMAND_IDS } from '../src/reading-review/command-ids';
-import { CLOZE_REGION_END, CLOZE_REGION_START } from '../src/core/cloze-region';
+import { CLOZE_REGION_END, CLOZE_REGION_MARKER, CLOZE_REGION_START } from '../src/core/cloze-region';
 import {
 	buildReadingReviewModel,
 	createMaskStates,
@@ -167,6 +167,11 @@ describe('reading review model', () => {
 
 	it('keeps multiple explicit regions in document reveal order', () => {
 		const source = `${CLOZE_REGION_START}\n{{c1::一}} {{c2::二}}\n${CLOZE_REGION_END}\n\n${CLOZE_REGION_START}\n{{c1::三}}\n${CLOZE_REGION_END}`;
+		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['一', '二', '三']);
+	});
+
+	it('keeps multiple single-marker cards in document reveal order', () => {
+		const source = `${CLOZE_REGION_MARKER}\n{{c1::一}} {{c2::二}}\n\n${CLOZE_REGION_MARKER}\n{{c1::三}}`;
 		expect(buildReadingReviewModel(source, DEFAULT_CARD_SYNTAX).masks.map((mask) => mask.answer)).toEqual(['一', '二', '三']);
 	});
 

@@ -14,7 +14,7 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 1.4.0 新增可选的“阅读模式复习遮罩”：只对带 `anki-card-link` 标签的笔记隐藏答案，不修改 Markdown 原文，也不改变同步到 Anki 的任何字段。
 
-1.4.1 新增明确的 Cloze 笔记区域、无标签旧笔记的整篇兼容模式，以及 `insert-cloze-region` 快捷命令。
+1.4.2 将 Cloze 区域简化为单一分隔标记，并把标题、列表、引用等 Markdown 块转换为对应的 Anki HTML。1.4.1 的 start/end 标签仍可继续读取。
 
 ## 平台范围
 
@@ -71,26 +71,24 @@ Java 的 {{c1::垃圾回收器}} 可以自动管理内存。
 
 ### Cloze 笔记区域
 
-混合 Basic、Choice 和 Cloze，或者一张 Cloze 需要跨多个段落、标题、列表、图片、公式和代码块时，推荐使用标准区域：
+一张 Cloze 需要跨多个段落、标题、列表、图片、公式和代码块时，在卡片前插入标准标记：
 
 ```markdown
-<!-- anki-card-link:cloze:start -->
+<!-- anki-card-link:cloze -->
 
 这里是一张 Cloze 笔记。
 
 JVM 是 {{c1::Java Virtual Machine}}。
-
-<!-- anki-card-link:cloze:end -->
 ```
 
 规则：
 
-- 标签之间是一张 Cloze 笔记，一篇 Markdown 可以包含多个互相独立的 Cloze 区域；
-- 标签必须单独占一行、成对出现，不允许嵌套；标签本身不会同步到 Anki；
+- 每个标记开始一张 Cloze 笔记，正文持续到下一个同类标记或文件末尾；多张卡只需在每张卡前放一个标记；
+- 标记必须单独占一行，标记本身不会同步到 Anki；
 - 区域内部的标题、空行、列表、引用、表格、公式、图片、代码块、Basic 分隔符和 Choice 语法都属于同一张 Cloze 的 `Content`；
-- 一旦文件中出现任意边界标签，只有完整区域内的有效 Cloze 才会同步和产生阅读遮罩，区域外 Cloze 不再自动同步；区域外 Basic 和 Choice 仍正常解析；
-- 如果文件中完全没有开始、结束标签，只要围栏代码块外存在有效 Cloze，整篇正文就是一张兼容 Cloze；YAML Frontmatter、同步按钮和旧 UID 元数据不会写入 `Content`；
-- 旧笔记可以继续使用，不强制迁移，也不会自动批量插入标签；混合三种卡片时建议始终使用边界标签。
+- 新标记前面的 Basic 和 Choice 仍正常解析；标记后的内容属于对应 Cloze，直到下一个标记或文件末尾；
+- 如果文件中完全没有任何 Cloze 区域标记，只要围栏代码块外存在有效 Cloze，整篇正文就是一张兼容 Cloze；YAML Frontmatter、同步按钮和旧 UID 元数据不会写入 `Content`；
+- 旧版 `cloze:start` / `cloze:end` 成对区域继续兼容，不强制迁移，也不会自动批量修改旧笔记；需要在 Cloze 后继续放 Basic/Choice 时，可继续使用旧版成对区域。
 
 进入 **设置 → 快捷键**，搜索 **Anki Card Link**，可以找到：
 
@@ -98,7 +96,9 @@ JVM 是 {{c1::Java Virtual Machine}}。
 - 中文名称：**Cloze：插入笔记区域**
 - 英文名称：**Cloze: Insert note region**
 
-有选区时会用标准标签包裹原文；没有选区时插入空区域，并把光标放到中间正文行。命令会拒绝区域内部、包含标签或与已有区域重叠的操作。
+有选区时会在选区前插入标准标记并保留原文；没有选区时插入标记和空白正文行。再次执行即可开始下一张 Cloze 卡片。命令不会强制注册默认快捷键。
+
+同步到 Anki 时，一级到六级标题会转换为 `<h1>` 到 `<h6>`，无序/有序列表、引用、分隔线以及原有的粗体、斜体、删除线、代码和图片也会转换为对应 HTML，不再显示 Markdown 标记。
 
 选择题：
 

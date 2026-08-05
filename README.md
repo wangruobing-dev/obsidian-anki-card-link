@@ -8,7 +8,7 @@ Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki sea
 
 Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
 
-Version 1.4.1 adds explicit Cloze note regions, whole-note compatibility for unmarked legacy Cloze notes, and the localized `insert-cloze-region` editor command.
+Version 1.4.2 simplifies Cloze regions to one repeated marker and converts Markdown headings, lists, quotes, and other supported blocks to Anki HTML. The 1.4.1 start/end markers remain readable.
 
 ## Platform scope
 
@@ -35,26 +35,26 @@ What is the JVM?::The Java Virtual Machine.
 
 Single-line cards support both `::` and `：：` by default, without requiring spaces. Multi-line basic cards use a line containing only `?` or `？`. Both separator lists are configurable, one value per line. Cloze cards use `{{c1::text}}` or `{{c1::text::hint}}`. The card and button are separated by one blank line. The button label may be customized because recognition is based on the URL, not fixed text. The button is excluded from Anki `Front`, `Back`, and `Content` fields.
 
-For mixed or multi-section notes, use an explicit Cloze note region:
+For a multi-section Cloze note, place the standard marker before the card:
 
 ```markdown
-<!-- anki-card-link:cloze:start -->
+<!-- anki-card-link:cloze -->
 
 This is one Cloze note.
 
 The JVM is the {{c1::Java Virtual Machine}}.
-
-<!-- anki-card-link:cloze:end -->
 ```
 
-- The content between one marker pair is one Cloze note, and one file may contain multiple independent regions.
-- Markers must occupy their own lines, must be paired, and cannot be nested. They are not synchronized to Anki.
-- Once any boundary marker exists in a file, Cloze syntax outside valid regions is not synchronized or masked. Basic and Choice cards outside regions continue to work.
+- Each marker starts one Cloze note. Its body continues to the next identical marker or the end of the file, so multiple cards need only one marker before each card.
+- The marker must occupy its own line and is not synchronized to Anki.
+- Basic and Choice cards before the first single marker continue to work. Content after a marker belongs to that Cloze card until the next marker or EOF.
 - Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a region remain ordinary Cloze `Content`.
-- If a file contains no boundary marker at all, any valid Cloze outside fenced code makes the complete note body one compatibility Cloze card. YAML frontmatter, generated buttons, and legacy UID metadata are excluded.
-- Existing unmarked notes remain supported and are not migrated automatically. Explicit regions are recommended whenever Basic, Choice, and Cloze syntax are mixed.
+- If a file contains no Cloze region marker at all, any valid Cloze outside fenced code makes the complete note body one compatibility Cloze card. YAML frontmatter, generated buttons, and legacy UID metadata are excluded.
+- Existing unmarked notes and paired `cloze:start` / `cloze:end` regions remain supported and are not migrated automatically. Paired legacy regions remain useful when Basic or Choice cards must follow a Cloze region.
 
-Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze-region` command is named **Cloze: Insert note region**. It wraps the current selection or inserts an empty marker pair with the cursor between them. It rejects existing/overlapping regions. Suggested shortcuts are Ctrl+Alt+C on Windows/Linux and Command+Option+C on macOS; the plugin does not bind them automatically.
+Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze-region` command is named **Cloze: Insert note region**. It inserts the marker before the current selection, or inserts a marker plus an editable blank body line when there is no selection. Run it again to start the next Cloze card. Suggested shortcuts are Ctrl+Alt+C on Windows/Linux and Command+Option+C on macOS; the plugin does not bind them automatically.
+
+When synchronizing, Markdown headings level 1–6 become `<h1>`–`<h6>`. Unordered/ordered lists, blockquotes, horizontal rules, bold, italic, strikethrough, inline/fenced code, and uploaded images are also rendered as Anki HTML instead of exposing Markdown markers.
 
 Multiple-choice cards use a level-three heading followed by 2–7 consecutive one-line list items:
 

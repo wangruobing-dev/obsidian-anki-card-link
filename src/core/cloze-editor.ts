@@ -1,6 +1,7 @@
 import { getClozeNumbers } from './card-parser';
 import {
 	buildClozeRegionWrapper,
+	CLOZE_REGION_MARKER,
 	parseClozeRegions,
 } from './cloze-region';
 
@@ -37,16 +38,19 @@ export function insertClozeRegion(
 	const start = Math.max(0, Math.min(selectionStart, selectionEnd, markdown.length));
 	const end = Math.max(start, Math.min(Math.max(selectionStart, selectionEnd), markdown.length));
 	const scan = parseClozeRegions(markdown);
+	const pairedRanges = scan.protectedRanges.filter((range) =>
+		scan.markers.some((marker) => marker.line === range.startLine && marker.kind === 'start'),
+	);
 	const startLine = offsetToLine(markdown, start);
 	const endLine = offsetToLine(markdown, Math.max(start, end - 1));
-	if (start !== end && /(^|\r?\n)\s*<!--\s*anki-card-link:cloze:(?:start|end)\s*-->\s*(?=\r?\n|$)/u.test(markdown.slice(start, end))) {
+	if (start !== end && /(^|\r?\n)\s*<!--\s*anki-card-link:cloze(?::(?:start|end))?\s*-->\s*(?=\r?\n|$)/u.test(markdown.slice(start, end))) {
 		return { ok: false, reason: 'overlap-region' };
 	}
 	if (start === end) {
-		if (scan.protectedRanges.some((range) => startLine >= range.startLine && startLine <= range.endLine)) {
+		if (pairedRanges.some((range) => startLine >= range.startLine && startLine <= range.endLine)) {
 			return { ok: false, reason: 'inside-region' };
 		}
-	} else if (scan.protectedRanges.some((range) => startLine <= range.endLine && range.startLine <= endLine)) {
+	} else if (pairedRanges.some((range) => startLine <= range.endLine && range.startLine <= endLine)) {
 		return { ok: false, reason: 'overlap-region' };
 	}
 
@@ -57,7 +61,7 @@ export function insertClozeRegion(
 	const after = end < markdown.length && nextCharacter !== '\n' && nextCharacter !== '\r' ? lineEnding : '';
 	const wrapper = buildClozeRegionWrapper(selection, lineEnding);
 	const replacement = `${before}${wrapper}${after}`;
-	const markerEnd = start + before.length + '<!-- anki-card-link:cloze:start -->'.length;
+	const markerEnd = start + before.length + CLOZE_REGION_MARKER.length;
 	const contentStart = markerEnd + (selection.length === 0 ? lineEnding.length : lineEnding.length * 2);
 	const contentEnd = contentStart + selection.length;
 	return {
