@@ -79,7 +79,9 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		});
 		this.registerObsidianProtocolHandler(OPEN_OBSIDIAN_PROTOCOL_ACTION, (params) => {
 			try {
-				this.pendingOpenSource = parseOpenObsidianProtocolParams(params);
+				// 桌面端会用 vault 参数选择仓库，但不会将其转发给插件。
+				// 此时当前仓库已经是 URI 所请求的仓库，可作为安全回退值。
+				this.pendingOpenSource = parseOpenObsidianProtocolParams(params, this.app.vault.getName());
 				void this.flushPendingOpenSource();
 			} catch (error) {
 				this.handleError(error);

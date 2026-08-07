@@ -24,6 +24,17 @@ describe('Anki to Obsidian source URI', () => {
 		})).toMatchObject({ vaultName: '旧库' });
 	});
 
+	it('uses the opened vault when the desktop protocol router consumes vault', () => {
+		expect(parseOpenObsidianProtocolParams({
+			v: '2', filePath: 'JKy/固定流程/联调-总结2.md', uid: 'acl-6159a36a',
+		}, 'Obsidian')).toEqual({
+			version: 2,
+			vaultName: 'Obsidian',
+			filePath: 'JKy/固定流程/联调-总结2.md',
+			uid: 'acl-6159a36a',
+		});
+	});
+
 	it.each([
 		[{ v: '2', vault: 'v', filePath: 'a.md' }, /UID/u],
 		[{ v: '2', vault: 'v', filePath: 'a.md', uid: 'bad' }, /UID/u],

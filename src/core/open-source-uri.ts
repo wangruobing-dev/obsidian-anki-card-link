@@ -30,7 +30,10 @@ export function buildOpenObsidianUri(input: BuildOpenObsidianUriInput): string {
 	return `obsidian://${OPEN_OBSIDIAN_PROTOCOL_ACTION}?${params.toString()}`;
 }
 
-export function parseOpenObsidianProtocolParams(params: Record<string, string>): OpenObsidianSourceParams {
+export function parseOpenObsidianProtocolParams(
+	params: Record<string, string>,
+	fallbackVaultName?: string,
+): OpenObsidianSourceParams {
 	const version = params.v;
 	if (version !== String(OPEN_SOURCE_URI_VERSION)) {
 		throw new AnkiCardLinkError(
@@ -40,7 +43,10 @@ export function parseOpenObsidianProtocolParams(params: Record<string, string>):
 	}
 	// 保留 vault 让 Obsidian 在冷启动时先打开目标库；相对文件路径必须使用 filePath。
 	// Obsidian 会把保留参数 path 当成磁盘绝对路径，并在插件收到请求前提前处理。
-	const vaultName = params[SOURCE_VAULT_PARAM]?.trim() ?? params.vaultName?.trim() ?? '';
+	const vaultName = params[SOURCE_VAULT_PARAM]?.trim()
+		?? params.vaultName?.trim()
+		?? fallbackVaultName?.trim()
+		?? '';
 	const filePath = normalizeFilePath(params[SOURCE_FILE_PARAM]?.trim() ?? params.path?.trim() ?? '');
 	const uid = params.uid?.trim() ?? '';
 	validateOpenSourceValues(vaultName, filePath, uid);
