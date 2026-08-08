@@ -168,7 +168,9 @@ macOS 对应使用 Command / Option，例如区域命令推荐 Command + Option 
 
 当前 Markdown 文件至少成功同步一张卡片后，插件会给源笔记添加 `anki-card-link` 标签；已有该标签时不会重复添加。
 
-再次同步时优先使用按钮 URL 中的 noteId 调用 `notesInfo`。noteId 不存在或 UID 不一致时，才按顺序回退：旧 `anki-card-link::acl-xxxxxxxx` 标签、公共 `anki-card-link` 标签下的新 `uid` 参数、旧 Advanced URI 的 `block` 参数。发现重复 UID 时停止更新。
+再次同步时使用按钮 URL 中的 noteId 调用 `notesInfo`，先核验笔记类型和配置的 URI 字段中的 UID，再比较插件管理的所有同步字段；字段完全一致时会跳过，存在变化才更新。noteId 不存在、笔记类型不一致或 UID 不一致时也会跳过，不会创建替代笔记。改变 Anki 牌组或移动 Obsidian 文件不影响匹配；更新成功后会刷新保存的来源路径。
+
+每次同步结束后都会显示明细报告，列出已创建、已更新、已跳过和失败的卡片。报告 5 秒后自动关闭，鼠标悬停时保持显示，点击即可关闭。
 
 同步是手动、单向的；不会从 Anki 修改 Obsidian 内容，不会自动实时同步，不会删除 Anki 笔记，不会扫描整个 Vault，也不会直接读写 Anki 数据库。
 

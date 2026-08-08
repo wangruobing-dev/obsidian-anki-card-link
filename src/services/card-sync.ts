@@ -10,11 +10,9 @@ export interface AnkiSyncClient {
 	deckNames(): Promise<string[]>;
 	createDeck(deck: string): Promise<number>;
 	modelFieldNames(modelName: string): Promise<string[]>;
-	findNotes(query: string): Promise<number[]>;
 	notesInfo(noteIds: number[]): Promise<AnkiNoteInfo[]>;
 	addNote(note: AnkiNoteInput): Promise<number>;
 	updateNoteFields(noteId: number, fields: Record<string, string>): Promise<void>;
-	removeTags(noteIds: number[], tags: string[]): Promise<void>;
 }
 
 export interface CardSyncInput {
@@ -35,12 +33,21 @@ export interface SyncConfigurationResult {
 	choiceWarning?: AnkiCardLinkError;
 }
 
-export type CardSyncStatus = 'created' | 'updated';
+export type CardSyncStatus = 'created' | 'updated' | 'skipped';
 
-export interface CardSyncResult {
-	status: CardSyncStatus;
+export type CardSyncSkipReason = 'NOTE_NOT_FOUND' | 'MODEL_MISMATCH' | 'URI_UID_MISMATCH' | 'NO_CHANGES';
+
+export interface CompletedCardSyncResult {
+	status: 'created' | 'updated';
 	noteId: number;
 }
+
+export interface SkippedCardSyncResult {
+	status: 'skipped';
+	reason: CardSyncSkipReason;
+}
+
+export type CardSyncResult = CompletedCardSyncResult | SkippedCardSyncResult;
 
 /**
 	 * 负责把已解析的卡片写入 Anki。UID 保存在 ObsidianURI 中，用它确定唯一笔记，绝不按题面内容猜测。
@@ -79,73 +86,57 @@ export class CardSyncService {
 			: input.card.type === 'cloze'
 				? await this.validateClozeConfiguration(models)
 				: await this.validateChoiceConfiguration(models);
-		const uidTag = `anki-card-link::${input.uid}`;
 		const fieldsToSync = this.buildFields(input);
-		const { noteIds: existing, removeLegacyTag } = await this.findExistingNotes(input, uidTag);
-		if (existing.length > 1) {
-			throw new AnkiCardLinkError('DUPLICATE_UID', `More than one Anki note uses UID ${input.uid}.`);
+		if (input.noteIdHint !== undefined) {
+			const note = await this.getVerifiedNote(input);
+			if (typeof note === 'string') {
+				return { status: 'skipped', reason: note };
+			}
+			if (this.hasSameFields(note, fieldsToSync)) {
+				return { status: 'skipped', reason: 'NO_CHANGES' };
+			}
+			await this.anki.updateNoteFields(note.noteId, fieldsToSync);
+			return { status: 'updated', noteId: note.noteId };
 		}
 
-		if (existing.length === 0) {
-			const deckName = await this.ensureDeck(input);
-			const noteId = await this.anki.addNote({
-				deckName,
-				modelName: this.getModelName(input.card.type),
-				fields: this.buildCreateFields(input, fieldsToSync, fields),
-				tags: ['anki-card-link'],
-			});
-			return { status: 'created', noteId };
-		}
-
-		const noteId = existing[0];
-		if (noteId === undefined) {
-			throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'AnkiConnect returned an invalid note ID.');
-		}
-		await this.anki.updateNoteFields(noteId, fieldsToSync);
-		if (removeLegacyTag) {
-			await this.anki.removeTags([noteId], [uidTag]);
-		}
-		return { status: 'updated', noteId };
+		const deckName = await this.ensureDeck(input);
+		const noteId = await this.anki.addNote({
+			deckName,
+			modelName: this.getModelName(input.card.type),
+			fields: this.buildCreateFields(input, fieldsToSync, fields),
+			tags: ['anki-card-link'],
+		});
+		return { status: 'created', noteId };
 	}
 
 	/** 优先核对链接中的 noteId；失效或 UID 不一致时才执行兼容性回退查找。 */
-	private async findExistingNotes(
-		input: CardSyncInput,
-		uidTag: string,
-	): Promise<{ noteIds: number[]; removeLegacyTag: boolean }> {
-		const uriField = input.card.type === 'basic'
+	private async getVerifiedNote(input: CardSyncInput): Promise<AnkiNoteInfo | CardSyncSkipReason> {
+		const noteId = input.noteIdHint;
+		if (noteId === undefined) {
+			throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'Anki note ID is required for verification.');
+		}
+		const notes = await this.anki.notesInfo([noteId]);
+		const note = notes.find((candidate) => candidate.noteId === noteId);
+		if (note === undefined) {
+			return 'NOTE_NOT_FOUND';
+		}
+		if (note.modelName !== this.getModelName(input.card.type)) {
+			return 'MODEL_MISMATCH';
+		}
+		const uri = note.fields[this.getUriField(input.card.type)]?.value ?? '';
+		return uriHasUid(uri, input.uid) ? note : 'URI_UID_MISMATCH';
+	}
+
+	private getUriField(type: ParsedCard['type']): string {
+		return type === 'basic'
 			? this.settings.basicObsidianUriField
-			: input.card.type === 'cloze'
+			: type === 'cloze'
 				? this.settings.clozeObsidianUriField
 				: this.settings.choiceObsidianUrlField;
-		if (input.noteIdHint !== undefined) {
-			const notes = await this.anki.notesInfo([input.noteIdHint]);
-			const hinted = notes.find((note) => note.noteId === input.noteIdHint);
-			const hintMatches = hinted !== undefined && (input.card.type === 'choice'
-				? uriHasUid(hinted.fields[uriField]?.value ?? '', input.uid)
-				: noteHasUid(hinted, input.uid));
-			if (hinted !== undefined && hintMatches) {
-				return { noteIds: [hinted.noteId], removeLegacyTag: hinted.tags.includes(uidTag) };
-			}
-		}
-		const legacyMatches = await this.anki.findNotes(`tag:${uidTag}`);
-		if (legacyMatches.length > 0) {
-			return { noteIds: legacyMatches, removeLegacyTag: true };
-		}
+	}
 
-		const taggedNotes = await this.anki.findNotes('tag:anki-card-link');
-		const matches: number[] = [];
-		for (let start = 0; start < taggedNotes.length; start += 50) {
-			const noteIds = taggedNotes.slice(start, start + 50);
-			const notes = await this.anki.notesInfo(noteIds);
-			for (const note of notes) {
-				const uri = note.fields[uriField]?.value;
-				if (uri !== undefined && uriHasUid(uri, input.uid)) {
-					matches.push(note.noteId);
-				}
-			}
-		}
-		return { noteIds: matches, removeLegacyTag: false };
+	private hasSameFields(note: AnkiNoteInfo, fieldsToSync: Record<string, string>): boolean {
+		return Object.entries(fieldsToSync).every(([name, value]) => note.fields[name]?.value === value);
 	}
 
 	private async validateBasicConfiguration(models: string[]): Promise<string[]> {
@@ -327,8 +318,4 @@ function uriHasUid(uri: string, uid: string): boolean {
 	} catch {
 		return false;
 	}
-}
-
-function noteHasUid(note: AnkiNoteInfo, uid: string): boolean {
-	return Object.values(note.fields).some((field) => uriHasUid(field.value, uid));
 }

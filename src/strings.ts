@@ -110,6 +110,21 @@ const ENGLISH_STRINGS = {
 		sourceOpenedWithoutPosition: 'The file was opened, but the current view could not position the card precisely.',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`Created ${summary.created}, updated ${summary.updated}, skipped ${summary.skipped}, failed ${summary.failed}.`,
+		syncReport: {
+			title: 'Anki synchronization report',
+			created: 'Created',
+			updated: 'Updated',
+			skipped: 'Skipped',
+			failed: 'Failed',
+			noteId: (noteId: number) => `Anki note ${noteId}`,
+			skipReason: (reason: 'NOTE_NOT_FOUND' | 'MODEL_MISMATCH' | 'URI_UID_MISMATCH' | 'NO_CHANGES') => reason === 'NOTE_NOT_FOUND'
+				? 'The linked Anki note does not exist.'
+				: reason === 'MODEL_MISMATCH'
+					? 'The linked Anki note has a different note type.'
+					: reason === 'URI_UID_MISMATCH'
+						? 'The linked Anki note does not have the same UID.'
+						: 'The synchronized fields have not changed.',
+		},
 		unexpectedError: (message: string) => `An unexpected error occurred: ${message}`,
 	},
 } as const;
@@ -230,6 +245,27 @@ const CHINESE_STRINGS = {
 
 export function getStrings(language: Language) {
 	return language === 'zh-CN' ? CHINESE_STRINGS : ENGLISH_STRINGS;
+}
+
+export function getSyncReportStrings(language: Language) {
+	if (language !== 'zh-CN') {
+		return ENGLISH_STRINGS.notices.syncReport;
+	}
+	return {
+		title: 'Anki 同步报告',
+		created: '已创建',
+		updated: '已更新',
+		skipped: '已跳过',
+		failed: '失败',
+		noteId: (noteId: number) => `Anki 笔记 ${noteId}`,
+		skipReason: (reason: 'NOTE_NOT_FOUND' | 'MODEL_MISMATCH' | 'URI_UID_MISMATCH' | 'NO_CHANGES') => reason === 'NOTE_NOT_FOUND'
+			? '链接的 Anki 笔记不存在。'
+			: reason === 'MODEL_MISMATCH'
+				? '链接的 Anki 笔记类型不一致。'
+				: reason === 'URI_UID_MISMATCH'
+					? '链接的 Anki 笔记 UID 不一致。'
+					: '同步字段没有变化。',
+	};
 }
 
 export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Language): string {

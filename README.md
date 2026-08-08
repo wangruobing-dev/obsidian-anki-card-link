@@ -99,7 +99,9 @@ Use **Sync current card to Anki** or **Sync all cards in current file to Anki**.
 
 After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag.
 
-For an existing v2 button, synchronization first calls `notesInfo` for its noteId. Only a missing note or UID mismatch triggers fallback matching through the legacy UID tag, the new `uid` URI parameter, and the old Advanced URI `block` parameter. Duplicate UIDs stop the update.
+For an existing v2 button, synchronization first calls `notesInfo` for its noteId and checks the configured Anki URI field, UID, and note type. It then updates only when a plugin-managed field differs; unchanged cards are skipped. A missing note, note-type mismatch, or UID mismatch is also skipped without creating a replacement note. Deck changes and source-file moves do not affect matching; a successful update refreshes the stored source path.
+
+Every synchronization ends with a detailed report listing created, updated, skipped, and failed cards. The report closes after five seconds, remains visible while hovered, and can be dismissed by clicking it.
 
 Synchronization is manual and one-way. The plugin does not sync Anki edits back to Obsidian, delete Anki notes, run in real time, scan the entire vault, modify templates, or read the Anki database directly.
 

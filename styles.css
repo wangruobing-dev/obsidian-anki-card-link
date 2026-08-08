@@ -14,6 +14,22 @@
 	border-color: var(--background-modifier-border);
 }
 
+.anki-card-link-sync-report {
+	max-height: 22rem;
+	overflow-y: auto;
+	cursor: pointer;
+}
+
+.anki-card-link-sync-report__heading {
+	margin-top: var(--size-2-2);
+	font-weight: var(--font-semibold);
+}
+
+.anki-card-link-sync-report ul {
+	margin: var(--size-2-1) 0;
+	padding-inline-start: 1.25rem;
+}
+
 .acl-review-mask {
 	position: relative;
 	align-items: center;
