@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.4.3 - 2026-08-10
+
+- Fix desktop source-navigation URI handling so the active vault is used reliably when opening a card's Markdown source.
+- Skip Anki updates for unchanged cards and show a clear synchronization summary, reducing unnecessary writes while keeping changed cards synchronized.
+
 ## 1.4.2 - 2026-08-05
 
 - Recognize valid A–G single-choice and multiple-choice answer markers anywhere in a level-three heading, replace only the marker with `【　】`, and preserve all surrounding question text.
