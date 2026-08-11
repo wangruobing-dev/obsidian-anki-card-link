@@ -97,6 +97,12 @@ function renderMarkdownBlocks(markdown: string): string {
 	let index = 0;
 	while (index < lines.length) {
 		const line = lines[index] ?? '';
+		const table = parseMarkdownTable(lines, index);
+		if (table !== undefined) {
+			result.push(renderTable(table));
+			index = table.endIndex;
+			continue;
+		}
 		const heading = /^\s{0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?\s*$/u.exec(line);
 		if (heading?.[1] !== undefined && heading[2] !== undefined) {
 			const level = heading[1].length;
@@ -152,7 +158,9 @@ function renderMarkdownBlocks(markdown: string): string {
 		}
 
 		const paragraph: string[] = [];
-		while (index < lines.length && !isMarkdownBlockStart(lines[index] ?? '')) {
+		while (index < lines.length
+			&& !isMarkdownBlockStart(lines[index] ?? '')
+			&& parseMarkdownTable(lines, index) === undefined) {
 			paragraph.push(lines[index] ?? '');
 			index += 1;
 		}
@@ -163,11 +171,97 @@ function renderMarkdownBlocks(markdown: string): string {
 
 function isMarkdownBlockStart(line: string): boolean {
 	return line.length === 0
+		|| parseTableSeparator(line) !== undefined
 		|| /^\s{0,3}#{1,6}[ \t]+/u.test(line)
 		|| /^\s{0,3}[-*_](?:\s*[-*_]){2,}\s*$/u.test(line)
 		|| /^\s{0,3}[-+*][ \t]+/u.test(line)
 		|| /^\s{0,3}\d+[.)][ \t]+/u.test(line)
 		|| /^\s{0,3}&gt;(?:[ \t]|$)/u.test(line);
+}
+
+interface MarkdownTable {
+	header: string[];
+	alignments: Array<'left' | 'center' | 'right' | undefined>;
+	rows: string[][];
+	endIndex: number;
+}
+
+function parseMarkdownTable(lines: string[], startIndex: number): MarkdownTable | undefined {
+	const header = splitTableRow(lines[startIndex] ?? '');
+	const alignments = parseTableSeparator(lines[startIndex + 1] ?? '');
+	if (header === undefined || alignments === undefined || header.length !== alignments.length) {
+		return undefined;
+	}
+
+	const rows: string[][] = [];
+	let index = startIndex + 2;
+	while (index < lines.length) {
+		const row = splitTableRow(lines[index] ?? '');
+		if (row === undefined) {
+			break;
+		}
+		rows.push(normalizeTableRow(row, header.length));
+		index += 1;
+	}
+	return { header, alignments, rows, endIndex: index };
+}
+
+function parseTableSeparator(line: string): Array<'left' | 'center' | 'right' | undefined> | undefined {
+	const cells = splitTableRow(line);
+	if (cells === undefined || cells.some((cell) => !/^:?-{3,}:?$/u.test(cell.trim()))) {
+		return undefined;
+	}
+	return cells.map((cell) => {
+		const trimmed = cell.trim();
+		if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
+		if (trimmed.endsWith(':')) return 'right';
+		if (trimmed.startsWith(':')) return 'left';
+		return undefined;
+	});
+}
+
+function splitTableRow(line: string): string[] | undefined {
+	const trimmed = line.trim();
+	if (!trimmed.includes('|')) {
+		return undefined;
+	}
+	const content = trimmed.replace(/^\|/u, '').replace(/\|$/u, '');
+	const cells: string[] = [];
+	let cell = '';
+	for (let index = 0; index < content.length; index += 1) {
+		const character = content[index] ?? '';
+		if (character === '\\' && content[index + 1] === '|') {
+			cell += '|';
+			index += 1;
+			continue;
+		}
+		if (character === '|') {
+			cells.push(cell.trim());
+			cell = '';
+			continue;
+		}
+		cell += character;
+	}
+	cells.push(cell.trim());
+	return cells.length >= 2 ? cells : undefined;
+}
+
+function normalizeTableRow(row: string[], columnCount: number): string[] {
+	return Array.from({ length: columnCount }, (_, index) => row[index] ?? '');
+}
+
+function renderTable(table: MarkdownTable): string {
+	const tableStyle = 'border-collapse: collapse; margin: 0.5em auto;';
+	const cellStyle = (index: number): string => {
+		const alignment = table.alignments[index];
+		const textAlign = alignment === undefined ? '' : ` text-align: ${alignment};`;
+		return `border: 1px solid currentColor; padding: 0.35em 0.6em;${textAlign}`;
+	};
+	const header = table.header.map((cell, index) => `<th style="${cellStyle(index)}">${cell}</th>`).join('');
+	const body = table.rows
+		.map((row) => `<tr>${row.map((cell, index) => `<td style="${cellStyle(index)}">${cell}</td>`).join('')}</tr>`)
+		.join('');
+	return `<table style="${tableStyle}"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 function renderCodeBlock(codeBlock: { language?: string; lines: string[] }): string {

@@ -50,4 +50,25 @@ describe('Anki HTML content conversion', () => {
 			'<ul><li>第一项</li><li><strong>第二项</strong></li></ul><br><blockquote>引用</blockquote>',
 		);
 	});
+
+	it('renders a Markdown table as bordered Anki HTML and preserves Cloze markup', () => {
+		expect(toAnkiHtml('| 灯神 | 发森森扥撒扥 |\n| --- | --- |\n| 发森森{{c1::扥撒扥}} | 是扥是扥收到 |')).toBe(
+			'<table style="border-collapse: collapse; margin: 0.5em auto;"><thead><tr><th style="border: 1px solid currentColor; padding: 0.35em 0.6em;">灯神</th><th style="border: 1px solid currentColor; padding: 0.35em 0.6em;">发森森扥撒扥</th></tr></thead><tbody><tr><td style="border: 1px solid currentColor; padding: 0.35em 0.6em;">发森森{{c1::扥撒扥}}</td><td style="border: 1px solid currentColor; padding: 0.35em 0.6em;">是扥是扥收到</td></tr></tbody></table>',
+		);
+	});
+
+	it('supports table alignment, inline styles, and escaped pipes', () => {
+		expect(toAnkiHtml('名称 | 说明\n:--- | ---:\n**左侧** | `a|b` 与 A\\|B')).toContain(
+			'<th style="border: 1px solid currentColor; padding: 0.35em 0.6em; text-align: left;">名称</th><th style="border: 1px solid currentColor; padding: 0.35em 0.6em; text-align: right;">说明</th>',
+		);
+		expect(toAnkiHtml('名称 | 说明\n:--- | ---:\n**左侧** | `a|b` 与 A\\|B')).toContain(
+			'<td style="border: 1px solid currentColor; padding: 0.35em 0.6em; text-align: right;"><code>a|b</code> 与 A|B</td>',
+		);
+	});
+
+	it('renders a table that follows ordinary text without requiring a blank line', () => {
+		expect(toAnkiHtml('说明\n| 第一列 | 第二列 |\n| --- | --- |\n| A | B |')).toContain(
+			'说明<table style="border-collapse: collapse; margin: 0.5em auto;">',
+		);
+	});
 });

@@ -112,4 +112,16 @@ describe('card synchronization', () => {
 		await expect(service(client).sync({ ...basicInput({ noteIdHint: 25 }), card })).resolves.toEqual({ status: 'updated', noteId: 25 });
 		expect(client.updatedNotes[0]?.fields).toHaveProperty('ObsidianURL');
 	});
+
+	it('syncs a Cloze Markdown table as HTML instead of raw pipe text', async () => {
+		const client = new FakeAnkiClient();
+		const card = parseCardBlock('| 灯神 | 发森森扥撒扥 |\n| --- | --- |\n| 发森森{{c1::扥撒扥}} | 是扥是扥收到 |');
+		if (card?.type !== 'cloze') throw new Error('Cloze table was not parsed.');
+		await expect(service(client).sync({ ...basicInput(), card })).resolves.toEqual({ status: 'created', noteId: 100 });
+		const content = client.createdNotes[0]?.fields.Content;
+		expect(content).toContain('<table');
+		expect(content).toContain('<td style=');
+		expect(content).toContain('{{c1::扥撒扥}}');
+		expect(content).not.toContain('| --- |');
+	});
 });
