@@ -1,3 +1,5 @@
+import { findObsidianImageEmbeds } from './anki-media';
+
 /** 将第一版支持的 Markdown 文本转换为安全、简单的 Anki HTML。 */
 export function toAnkiHtml(markdown: string, imageMedia?: ReadonlyMap<string, string>): string {
 	const lines = markdown.split(/\r?\n/u);
@@ -56,22 +58,33 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		const index = atomicHtml.push(html) - 1;
 		return `\u0000anki-card-link-${index}\u0000`;
 	};
+	const tokens: Array<
+		| { type: 'image'; index: number; length: number; reference: string }
+		| { type: 'code'; index: number; length: number; content: string }
+	> = findObsidianImageEmbeds(markdown).map((embed) => ({ type: 'image', ...embed }));
+	for (const match of markdown.matchAll(/(`+)([^\n]*?)\1/gu)) {
+		if (match.index !== undefined) {
+			tokens.push({ type: 'code', index: match.index, length: match[0].length, content: match[2] ?? '' });
+		}
+	}
+	tokens.sort((left, right) => left.index - right.index || right.length - left.length);
+
 	const parts: string[] = [];
 	let offset = 0;
-	for (const match of markdown.matchAll(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|(`+)([^\n]*?)\2/gu)) {
-		const matchIndex = match.index;
-		if (matchIndex === undefined) {
+	for (const token of tokens) {
+		if (token.index < offset) {
 			continue;
 		}
-		parts.push(markdown.slice(offset, matchIndex));
-		const source = match[1]?.trim();
-		if (source !== undefined) {
-			const mediaFilename = imageMedia?.get(source);
-			parts.push(mediaFilename === undefined ? match[0] : placeholder(`<img src="${escapeHtml(mediaFilename)}">`));
+		parts.push(markdown.slice(offset, token.index));
+		if (token.type === 'image') {
+			const mediaFilename = imageMedia?.get(token.reference);
+			parts.push(mediaFilename === undefined
+				? markdown.slice(token.index, token.index + token.length)
+				: placeholder(`<img src="${escapeHtml(mediaFilename)}">`));
 		} else {
-			parts.push(placeholder(`<code>${escapeHtml(match[3] ?? '')}</code>`));
+			parts.push(placeholder(`<code>${escapeHtml(token.content)}</code>`));
 		}
-		offset = matchIndex + match[0].length;
+		offset = token.index + token.length;
 	}
 	parts.push(markdown.slice(offset));
 

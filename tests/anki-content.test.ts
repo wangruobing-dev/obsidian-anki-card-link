@@ -32,6 +32,33 @@ describe('Anki HTML content conversion', () => {
 		).toBe('答案 <img src="anki-card-link-12345678.png">');
 	});
 
+	it('renders uploaded standard Markdown images with angle-bracket destinations', () => {
+		expect(
+			toAnkiHtml(
+				'解析\n![](<20260808224611081-46aab726.png>)',
+				new Map([['20260808224611081-46aab726.png', 'anki-card-link-abcdef12.png']]),
+			),
+		).toBe('解析<br><img src="anki-card-link-abcdef12.png">');
+	});
+
+	it('uses the same decoded reference for Markdown image upload and rendering', () => {
+		expect(
+			toAnkiHtml(
+				'![示意图](附件/Pasted%20image.png "标题")',
+				new Map([['附件/Pasted image.png', 'anki-card-link-12345678.png']]),
+			),
+		).toBe('<img src="anki-card-link-12345678.png">');
+	});
+
+	it('keeps image-like text inside inline code as code', () => {
+		expect(
+			toAnkiHtml(
+				'`![](<image.png>)`',
+				new Map([['image.png', 'anki-card-link-12345678.png']]),
+			),
+		).toBe('<code>![](&lt;image.png&gt;)</code>');
+	});
+
 	it('renders inline Markdown styles without exposing their markers', () => {
 		expect(toAnkiHtml('**解析：**\n时间复杂度是 `O(1)`，不是 ``O(n)``。')).toBe(
 			'<strong>解析：</strong><br>时间复杂度是 <code>O(1)</code>，不是 <code>O(n)</code>。',

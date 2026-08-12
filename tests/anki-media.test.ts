@@ -12,6 +12,14 @@ describe('Anki media helpers', () => {
 		).toEqual(['one.png', 'folder/two.jpg']);
 	});
 
+	it('extracts standard Markdown image destinations used by Obsidian', () => {
+		expect(
+			extractObsidianImageReferences(
+				'![](<20260808224611081-46aab726.png>)\n![图](附件/Pasted%20image.png "标题")\n![远程](https://example.com/a.png)',
+			),
+		).toEqual(['20260808224611081-46aab726.png', '附件/Pasted image.png']);
+	});
+
 	it('uses a stable media filename and Base64-encodes image bytes', () => {
 		expect(buildAnkiMediaFilename('附件/Pasted image.png', 'png')).toBe(buildAnkiMediaFilename('附件/Pasted image.png', 'PNG'));
 		expect(encodeArrayBufferAsBase64(new Uint8Array([0, 255, 192]).buffer)).toBe('AP/A');

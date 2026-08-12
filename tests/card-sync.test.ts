@@ -113,6 +113,18 @@ describe('card synchronization', () => {
 		expect(client.updatedNotes[0]?.fields).toHaveProperty('ObsidianURL');
 	});
 
+	it('syncs a standard Markdown image in a choice back as Anki HTML', async () => {
+		const client = new FakeAnkiClient();
+		const card = parseCardBlock('### Question 【B】\n- A\n- B\n![](<image.png>)');
+		if (card?.type !== 'choice') throw new Error('Choice card was not parsed.');
+		await expect(service(client).sync({
+			...basicInput(),
+			card,
+			imageMedia: new Map([['image.png', 'anki-card-link-12345678.png']]),
+		})).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]?.fields.Back).toBe('<img src="anki-card-link-12345678.png">');
+	});
+
 	it('syncs a Cloze Markdown table as HTML instead of raw pipe text', async () => {
 		const client = new FakeAnkiClient();
 		const card = parseCardBlock('| 灯神 | 发森森扥撒扥 |\n| --- | --- |\n| 发森森{{c1::扥撒扥}} | 是扥是扥收到 |');
