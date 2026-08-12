@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.4 - 2026-08-12
+
+- Synchronize standard Markdown image embeds such as `![](<image.png>)` by uploading local attachments to Anki and rendering them as media-backed HTML images.
+- Decode URL-encoded attachment paths, preserve inline code containing image-like text, and ignore remote image URLs during local media upload.
+- Render Markdown tables as bordered HTML tables in Anki instead of exposing raw pipe syntax.
+
 ## 1.4.3 - 2026-08-10
 
 - Fix desktop source-navigation URI handling so the active vault is used reliably when opening a card's Markdown source.
