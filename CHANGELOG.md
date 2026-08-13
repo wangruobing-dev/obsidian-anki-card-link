@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.4.6 - 2026-08-13
+
+- Decode HTML-escaped query separators in Anki source URI fields before UID verification, allowing existing notes to synchronize again after Anki stores `&` as `&amp;`.
+- Preserve mismatch protection for different UIDs, invalid URIs, and legacy `block` identifiers while writing normalized source URIs after successful updates.
+
 ## 1.4.5 - 2026-08-13
 
 - Treat `<!-- anki-card-link:cloze -->` as a separator so valid Cloze content above the first marker, between markers, and below the final marker forms independent notes.

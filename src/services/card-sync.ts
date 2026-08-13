@@ -313,7 +313,7 @@ export class CardSyncService {
 
 function uriHasUid(uri: string, uid: string): boolean {
 	try {
-		const params = new URL(uri).searchParams;
+		const params = new URL(uri.replaceAll('&amp;', '&')).searchParams;
 		return params.get('uid') === uid || params.get('block') === uid;
 	} catch {
 		return false;

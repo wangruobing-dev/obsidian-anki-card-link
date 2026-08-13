@@ -61,6 +61,28 @@ describe('card synchronization', () => {
 		await expect(service(client).sync(basicInput({ noteIdHint: 21 }))).resolves.toEqual({ status: 'updated', noteId: 21 });
 	});
 
+	it('updates a linked note when Anki HTML-escapes the URI query separators', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(27, note(
+			27,
+			'Anki Card Link Basic',
+			'obsidian://anki-card-link-open?v=2&amp;vault=vault&amp;filePath=cards.md&amp;uid=acl-1234abcd',
+		));
+		await expect(service(client).sync(basicInput({ noteIdHint: 27 }))).resolves.toEqual({ status: 'updated', noteId: 27 });
+		expect(client.updatedNotes[0]?.fields.ObsidianURI).toContain('&uid=acl-1234abcd');
+		expect(client.updatedNotes[0]?.fields.ObsidianURI).not.toContain('&amp;');
+	});
+
+	it('accepts the legacy block UID when Anki HTML-escapes the URI query separators', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(28, note(
+			28,
+			'Anki Card Link Basic',
+			'obsidian://anki-card-link-open?v=1&amp;vault=vault&amp;path=cards.md&amp;block=acl-1234abcd',
+		));
+		await expect(service(client).sync(basicInput({ noteIdHint: 28 }))).resolves.toEqual({ status: 'updated', noteId: 28 });
+	});
+
 	it('skips a verified note when every synchronized field is unchanged', async () => {
 		const client = new FakeAnkiClient();
 		await service(client).sync(basicInput());
@@ -88,6 +110,24 @@ describe('card synchronization', () => {
 		client.noteInfoById.set(23, note(23, 'Anki Card Link Basic', 'obsidian://anki-card-link-open?v=2&uid=acl-87654321'));
 		await expect(service(client).sync(basicInput({ noteIdHint: 23 }))).resolves.toEqual({ status: 'skipped', reason: 'URI_UID_MISMATCH' });
 		expect(client.createdNotes).toHaveLength(0);
+		expect(client.updatedNotes).toHaveLength(0);
+	});
+
+	it('skips an HTML-escaped linked note with a different UID without writing', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(29, note(
+			29,
+			'Anki Card Link Basic',
+			'obsidian://anki-card-link-open?v=2&amp;vault=vault&amp;filePath=cards.md&amp;uid=acl-87654321',
+		));
+		await expect(service(client).sync(basicInput({ noteIdHint: 29 }))).resolves.toEqual({ status: 'skipped', reason: 'URI_UID_MISMATCH' });
+		expect(client.updatedNotes).toHaveLength(0);
+	});
+
+	it('skips an invalid linked URI without writing', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(30, note(30, 'Anki Card Link Basic', 'not a URI'));
+		await expect(service(client).sync(basicInput({ noteIdHint: 30 }))).resolves.toEqual({ status: 'skipped', reason: 'URI_UID_MISMATCH' });
 		expect(client.updatedNotes).toHaveLength(0);
 	});
 
