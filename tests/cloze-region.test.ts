@@ -105,16 +105,16 @@ describe('explicit Cloze note regions', () => {
 });
 
 describe('single-marker Cloze note regions', () => {
-	it('uses one marker to start a card that continues to the end of the file', () => {
+	it('uses a leading separator with no content above as one compatible card below it', () => {
 		const source = `${CLOZE_REGION_MARKER}\n\n# JVM\n\nJVM 是 {{c1::Java Virtual Machine}}。`;
 		expect(parseCards(source)).toEqual([
 			expect.objectContaining({
 				type: 'cloze',
-				startLine: 0,
+				startLine: 2,
 				endLine: 4,
 				contentStartLine: 2,
 				contentEndLine: 4,
-				clozeRegionStartLine: 0,
+				clozeRegionStartLine: 2,
 				clozeRegionStyle: 'single',
 				explicitRegion: true,
 				content: '# JVM\n\nJVM 是 {{c1::Java Virtual Machine}}。',
@@ -122,14 +122,24 @@ describe('single-marker Cloze note regions', () => {
 		]);
 	});
 
-	it('starts a new independent card at every following marker', () => {
-		const source = `${CLOZE_REGION_MARKER}\n第一张 {{c1::一}}\n\n${CLOZE_REGION_MARKER}\n第二张 {{c1::二}}`;
+	it('treats every marker as a separator between independent cards', () => {
+		const source = `第一张 {{c1::一}}\n\n${CLOZE_REGION_MARKER}\n第二张 {{c1::二}}`;
 		const cards = parseCards(source);
 		expect(cards.map((card) => card.type === 'cloze' ? card.content : '')).toEqual([
 			'第一张 {{c1::一}}',
 			'第二张 {{c1::二}}',
 		]);
 		expect(cards.map((card) => card.startLine)).toEqual([0, 3]);
+	});
+
+	it('includes the content above the first separator as the first card', () => {
+		const source = `上方 {{c1::一}}\n\n${CLOZE_REGION_MARKER}\n\n下方 {{c1::二}}`;
+		const cards = parseCards(source);
+		expect(cards.map((card) => card.type === 'cloze' ? card.content : '')).toEqual([
+			'上方 {{c1::一}}',
+			'下方 {{c1::二}}',
+		]);
+		expect(cards.every((card) => card.type === 'cloze' && card.explicitRegion)).toBe(true);
 	});
 
 	it('ignores single-marker examples inside fenced code', () => {
@@ -145,9 +155,13 @@ describe('single-marker Cloze note regions', () => {
 		expect(cards[0]).toMatchObject({ type: 'cloze' });
 	});
 
-	it('reports an empty or non-Cloze single-marker card without falling back to implicit mode', () => {
-		expect(parseCardCandidates(CLOZE_REGION_MARKER)[0]?.error?.code).toBe('CLOZE_REGION_EMPTY');
-		expect(parseCardCandidates(`${CLOZE_REGION_MARKER}\n普通正文`)[0]?.error?.code).toBe('CLOZE_REGION_NO_CLOZE');
+	it('ignores empty, consecutive, trailing, and ordinary-text segments', () => {
+		const source = `普通说明\n${CLOZE_REGION_MARKER}\n${CLOZE_REGION_MARKER}\n有效 {{c1::答案}}\n${CLOZE_REGION_MARKER}\n`;
+		const candidates = parseCardCandidates(source);
+		expect(candidates.filter((candidate) => candidate.error !== undefined)).toHaveLength(0);
+		expect(candidates.filter((candidate) => candidate.card?.type === 'cloze')).toHaveLength(1);
+		expect(parseCardCandidates(CLOZE_REGION_MARKER).filter((candidate) => candidate.error !== undefined)).toHaveLength(0);
+		expect(parseCards(`${CLOZE_REGION_MARKER}\n普通正文`)).toHaveLength(0);
 	});
 });
 

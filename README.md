@@ -37,24 +37,26 @@ What is the JVM?::The Java Virtual Machine.
 
 Single-line cards support both `::` and `：：` by default, without requiring spaces. Multi-line basic cards use a line containing only `?` or `？`. Both separator lists are configurable, one value per line. Cloze cards use `{{c1::text}}` or `{{c1::text::hint}}`. The card and button are separated by one blank line. The button label may be customized because recognition is based on the URL, not fixed text. The button is excluded from Anki `Front`, `Back`, and `Content` fields.
 
-For a multi-section Cloze note, place the standard marker before the card:
+Use the standard marker as a separator between Cloze notes:
 
 ```markdown
-<!-- anki-card-link:cloze -->
-
 This is one Cloze note.
 
 The JVM is the {{c1::Java Virtual Machine}}.
+
+<!-- anki-card-link:cloze -->
+
+This is another {{c1::Cloze note}}.
 ```
 
-- Each marker starts one Cloze note. Its body continues to the next identical marker or the end of the file, so multiple cards need only one marker before each card.
+- Each marker separates the Cloze note above it from the Cloze note below it. The file start, adjacent markers, and EOF are the outer boundaries.
 - The marker must occupy its own line and is not synchronized to Anki.
-- Basic and Choice cards before the first single marker continue to work. Content after a marker belongs to that Cloze card until the next marker or EOF.
+- A segment becomes a Cloze card only when it contains a valid Cloze deletion. Empty, whitespace-only, and ordinary-text segments are ignored.
 - Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a region remain ordinary Cloze `Content`.
 - If a file contains no Cloze region marker at all, any valid Cloze outside fenced code makes the complete note body one compatibility Cloze card. YAML frontmatter, generated buttons, and legacy UID metadata are excluded.
 - Existing unmarked notes and paired `cloze:start` / `cloze:end` regions remain supported and are not migrated automatically. Paired legacy regions remain useful when Basic or Choice cards must follow a Cloze region.
 
-Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze-region` command is named **Cloze: Insert note region**. It inserts the marker before the current selection, or inserts a marker plus an editable blank body line when there is no selection. Run it again to start the next Cloze card. Suggested shortcuts are Ctrl+Alt+C on Windows/Linux and Command+Option+C on macOS; the plugin does not bind them automatically.
+Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze-region` command is named **Cloze: Insert note region**. It inserts a separator before the current selection, or inserts a separator plus an editable blank body line when there is no selection. Suggested shortcuts are Ctrl+Alt+C on Windows/Linux and Command+Option+C on macOS; the plugin does not bind them automatically.
 
 When synchronizing, Markdown headings level 1–6 become `<h1>`–`<h6>`. Unordered/ordered lists, blockquotes, horizontal rules, bold, italic, strikethrough, inline/fenced code, and uploaded images are also rendered as Anki HTML instead of exposing Markdown markers.
 

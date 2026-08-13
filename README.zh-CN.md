@@ -73,22 +73,24 @@ Java 的 {{c1::垃圾回收器}} 可以自动管理内存。
 
 ### Cloze 笔记区域
 
-一张 Cloze 需要跨多个段落、标题、列表、图片、公式和代码块时，在卡片前插入标准标记：
+使用标准标记分隔可以跨多个段落、标题、列表、图片、公式和代码块的 Cloze 笔记：
 
 ```markdown
-<!-- anki-card-link:cloze -->
-
 这里是一张 Cloze 笔记。
 
 JVM 是 {{c1::Java Virtual Machine}}。
+
+<!-- anki-card-link:cloze -->
+
+这里是另一张 {{c1::Cloze 笔记}}。
 ```
 
 规则：
 
-- 每个标记开始一张 Cloze 笔记，正文持续到下一个同类标记或文件末尾；多张卡只需在每张卡前放一个标记；
+- 每个标记都是 Cloze 笔记分隔线：第一枚标记上方、相邻标记之间、最后一枚标记下方分别是独立分段；
 - 标记必须单独占一行，标记本身不会同步到 Anki；
 - 区域内部的标题、空行、列表、引用、表格、公式、图片、代码块、Basic 分隔符和 Choice 语法都属于同一张 Cloze 的 `Content`；
-- 新标记前面的 Basic 和 Choice 仍正常解析；标记后的内容属于对应 Cloze，直到下一个标记或文件末尾；
+- 只有包含有效 Cloze 的分段才形成 Cloze 卡；空白分段和只有普通文本的分段直接忽略，不报错；没有形成 Cloze 卡的分段中，Basic 和 Choice 仍按原规则解析；
 - 如果文件中完全没有任何 Cloze 区域标记，只要围栏代码块外存在有效 Cloze，整篇正文就是一张兼容 Cloze；YAML Frontmatter、同步按钮和旧 UID 元数据不会写入 `Content`；
 - 旧版 `cloze:start` / `cloze:end` 成对区域继续兼容，不强制迁移，也不会自动批量修改旧笔记；需要在 Cloze 后继续放 Basic/Choice 时，可继续使用旧版成对区域。
 

@@ -101,6 +101,21 @@ describe('cloze editor helpers', () => {
 		expect(getClozeNumber(scope.text, 'next', scope.beforeCursor)).toBe(3);
 	});
 
+	it('uses the numbers above the first separator as one Cloze note scope', () => {
+		const source = `{{c1::一}}\n{{c2::二}}\n{{c3::三}}\n\n光标\n\n${CLOZE_REGION_MARKER}\n`;
+		const scope = getClozeScopeAtOffset(source, source.indexOf('光标'))!;
+		expect(getClozeNumber(scope.text, 'next', scope.beforeCursor)).toBe(4);
+		expect(getClozeNumber(scope.text, 'current', scope.beforeCursor)).toBe(3);
+	});
+
+	it('keeps numbering independent on both sides of a separator', () => {
+		const source = `上方 {{c3::三}} 光标A\n${CLOZE_REGION_MARKER}\n下方 {{c1::一}} 光标B`;
+		const upper = getClozeScopeAtOffset(source, source.indexOf('光标A'))!;
+		const lower = getClozeScopeAtOffset(source, source.indexOf('光标B'))!;
+		expect(getClozeNumber(upper.text, 'next', upper.beforeCursor)).toBe(4);
+		expect(getClozeNumber(lower.text, 'next', lower.beforeCursor)).toBe(2);
+	});
+
 	it('uses the whole implicit note across headings and the last number before the cursor', () => {
 		const source = `# 标题\n{{c1::一}}\n\n## 小节\n{{c4::四}}\n\n光标\n\n{{c9::后面}}`;
 		const scope = getClozeScopeAtOffset(source, source.indexOf('光标'))!;

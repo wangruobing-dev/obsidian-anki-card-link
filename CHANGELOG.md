@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.4.5 - 2026-08-13
+
+- Treat `<!-- anki-card-link:cloze -->` as a separator so valid Cloze content above the first marker, between markers, and below the final marker forms independent notes.
+- Scope new/current Cloze numbering to the cursor's separated note, including the content above the first marker, and keep adjacent note numbers independent.
+- Ignore empty and ordinary-text separator segments without errors, and keep synchronized buttons inside their own note boundaries.
+- Update English and Simplified Chinese documentation and add regression coverage for parsing, numbering, and button writeback.
+
 ## 1.4.4 - 2026-08-12
 
 - Synchronize standard Markdown image embeds such as `![](<image.png>)` by uploading local attachments to Anki and rendering them as media-backed HTML images.

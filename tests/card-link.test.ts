@@ -128,12 +128,22 @@ describe('card links in Markdown', () => {
 	});
 
 	it('keeps two single-marker cards and their buttons independent', () => {
-		const source = `${CLOZE_REGION_MARKER}\n一 {{c1::甲}}\n\n${CLOZE_REGION_MARKER}\n二 {{c1::乙}}`;
+		const source = `一 {{c1::甲}}\n\n${CLOZE_REGION_MARKER}\n二 {{c1::乙}}`;
 		const cards = parseCards(source);
 		let updated = ensureCardLink(source, cards[1]!, { uid: 'acl-22222222', noteId: 2 }, 'Two');
 		updated = ensureCardLink(updated, cards[0]!, { uid: 'acl-11111111', noteId: 1 }, 'One');
-		expect(updated.match(/<!-- anki-card-link:cloze -->/gu)).toHaveLength(2);
+		expect(updated.match(/<!-- anki-card-link:cloze -->/gu)).toHaveLength(1);
 		expect(updated.match(/obsidian:\/\/anki-card-link/gu)).toHaveLength(2);
 		expect(parseCards(updated).map((card) => card.uid)).toEqual(['acl-11111111', 'acl-22222222']);
+	});
+
+	it('writes and updates the first card button before its separator', () => {
+		const source = `一 {{c1::甲}}\n\n${CLOZE_REGION_MARKER}\n二 {{c1::乙}}`;
+		let updated = ensureCardLink(source, parseCards(source)[0]!, { uid: 'acl-11111111', noteId: 1 }, 'One');
+		expect(updated.indexOf('value=1')).toBeLessThan(updated.indexOf(CLOZE_REGION_MARKER));
+		updated = ensureCardLink(updated, parseCards(updated)[0]!, { uid: 'acl-11111111', noteId: 10 }, 'Updated');
+		expect(updated.match(/obsidian:\/\/anki-card-link/gu)).toHaveLength(1);
+		expect(updated.indexOf('value=10')).toBeLessThan(updated.indexOf(CLOZE_REGION_MARKER));
+		expect(parseCards(updated).map((card) => card.uid)).toEqual(['acl-11111111', undefined]);
 	});
 });

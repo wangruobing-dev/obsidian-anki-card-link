@@ -137,34 +137,28 @@ export function parseClozeRegions(markdown: string): ClozeRegionScan {
 		marker.kind === 'region'
 		&& !pairedRanges.some((range) => marker.line >= range.startLine && marker.line <= range.endLine),
 	);
-	for (let index = 0; index < singleMarkers.length; index += 1) {
-		const marker = singleMarkers[index];
-		if (marker === undefined) {
-			continue;
+	if (singleMarkers.length > 0) {
+		const body = getMarkdownBodyRange(lines);
+		if (body !== undefined) {
+			const excludedLines = new Set(singleMarkers.map((marker) => marker.line));
+			for (const range of pairedRanges) {
+				for (let line = range.startLine; line <= range.endLine; line += 1) {
+					excludedLines.add(line);
+				}
+			}
+
+			let segmentStart = body.startLine;
+			for (let line = body.startLine; line <= body.endLine + 1; line += 1) {
+				const boundary = line > body.endLine || excludedLines.has(line);
+				if (!boundary) {
+					continue;
+				}
+				addSingleMarkerSegment(lines, fencedLines, segmentStart, line - 1, regions, protectedRanges);
+				segmentStart = line + 1;
+			}
 		}
-		const nextSingleLine = singleMarkers[index + 1]?.line ?? lines.length;
-		const nextPairedLine = pairedRanges
-			.filter((range) => range.startLine > marker.line)
-			.map((range) => range.startLine)
-			.sort((left, right) => left - right)[0] ?? lines.length;
-		const range = {
-			startLine: marker.line,
-			endLine: Math.max(marker.line, Math.min(nextSingleLine, nextPairedLine) - 1),
-		};
-		protectedRanges.push(range);
-		const contentRange = trimLineRange(lines, marker.line + 1, range.endLine);
-		if (contentRange === undefined) {
-			issues.push({ code: 'CLOZE_REGION_EMPTY', ...range });
-		} else if (!hasValidClozeInRange(lines, contentRange.startLine, contentRange.endLine, fencedLines)) {
-			issues.push({ code: 'CLOZE_REGION_NO_CLOZE', ...range });
-		} else {
-			regions.push({
-				style: 'single',
-				...range,
-				contentStartLine: contentRange.startLine,
-				contentEndLine: contentRange.endLine,
-				content: lines.slice(contentRange.startLine, contentRange.endLine + 1).join('\n'),
-			});
+		for (const marker of singleMarkers) {
+			protectedRanges.push({ startLine: marker.line, endLine: marker.line });
 		}
 	}
 	regions.sort((left, right) => left.startLine - right.startLine);
@@ -178,6 +172,30 @@ export function parseClozeRegions(markdown: string): ClozeRegionScan {
 		issues,
 		protectedRanges,
 	};
+}
+
+function addSingleMarkerSegment(
+	lines: readonly string[],
+	fencedLines: ReadonlySet<number>,
+	startLine: number,
+	endLine: number,
+	regions: ClozeRegion[],
+	protectedRanges: Array<{ startLine: number; endLine: number }>,
+): void {
+	const contentRange = trimLineRange(lines, startLine, endLine);
+	if (contentRange === undefined
+		|| !hasValidClozeInRange(lines, contentRange.startLine, contentRange.endLine, fencedLines)) {
+		return;
+	}
+	const range = { startLine: contentRange.startLine, endLine: contentRange.endLine };
+	protectedRanges.push(range);
+	regions.push({
+		style: 'single',
+		...range,
+		contentStartLine: contentRange.startLine,
+		contentEndLine: contentRange.endLine,
+		content: lines.slice(contentRange.startLine, contentRange.endLine + 1).join('\n'),
+	});
 }
 
 export function findClozeRegionAtLine(markdown: string, line: number): ClozeRegion | undefined {

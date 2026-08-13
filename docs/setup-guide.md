@@ -149,23 +149,25 @@ Write standard Anki Cloze markup:
 The JVM uses {{c1::garbage collection}} to manage memory automatically.
 ```
 
-For a Cloze note that spans paragraphs, headings, lists, images, formulas, or code blocks, place the standard marker before the card:
+Use the standard marker to separate Cloze notes that may span paragraphs, headings, lists, images, formulas, or code blocks:
 
 ```markdown
-<!-- anki-card-link:cloze -->
-
 This is one Cloze note.
 
 The JVM is the {{c1::Java Virtual Machine}}.
+
+<!-- anki-card-link:cloze -->
+
+This is another {{c1::Cloze note}}.
 ```
 
-Each marker starts one Cloze note, and its content continues to the next identical marker or the end of the file. A file may therefore contain multiple cards with one marker before each card. The marker must occupy its own line and never enters Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code after a marker remain ordinary Cloze Content. Cloze-looking code examples do not validate a region or create a review card by themselves. Once the note or explicit region already contains a valid Cloze, reading review also masks its fenced-code Cloze while preserving code rendering.
+Each marker is a separator: content above the first marker is the first segment, content between markers forms later segments, and content after the final marker is the final segment. The marker must occupy its own line and never enters Anki `Content`. Basic separators, Choice syntax, headings, lists, images, formulas, and fenced code inside a valid Cloze segment remain ordinary Cloze Content. Cloze-looking code examples do not validate a segment or create a review card by themselves. Once a segment contains a valid Cloze, reading review also masks its fenced-code Cloze while preserving code rendering.
 
-Basic and Choice cards before the first single marker continue to work. Once a marker starts a Cloze card, all content belongs to that card until the next marker or EOF. Empty regions and regions without a valid Cloze show localized errors and never fall back to whole-note mode.
+A segment becomes a Cloze card only when it contains a valid Cloze deletion. Empty, whitespace-only, and ordinary-text segments are ignored without an error. Basic and Choice syntax remains available in segments that do not become Cloze cards.
 
 If a file contains no region marker at all, a valid Cloze outside fenced code makes the entire note body one compatibility Cloze note. YAML frontmatter, generated Anki buttons, legacy UID blocks, and plugin metadata are excluded. Existing unmarked notes and paired `cloze:start` / `cloze:end` regions remain supported without automatic migration. Paired legacy regions remain useful when Basic or Choice cards must follow a Cloze region.
 
-The localized editor command has ID `insert-cloze-region` and is named **Cloze: Insert note region**. With a selection, it preserves the selected Markdown and inserts the marker before it. Without a selection, it inserts the marker plus an editable blank body line. Run it again to start the next Cloze card. It still refuses insertion inside a paired legacy region.
+The localized editor command has ID `insert-cloze-region` and is named **Cloze: Insert note region**. With a selection, it preserves the selected Markdown and inserts a separator before it. Without a selection, it inserts a separator plus an editable blank body line. It still refuses insertion inside a paired legacy region.
 
 During synchronization, Markdown headings level 1–6 become Anki `<h1>`–`<h6>` elements. Unordered/ordered lists, blockquotes, horizontal rules, bold, italic, strikethrough, inline/fenced code, and uploaded images are also rendered as HTML, so Anki no longer exposes their Markdown markers.
 

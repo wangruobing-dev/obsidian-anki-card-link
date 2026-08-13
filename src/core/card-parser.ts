@@ -284,17 +284,17 @@ function parseExplicitCloze(lines: string[], region: ClozeRegion): CardParseCand
 }
 
 function parseSingleMarkerCloze(lines: string[], region: ClozeRegion): CardParseCandidate {
-	const contentLines = lines.slice(region.startLine + 1, region.endLine + 1);
+	const contentLines = lines.slice(region.startLine, region.endLine + 1);
 	const fencedLines = getFencedLines(lines);
 	const links: ParsedCardLink[] = [];
 	let legacyBlockId: string | undefined;
 	let legacyBlockIdInline: boolean | undefined;
 
-	for (let line = region.startLine + 1; line <= region.endLine; line += 1) {
+	for (let line = region.startLine; line <= region.endLine; line += 1) {
 		if (fencedLines.has(line)) {
 			continue;
 		}
-		const localIndex = line - region.startLine - 1;
+		const localIndex = line - region.startLine;
 		const value = contentLines[localIndex] ?? '';
 		const link = parseCardLinkLine(value, line);
 		if (link !== undefined) {
@@ -350,8 +350,8 @@ function parseSingleMarkerCloze(lines: string[], region: ClozeRegion): CardParse
 		type: 'cloze',
 		startLine: region.startLine,
 		endLine: region.endLine,
-		contentStartLine: region.startLine + 1 + localStart,
-		contentEndLine: region.startLine + 1 + localEnd,
+		contentStartLine: region.startLine + localStart,
+		contentEndLine: region.startLine + localEnd,
 		clozeRegionStartLine: region.startLine,
 		clozeRegionStyle: 'single',
 		explicitRegion: true,
