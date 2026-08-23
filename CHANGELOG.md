@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.7 - 2026-08-23
+
+- Convert Markdown display and inline math to Anki MathJax delimiters.
+- Keep math delimiters inside Cloze answers so enhanced Cloze templates render formulas correctly.
+- Add regression coverage for Cloze formulas, inline math, ordinary dollar text, and code blocks.
+
 ## 1.4.6 - 2026-08-13
 
 - Decode HTML-escaped query separators in Anki source URI fields before UID verification, allowing existing notes to synchronize again after Anki stores `&` as `&amp;`.

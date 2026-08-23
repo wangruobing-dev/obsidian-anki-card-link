@@ -61,10 +61,21 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 	const tokens: Array<
 		| { type: 'image'; index: number; length: number; reference: string }
 		| { type: 'code'; index: number; length: number; content: string }
+		| { type: 'math'; index: number; length: number; content: string }
 	> = findObsidianImageEmbeds(markdown).map((embed) => ({ type: 'image', ...embed }));
 	for (const match of markdown.matchAll(/(`+)([^\n]*?)\1/gu)) {
 		if (match.index !== undefined) {
 			tokens.push({ type: 'code', index: match.index, length: match[0].length, content: match[2] ?? '' });
+		}
+	}
+	for (const match of markdown.matchAll(/\$\$([\s\S]*?)\$\$/gu)) {
+		if (match.index !== undefined && !isOverlappingToken(tokens, match.index, match[0].length)) {
+			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(match[1] ?? '', true) });
+		}
+	}
+	for (const match of markdown.matchAll(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gu)) {
+		if (match.index !== undefined && isLikelyInlineMath(match[1] ?? '') && !isOverlappingToken(tokens, match.index, match[0].length)) {
+			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(match[1] ?? '', false) });
 		}
 	}
 	tokens.sort((left, right) => left.index - right.index || right.length - left.length);
@@ -81,8 +92,10 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 			parts.push(mediaFilename === undefined
 				? markdown.slice(token.index, token.index + token.length)
 				: placeholder(`<img src="${escapeHtml(mediaFilename)}">`));
-		} else {
+		} else if (token.type === 'code') {
 			parts.push(placeholder(`<code>${escapeHtml(token.content)}</code>`));
+		} else {
+			parts.push(placeholder(token.content));
 		}
 		offset = token.index + token.length;
 	}
@@ -99,6 +112,30 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		html = html.replaceAll(`\u0000anki-card-link-${index}\u0000`, value);
 	}
 	return html;
+}
+
+function isOverlappingToken(tokens: Array<{ index: number; length: number }>, index: number, length: number): boolean {
+	return tokens.some((token) => index < token.index + token.length && token.index < index + length);
+}
+
+/** Convert Markdown math delimiters to delimiters recognized by Anki's MathJax. */
+function renderMath(content: string, display: boolean): string {
+	const trimmed = content.trim();
+	const open = display ? '\\[' : '\\('; 
+	const close = display ? '\\]' : '\\)';
+	const cloze = /^\{\{c(\d+)::([\s\S]*?)\}\}$/u.exec(trimmed);
+	if (cloze?.[1] !== undefined && cloze[2] !== undefined) {
+		const separator = cloze[2].indexOf('::');
+		const answer = separator === -1 ? cloze[2] : cloze[2].slice(0, separator);
+		const hint = separator === -1 ? '' : cloze[2].slice(separator + 2);
+		return `{{c${cloze[1]}::${open}${answer.trim()}${close}${hint.length > 0 ? `::${hint}` : ''}}}`;
+	}
+	return `${open}${trimmed}${close}`;
+}
+
+function isLikelyInlineMath(content: string): boolean {
+	const trimmed = content.trim();
+	return trimmed.length > 0 && (/\\[a-zA-Z]+/u.test(trimmed) || /[=^_{}]/u.test(trimmed) || /^[a-zA-Z](?:\s*[+*/-]\s*[a-zA-Z0-9])?$/u.test(trimmed));
 }
 
 function renderMarkdownBlocks(markdown: string): string {

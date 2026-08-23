@@ -72,6 +72,22 @@ describe('Anki HTML content conversion', () => {
 		);
 	});
 
+	it('converts display math to Anki MathJax delimiters', () => {
+		expect(toAnkiHtml('$$P\\times(1+r)^n$$')).toBe('\\[P\\times(1+r)^n\\]');
+	});
+
+	it('keeps display math inside a Cloze so enhanced templates can typeset it', () => {
+		expect(toAnkiHtml('$${{c1::P\\times(1+r)^n}}$$')).toBe('{{c1::\\[P\\times(1+r)^n\\]}}');
+	});
+
+	it('converts inline math without treating ordinary dollar text as math', () => {
+		expect(toAnkiHtml('收益为 $r=10\\%$，价格为 $5')).toBe('收益为 \\(r=10\\%\\)，价格为 $5');
+	});
+
+	it('does not convert math-looking text inside code', () => {
+		expect(toAnkiHtml('```text\n$$x^2$$\n```')).toContain('<code class="language-text">$$x^2$$</code>');
+	});
+
 	it('renders lists and blockquotes instead of exposing Markdown markers', () => {
 		expect(toAnkiHtml('- 第一项\n- **第二项**\n\n> 引用')).toBe(
 			'<ul><li>第一项</li><li><strong>第二项</strong></li></ul><br><blockquote>引用</blockquote>',
