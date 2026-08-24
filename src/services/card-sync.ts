@@ -243,7 +243,7 @@ export class CardSyncService {
 				throw new AnkiCardLinkError('INVALID_CLOZE', 'Cloze card does not contain content.');
 			}
 			const fields: Record<string, string> = {
-				[this.settings.clozeContentField]: toAnkiHtml(content, input.imageMedia),
+				[this.settings.clozeContentField]: toAnkiHtml(prependFileHeading(content, input.filePath), input.imageMedia),
 			};
 			if (this.settings.clozeTitleField.trim().length > 0) {
 				fields[this.settings.clozeTitleField] = toAnkiHtml(input.title);
@@ -257,7 +257,7 @@ export class CardSyncService {
 			const fields: Record<string, string> = {
 				[this.settings.choiceCardIdField]: input.uid,
 				[this.settings.choiceTitleField]: toAnkiHtml(input.title),
-				[this.settings.choiceFrontField]: toAnkiHtml(input.card.front, input.imageMedia),
+				[this.settings.choiceFrontField]: toAnkiHtml(prependFileHeading(input.card.front, input.filePath), input.imageMedia),
 				[this.settings.choiceBackField]: toAnkiHtml(input.card.back, input.imageMedia),
 				[this.settings.choiceObsidianUrlField]: uri,
 				[this.settings.choiceCorrectAnswerField]: input.card.correctAnswers.join(','),
@@ -273,7 +273,7 @@ export class CardSyncService {
 		}
 		return {
 			[this.settings.basicTitleField]: toAnkiHtml(input.title),
-			[this.settings.basicFrontField]: toAnkiHtml(input.card.front, input.imageMedia),
+			[this.settings.basicFrontField]: toAnkiHtml(prependFileHeading(input.card.front, input.filePath), input.imageMedia),
 			[this.settings.basicBackField]: toAnkiHtml(input.card.back, input.imageMedia),
 			[this.settings.basicObsidianUriField]: uri,
 		};
@@ -309,6 +309,19 @@ export class CardSyncService {
 			this.settings.choiceOptionGField,
 		];
 	}
+}
+
+function prependFileHeading(content: string, filePath: string): string {
+	const fileName = getFileNameWithoutExtension(filePath);
+	return fileName.length === 0 ? content : `# ${fileName}\n${content}`;
+}
+
+function getFileNameWithoutExtension(filePath: string): string {
+	return filePath
+		.replaceAll('\\', '/')
+		.replace(/^.*\//u, '')
+		.replace(/\.md$/iu, '')
+		.trim();
 }
 
 function uriHasUid(uri: string, uid: string): boolean {

@@ -13,5 +13,7 @@ export const LOCALIZED_COMMAND_IDS = [
 	'cloze-next-number',
 	'cloze-current-number',
 	'insert-cloze-region',
+	'export-pdf',
+	'export-word',
 	...READING_REVIEW_COMMAND_IDS,
 ] as const;

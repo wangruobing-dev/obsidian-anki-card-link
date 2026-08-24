@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.5.0 - 2026-08-24
+
+- Add Word export for the current note using rendered Markdown, while hiding plugin-generated Anki links and leaving the source note untouched.
+
+## 1.4.9 - 2026-08-24
+
+- Prepend the note filename as an H1 to synced Basic front, Choice front, and Cloze content without rewriting the Markdown source.
+
 ## 1.4.8 - 2026-08-24
 
 - Hide plugin-generated Anki URI links in PDF export without changing Markdown source notes.

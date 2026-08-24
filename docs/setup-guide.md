@@ -95,6 +95,8 @@ If these note types already exist, compare their fields and templates before imp
 
 The plugin only checks the configured note type and fields, then creates or updates notes. It never creates or changes note types, card templates, or CSS at runtime. The imported Multiple Choice template is responsible for shuffling options, keeping the same order on both sides, deciding single versus multiple choice, coloring answers, and optional automatic flipping.
 
+During synchronization, the plugin prepends an H1 built from the note filename to the Basic front, Choice front, and Cloze content fields. It does not rewrite the Markdown source note.
+
 ## 5. Configure synchronization
 
 Open **Settings → Anki Card Link → Synchronization** and check:
@@ -247,6 +249,12 @@ Open **Settings → Anki Card Link → Reading review**:
 Reading review never changes the Markdown source, plugin data reveal state, Anki fields, or synchronization output. It runs only in reading mode. Source mode, live preview, and normal editing still display every answer. Reopening or rerendering the view resets all answers to hidden.
 
 All hidden Cloze answers, Basic backs, choice answer markers, and choice explanations share the blue `#87b1ff` mask. Hover and keyboard focus use pink `#ff96af`. YAML frontmatter is excluded from card blocks even when the first Basic card starts immediately after the closing `---`. For old unmarked files that mix Cloze with Basic/Choice syntax, reading mode also hides the recognizable Basic/Choice backs while synchronization keeps the whole-note Cloze compatibility rule.
+
+When exporting the note to PDF from Obsidian, the print stylesheet ignores these review masks, hides plugin-generated Anki links, and includes the rendered Cloze answers, Basic backs, and choice answers or explanations.
+
+The command **Export current note to PDF (show answers)** is available from the command palette when a Markdown note is active. It opens Obsidian's native PDF export and hides plugin-generated Anki links while printing.
+
+The command **Export current note to Word (.docx)** exports the rendered note as a Word document, hides plugin-generated Anki links, and does not rewrite the Markdown source.
 
 Click a blank or Back to reveal it. Masks also support keyboard focus, Enter, and Space. The four commands operate only on the active tagged reading view:
 

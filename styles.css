@@ -138,6 +138,14 @@
 	background-color: var(--background-modifier-hover);
 }
 
+.acl-word-export {
+	position: fixed;
+	left: -100000px;
+	top: 0;
+	width: 900px;
+	pointer-events: none;
+}
+
 @media print {
 	/* PDF export should contain the rendered answers, not review-state masks. */
 	.acl-review-mask {

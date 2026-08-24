@@ -29,6 +29,7 @@ import {
 } from './core/open-source-uri';
 import { OPEN_ANKI_PROTOCOL_ACTION, parseProtocolParams } from './core/uri-parser';
 import { createPlatformRouter } from './platform/router';
+import { exportMarkdownToWord } from './platform/export-word';
 import { AnkiConnectService } from './services/anki-connect';
 import { CardLocationIndex } from './services/card-location-index';
 import { CardSyncService, type CardSyncResult } from './services/card-sync';
@@ -125,6 +126,30 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
 		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
 		this.addCommand({ id: 'insert-cloze-region', name: strings.commands.insertClozeRegion, editorCallback: (editor) => this.insertClozeRegion(editor) });
+		this.addCommand({
+			id: 'export-pdf',
+			name: strings.commands.exportPdf,
+			checkCallback: (checking) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const available = view?.file !== null && view?.file !== undefined;
+				if (!checking && available) {
+					this.exportCurrentNoteAsPdf();
+				}
+				return available;
+			},
+		});
+		this.addCommand({
+			id: 'export-word',
+			name: strings.commands.exportWord,
+			checkCallback: (checking) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const available = view?.file !== null && view?.file !== undefined;
+				if (!checking && available) {
+					void this.exportCurrentNoteAsWord();
+				}
+				return available;
+			},
+		});
 		this.addReadingReviewCommand('reveal-next-reading-cloze', strings.commands.revealNextReadingCloze, 'cloze', false);
 		this.addReadingReviewCommand('toggle-all-reading-clozes', strings.commands.toggleAllReadingClozes, 'cloze', true);
 		this.addReadingReviewCommand('reveal-next-reading-back', strings.commands.revealNextReadingBack, 'back', false);
@@ -411,6 +436,39 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		editor.setSelection(editor.offsetToPos(result.selectionStart), editor.offsetToPos(result.selectionEnd));
 	}
 
+	private exportCurrentNoteAsPdf(): void {
+		try {
+			const commands = (this.app as unknown as { commands?: unknown }).commands;
+			if (!isObsidianCommandExecutor(commands)) {
+				this.showNotice(getStrings(this.settings.language).notices.exportPdfUnavailable);
+				return;
+			}
+			const executed = commands.executeCommandById('workspace:export-pdf');
+			if (executed === false) {
+				this.showNotice(getStrings(this.settings.language).notices.exportPdfUnavailable);
+			}
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
+	private async exportCurrentNoteAsWord(): Promise<void> {
+		try {
+			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+			const file = view?.file;
+			if (view === null || file === null || file === undefined) {
+				return;
+			}
+			await exportMarkdownToWord(this.app, {
+				markdown: view.getViewData(),
+				sourcePath: file.path,
+				documentTitle: file.basename,
+			});
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
 	private addReadingReviewCommand(
 		id: string,
 		name: string,
@@ -519,6 +577,17 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			else console.debug(`[Anki Card Link] ${message}`, detail);
 		}
 	}
+}
+
+interface ObsidianCommandExecutor {
+	executeCommandById(commandId: string): unknown;
+}
+
+function isObsidianCommandExecutor(value: unknown): value is ObsidianCommandExecutor {
+	return typeof value === 'object'
+		&& value !== null
+		&& 'executeCommandById' in value
+		&& typeof value.executeCommandById === 'function';
 }
 
 function isSupportedImageExtension(extension: string): boolean {

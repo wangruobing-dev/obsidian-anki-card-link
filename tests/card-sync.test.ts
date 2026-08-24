@@ -27,7 +27,7 @@ class FakeAnkiClient implements AnkiSyncClient {
 	async updateNoteFields(noteId: number, fields: Record<string, string>): Promise<void> { this.updatedNotes.push({ id: noteId, fields }); }
 }
 
-function basicInput(extra: { noteIdHint?: number; filePath?: string } = {}) {
+function basicInput(extra: { noteIdHint?: number; filePath?: string; title?: string } = {}) {
 	const card = parseCardBlock('Front\n?\nBack');
 	if (card === null) throw new Error('Test card was not parsed.');
 	return { card, uid: 'acl-1234abcd', title: 'Cards', vaultName: 'vault', filePath: 'cards.md', ...extra };
@@ -46,6 +46,14 @@ describe('card synchronization', () => {
 		const client = new FakeAnkiClient();
 		await expect(service(client).sync(basicInput())).resolves.toEqual({ status: 'created', noteId: 100 });
 		expect(client.createdNotes[0]?.fields.ObsidianURI).toContain('uid=acl-1234abcd');
+	});
+
+	it('prepends the file name heading to basic front content without changing the title field', async () => {
+		const client = new FakeAnkiClient();
+		await expect(service(client).sync(basicInput({ filePath: 'notes/Basic card.md', title: 'Custom Title' }))).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]?.fields.Title).toBe('Custom Title');
+		expect(client.createdNotes[0]?.fields.Front).toMatch(/^<h1>Basic card<\/h1>/u);
+		expect(client.createdNotes[0]?.fields.Front).toContain('Front');
 	});
 
 	it('updates only the linked note after the Obsidian file moves', async () => {
@@ -153,6 +161,19 @@ describe('card synchronization', () => {
 		expect(client.updatedNotes[0]?.fields).toHaveProperty('ObsidianURL');
 	});
 
+	it('prepends the file name heading to choice front content', async () => {
+		const client = new FakeAnkiClient();
+		const card = parseCardBlock('### Question 【B】\n- A\n- B\n解析');
+		if (card?.type !== 'choice') throw new Error('Choice card was not parsed.');
+		await expect(service(client).sync({
+			...basicInput({ filePath: 'subfolder/Choice card.md', title: 'Choice Title' }),
+			card,
+		})).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]?.fields.Title).toBe('Choice Title');
+		expect(client.createdNotes[0]?.fields.Front).toMatch(/^<h1>Choice card<\/h1>/u);
+		expect(client.createdNotes[0]?.fields.Front).toContain('Question');
+	});
+
 	it('syncs a standard Markdown image in a choice back as Anki HTML', async () => {
 		const client = new FakeAnkiClient();
 		const card = parseCardBlock('### Question 【B】\n- A\n- B\n![](<image.png>)');
@@ -175,5 +196,18 @@ describe('card synchronization', () => {
 		expect(content).toContain('<td style=');
 		expect(content).toContain('{{c1::扥撒扥}}');
 		expect(content).not.toContain('| --- |');
+	});
+
+	it('prepends the file name heading to cloze content', async () => {
+		const client = new FakeAnkiClient();
+		const card = parseCardBlock('{{c1::答案}}\n\n更多说明');
+		if (card?.type !== 'cloze') throw new Error('Cloze card was not parsed.');
+		await expect(service(client).sync({
+			...basicInput({ filePath: 'nested/Cloze card.md', title: 'Cloze Title' }),
+			card,
+		})).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]?.fields.Note).toBe('Cloze Title');
+		expect(client.createdNotes[0]?.fields.Content).toMatch(/^<h1>Cloze card<\/h1>/u);
+		expect(client.createdNotes[0]?.fields.Content).toContain('{{c1::答案}}');
 	});
 });

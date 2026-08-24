@@ -9,6 +9,8 @@ const ENGLISH_STRINGS = {
 		clozeNextNumber: 'Cloze selection with next number',
 		clozeCurrentNumber: 'Cloze selection with current number',
 		insertClozeRegion: 'Cloze: Insert note region',
+		exportPdf: 'Export current note to PDF (show answers)',
+		exportWord: 'Export current note to Word (.docx)',
 		revealNextReadingCloze: 'Reading review: Reveal next cloze',
 		toggleAllReadingClozes: 'Reading review: Toggle all clozes',
 		revealNextReadingBack: 'Reading review: Reveal next back',
@@ -107,6 +109,7 @@ const ENGLISH_STRINGS = {
 		cardUpdated: 'Updated the Anki note for the current card.',
 		clozeRegionInside: 'The current position is already inside a Cloze note region.',
 		clozeRegionOverlap: 'The selection overlaps an existing Cloze note region.',
+		exportPdfUnavailable: 'Obsidian PDF export is unavailable in this version.',
 		sourceOpenedWithoutPosition: 'The file was opened, but the current view could not position the card precisely.',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`Created ${summary.created}, updated ${summary.updated}, skipped ${summary.skipped}, failed ${summary.failed}.`,
@@ -138,6 +141,8 @@ const CHINESE_STRINGS = {
 		clozeNextNumber: '挖空：使用新编号',
 		clozeCurrentNumber: '挖空：沿用当前编号',
 		insertClozeRegion: 'Cloze：插入笔记区域',
+		exportPdf: '导出当前文档为 PDF（显示挖空答案）',
+		exportWord: '导出当前文档为 Word（.docx）',
 		revealNextReadingCloze: '阅读复习：揭示下一个填空',
 		toggleAllReadingClozes: '阅读复习：显示或隐藏全部填空',
 		revealNextReadingBack: '阅读复习：揭示下一个背面',
@@ -236,6 +241,7 @@ const CHINESE_STRINGS = {
 		cardUpdated: '已更新当前卡片对应的 Anki 笔记。',
 		clozeRegionInside: '当前位置已经位于 Cloze 笔记区域中。',
 		clozeRegionOverlap: '所选内容与现有 Cloze 笔记区域重叠。',
+		exportPdfUnavailable: '当前 Obsidian 版本无法使用 PDF 导出。',
 		sourceOpenedWithoutPosition: '已打开文件，但当前视图无法精确定位到卡片。',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`创建 ${summary.created} 张，更新 ${summary.updated} 张，跳过 ${summary.skipped} 张，失败 ${summary.failed} 张。`,

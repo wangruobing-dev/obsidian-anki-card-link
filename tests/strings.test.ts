@@ -13,6 +13,10 @@ describe('localized strings', () => {
 		expect(getStrings('zh-CN').settings.readingReviewEnabled).toBe('隐藏阅读模式中的答案');
 		expect(getStrings('en').commands.insertClozeRegion).toBe('Cloze: Insert note region');
 		expect(getStrings('zh-CN').commands.insertClozeRegion).toBe('Cloze：插入笔记区域');
+		expect(getStrings('en').commands.exportPdf).toBe('Export current note to PDF (show answers)');
+		expect(getStrings('zh-CN').commands.exportPdf).toBe('导出当前文档为 PDF（显示挖空答案）');
+		expect(getStrings('en').commands.exportWord).toBe('Export current note to Word (.docx)');
+		expect(getStrings('zh-CN').commands.exportWord).toBe('导出当前文档为 Word（.docx）');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {

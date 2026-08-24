@@ -92,12 +92,19 @@ Enable **Settings → Anki Card Link → Reading review → Hide answers in read
 - Click or focus a mask and press Enter/Space to reveal it. Reopening or rerendering the reading view resets all masks to hidden.
 - The four reading-review commands operate only on the active tagged reading view. Configure optional shortcuts under **Settings → Hotkeys**, search for **Anki Card Link**. Suggested keys are J, Shift+J, N, and Shift+N; the plugin does not bind them automatically.
 - On mobile, direct taps work normally. Optional left/right edge gestures are disabled by default; when enabled, the left 11% reveals the next cloze and the right 11% reveals the next Back. Scrolling, text selection, links, controls, code, and existing masks are excluded from edge handling.
+- When exporting a note to PDF from Obsidian, review masks are automatically ignored and plugin-generated Anki links are hidden, so Cloze answers, Basic backs, and choice answers/explanations are included in the PDF.
+
+The command **Export current note to PDF (show answers)** is available from the command palette for the active Markdown note. It opens Obsidian's native PDF export, hides plugin-generated Anki links while printing, and keeps all reading-review answers visible in the exported document.
+
+The command **Export current note to Word (.docx)** exports the current note as a Word file from the rendered Markdown, hides plugin-generated Anki links, and keeps the note content visible without touching the source file.
 
 This is a visual review aid, not encryption. Answers remain visible in editing modes and in the Markdown source.
 
 ## Synchronization
 
 Use **Sync current card to Anki** or **Sync all cards in current file to Anki**. On first sync, the plugin generates a UID in memory, creates the Anki note, then writes exactly one v2 button after Anki returns a noteId. An Anki failure leaves Markdown unchanged. A Markdown write failure reports the noteId and UID and does not delete the Anki note.
+
+During synchronization, the plugin prepends an H1 built from the note filename to the synced Basic front, Choice front, and Cloze content. The Markdown source note is not rewritten.
 
 After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag.
 

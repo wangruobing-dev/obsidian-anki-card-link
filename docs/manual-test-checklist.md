@@ -48,6 +48,7 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 
 - [ ] Connection and synchronization configuration tests succeed without changing Anki data.
 - [ ] `nid`, `cid`, text, and custom queries open the Anki browser.
+- [ ] **Export current note to Word (.docx)** creates a Word file from the rendered Markdown, keeps headings/lists/tables/images readable, hides plugin-generated Anki links, and leaves the source note unchanged.
 - [ ] First sync creates an Anki note before writing one v2 button; no standalone `^acl-xxxxxxxx` remains.
 - [ ] A second sync updates the same note and does not scan all tagged notes when the button noteId is valid.
 - [ ] Single-line basic, multi-line basic, Cloze, fenced code, and Wiki images retain their expected Anki content.
