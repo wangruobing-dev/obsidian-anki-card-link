@@ -1,6 +1,6 @@
 {
   "name": "obsidian-anki-card-link",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "Link Obsidian and Anki with portable search, card sync, and source navigation.",
   "main": "main.js",
   "type": "module",

@@ -137,3 +137,44 @@
 .acl-review-mask--revealed:hover {
 	background-color: var(--background-modifier-hover);
 }
+
+@media print {
+	/* PDF export should contain the rendered answers, not review-state masks. */
+	.acl-review-mask {
+		display: inline !important;
+		min-width: 0;
+		min-height: 0;
+		padding: 0;
+		background-color: transparent;
+		color: inherit;
+		font-weight: inherit;
+		cursor: default;
+	}
+
+	.acl-review-mask--block {
+		display: block !important;
+		width: auto;
+		max-width: none;
+		margin-block: 0;
+	}
+
+	.acl-review-mask::before,
+	.acl-review-mask::after,
+	.acl-review-mask__hint {
+		display: none;
+		content: none;
+	}
+
+	.acl-review-mask__content,
+	.acl-review-mask--inline .acl-review-mask__content {
+		display: inline !important;
+	}
+
+	.acl-review-mask--block .acl-review-mask__content {
+		display: block !important;
+	}
+
+	a[href^="obsidian://anki-card-link?"] {
+		display: none !important;
+	}
+}

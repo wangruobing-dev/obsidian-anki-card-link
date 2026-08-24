@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.4.8 - 2026-08-24
+
+- Hide plugin-generated Anki URI links in PDF export without changing Markdown source notes.
+- Keep review masks and normal link behavior unchanged outside print output.
+
 ## 1.4.7 - 2026-08-23
 
 - Convert Markdown display and inline math to Anki MathJax delimiters.
