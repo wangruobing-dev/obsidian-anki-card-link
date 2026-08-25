@@ -99,7 +99,64 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 
 - [ ] An existing flat settings file loads with language, endpoint, deck, model, field mapping, label, and debug values preserved.
 - [ ] An old settings file without choice keys receives all Multiple Choice defaults without losing existing values.
-- [ ] A subsequent save writes V2 data containing both `settings` and `cardLocations`.
+- [ ] V2 data migrates to V3 with `settings` and `cardLocations` unchanged and empty `feishuSync.notes` / `feishuSync.folders`.
+- [ ] A subsequent save writes V3 data containing `settings`, `cardLocations`, and `feishuSync`.
 - [ ] Plugin startup does not scan Markdown files.
 - [ ] Normal source navigation reads only the target Markdown file.
 - [ ] Disabling the plugin removes commands, settings, protocol handlers, and Vault listeners.
+
+## Feishu Sync - Windows
+
+- [ ] The plugin loads and the Feishu settings fit the settings pane.
+- [ ] App ID, masked App Secret, root folder URL, and sharing mode can be entered.
+- [ ] The connection test succeeds for an authorized root folder and distinguishes invalid URL, auth, scope, and folder permission failures.
+- [ ] First sync creates the document and returns a share URL.
+- [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Local images and repeated images render in source order.
+- [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
+- [ ] Nested folders are created under the exact parent folder.
+- [ ] File rename retains the token and updates the title.
+- [ ] File move retains the token and URL and moves the remote document.
+- [ ] The URL is copied; clipboard denial still displays the URL and leaves sync successful.
+
+## Feishu Sync - macOS
+
+- [ ] The plugin loads and the Feishu settings fit the settings pane.
+- [ ] App ID, masked App Secret, root folder URL, and sharing mode can be entered.
+- [ ] The connection test succeeds for an authorized root folder and distinguishes invalid URL, auth, scope, and folder permission failures.
+- [ ] First sync creates the document and returns a share URL.
+- [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Local images and repeated images render in source order.
+- [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
+- [ ] Nested folders are created under the exact parent folder.
+- [ ] File rename retains the token and updates the title.
+- [ ] File move retains the token and URL and moves the remote document.
+- [ ] The URL is copied; clipboard denial still displays the URL and leaves sync successful.
+
+## Feishu Sync - iOS
+
+- [ ] The plugin loads with no `require`, `Buffer`, `process`, or Node runtime error.
+- [ ] App ID, masked App Secret, root folder URL, and sharing mode can be entered without hover-only controls.
+- [ ] The connection test succeeds for an authorized root folder.
+- [ ] First sync creates the document and returns a share URL.
+- [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Local images and repeated images render in source order.
+- [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
+- [ ] Nested folders are created under the exact parent folder.
+- [ ] File rename retains the token and updates the title.
+- [ ] File move retains the token and URL and moves the remote document.
+- [ ] The URL is copied or remains visible when iOS denies clipboard access.
+
+## Feishu Sync - Android
+
+- [ ] The plugin loads with no `require`, `Buffer`, `process`, or Node runtime error.
+- [ ] App ID, masked App Secret, root folder URL, and sharing mode can be entered without hover-only controls.
+- [ ] The connection test succeeds for an authorized root folder.
+- [ ] First sync creates the document and returns a share URL.
+- [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Local images and repeated images render in source order.
+- [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
+- [ ] Nested folders are created under the exact parent folder.
+- [ ] File rename retains the token and updates the title.
+- [ ] File move retains the token and URL and moves the remote document.
+- [ ] The URL is copied or remains visible when Android denies clipboard access.

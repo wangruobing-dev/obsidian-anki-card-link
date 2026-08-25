@@ -35,7 +35,10 @@ import { CardLocationIndex } from './services/card-location-index';
 import { CardSyncService, type CardSyncResult } from './services/card-sync';
 import { AppObsidianSourceHost } from './services/obsidian-source-host';
 import { ObsidianSourceLocator } from './services/obsidian-source-locator';
-import { migratePluginData, type PersistedPluginDataV2 } from './services/plugin-data-store';
+import { migratePluginData, type PersistedPluginDataV3 } from './services/plugin-data-store';
+import { FeishuApiService } from './services/feishu-api';
+import { FeishuSyncIndex } from './services/feishu-sync-index';
+import { AppFeishuSyncHost, FeishuSyncService } from './services/feishu-sync';
 import { DEFAULT_SETTINGS } from './settings';
 import { getLocalizedErrorMessage, getStrings, getSyncReportStrings } from './strings';
 import {
@@ -57,6 +60,8 @@ import { showSyncReport, type SyncReportEntry } from './ui/sync-report-notice';
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
 	private cardLocations = new CardLocationIndex();
+	private feishuSyncIndex = new FeishuSyncIndex();
+	private feishuApi?: FeishuApiService;
 	private localizedCommandsRegistered = false;
 	private layoutReady = false;
 	private pendingOpenSource?: OpenObsidianSourceParams;
@@ -95,13 +100,17 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		});
 
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			const newPath = file.path;
-			if (this.cardLocations.renamePath(oldPath, newPath) > 0) {
+			const newPath = file.path.replaceAll('\\', '/');
+			const cardChanged = this.cardLocations.renamePath(oldPath, newPath) > 0;
+			const feishuChanged = this.feishuSyncIndex.renamePathPrefix(oldPath, newPath) > 0;
+			if (cardChanged || feishuChanged) {
 				void this.savePluginData();
 			}
 		}));
 		this.registerEvent(this.app.vault.on('delete', (file) => {
-			if (this.cardLocations.removePath(file.path) > 0) {
+			const cardChanged = this.cardLocations.removePath(file.path) > 0;
+			const feishuChanged = this.feishuSyncIndex.removePath(file.path) > 0;
+			if (cardChanged || feishuChanged) {
 				void this.savePluginData();
 			}
 		}));
@@ -125,6 +134,18 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		this.addCommand({ id: 'open-link', name: strings.commands.openLink, callback: () => new OpenLinkModal(this.app, this).open() });
 		this.addCommand({ id: 'sync-current-card', name: strings.commands.syncCurrentCard, editorCallback: (editor, context) => void this.syncCurrentCard(editor, context) });
 		this.addCommand({ id: 'sync-current-file', name: strings.commands.syncCurrentFile, editorCallback: (editor, context) => void this.syncCurrentFile(editor, context) });
+		this.addCommand({
+			id: 'sync-current-note-to-feishu',
+			name: strings.commands.syncCurrentNoteToFeishu,
+			checkCallback: (checking) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const available = view?.file !== null && view?.file !== undefined && view.file.extension === 'md';
+				if (!checking && available && view !== null && view !== undefined && view.file !== null) {
+					void this.syncCurrentNoteToFeishu(view);
+				}
+				return available;
+			},
+		});
 		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
 		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
 		this.addCommand({ id: 'insert-cloze-region', name: strings.commands.insertClozeRegion, editorCallback: (editor) => this.insertClozeRegion(editor) });
@@ -178,6 +199,12 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		const refreshReadingReview = changes.readingReviewEnabled !== undefined
 			|| changes.readingReviewEdgeTapEnabled !== undefined;
 		this.settings = { ...this.settings, ...changes };
+		if (changes.feishuAppId !== undefined || changes.feishuAppSecret !== undefined) {
+			this.feishuApi = undefined;
+		}
+		if (changes.feishuRootFolderUrl !== undefined) {
+			this.feishuSyncIndex.invalidateFolderPrefix('');
+		}
 		await this.savePluginData();
 		if (refreshReadingReview) {
 			this.rerenderReadingViews();
@@ -208,6 +235,15 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}
 		await this.updateSettings(changes);
 		this.registerLocalizedCommands();
+	}
+
+	async testFeishuConnection(): Promise<void> {
+		await new FeishuSyncService({
+			host: new AppFeishuSyncHost(this.app),
+			settings: this.settings,
+			index: this.feishuSyncIndex,
+			api: this.getFeishuApi(),
+		}).testConnection();
 	}
 
 	showNotice(message: string): void {
@@ -479,6 +515,34 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}
 	}
 
+	private async syncCurrentNoteToFeishu(view: MarkdownView): Promise<void> {
+		if (view.file === null) {
+			return;
+		}
+		try {
+			const result = await new FeishuSyncService({
+				host: new AppFeishuSyncHost(this.app),
+				settings: this.settings,
+				index: this.feishuSyncIndex,
+				api: this.getFeishuApi(),
+			}).syncNote(view.file.path, view.getViewData());
+			await this.savePluginData();
+			const strings = getStrings(this.settings.language);
+			if (result.shareWarning !== undefined) {
+				this.showNotice(strings.notices.feishuShareWarning(result.shareWarning));
+			}
+			try {
+				await navigator.clipboard.writeText(result.shareUrl);
+				this.showNotice(result.status === 'created' ? strings.notices.feishuCreatedCopied : strings.notices.feishuUpdatedCopied);
+			} catch (error) {
+				this.showNotice(strings.notices.feishuSyncedClipboardFailed(result.shareUrl));
+				this.debug('Feishu link clipboard failed.', error);
+			}
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
 	private addReadingReviewCommand(
 		id: string,
 		name: string,
@@ -560,14 +624,25 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			const data = migratePluginData(await this.loadData());
 			this.settings = data.settings;
 			this.cardLocations = new CardLocationIndex(data.cardLocations);
+			this.feishuSyncIndex = new FeishuSyncIndex(data.feishuSync);
 		} catch (error) {
-			throw new AnkiCardLinkError('PLUGIN_DATA_MIGRATION_FAILED', 'Plugin data could not be migrated to version 2.', { cause: error });
+			throw new AnkiCardLinkError('PLUGIN_DATA_MIGRATION_FAILED', 'Plugin data could not be migrated to version 3.', { cause: error });
 		}
 	}
 
 	private async savePluginData(): Promise<void> {
-		const data: PersistedPluginDataV2 = { version: 2, settings: this.settings, cardLocations: this.cardLocations.toJSON() };
+		const data: PersistedPluginDataV3 = {
+			version: 3,
+			settings: this.settings,
+			cardLocations: this.cardLocations.toJSON(),
+			feishuSync: this.feishuSyncIndex.toJSON(),
+		};
 		await this.saveData(data);
+	}
+
+	private getFeishuApi(): FeishuApiService {
+		this.feishuApi ??= new FeishuApiService({ appId: this.settings.feishuAppId, appSecret: this.settings.feishuAppSecret });
+		return this.feishuApi;
 	}
 
 	private async copyQuery(query: string): Promise<void> {

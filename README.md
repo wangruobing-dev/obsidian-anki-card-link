@@ -4,6 +4,8 @@
 
 [Complete setup guide](docs/setup-guide.md) | [中文完整教程](docs/setup-guide.zh-CN.md) | [Download the optional Anki note types](assets/anki/anki-card-link-note-types.apkg)
 
+[Feishu one-way publishing guide](docs/feishu-sync.md) | [飞书单向发布指南](docs/feishu-sync.zh-CN.md)
+
 Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. It supports Basic, Cloze, and dedicated single-choice/multiple-choice Markdown cards. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
 
 Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
@@ -20,8 +22,23 @@ Version 1.4.2 recognizes choice answer markers anywhere in the question heading 
 | Obsidian → Anki content sync | Supported | Not supported | Not supported |
 | Anki → Obsidian source navigation | Supported when this plugin is enabled | Supported when this plugin is enabled | Supported when this plugin is enabled |
 | Reading-mode review masks | Supported | Supported | Supported |
+| Obsidian → Feishu note publishing | Supported | Supported | Supported |
 
 Mobile behavior still depends on the installed Anki app and its URI support. `isDesktopOnly: false` is not evidence that every mobile combination has been physically tested.
+
+## Feishu one-way publishing
+
+The command **Sync current note to Feishu** publishes the active editor content to a Feishu Docx document on Windows, macOS, iOS/iPadOS, and Android. It uses Obsidian's cross-platform `requestUrl`, `vault.readBinary`, and browser clipboard APIs; the Feishu path does not use Node.js or Electron.
+
+- The configured Feishu root folder mirrors the vault root. Child folders are created lazily.
+- A persisted vault-relative binding selects the document to update. A same-name unbound Feishu document is never overwritten.
+- Renaming or moving an Obsidian file keeps the document token and share URL. Deleting a local note removes only the local binding, never the Feishu document.
+- YAML, Anki Card Link buttons, Cloze region markers, and Cloze syntax outside code fences are removed from the published copy. The Obsidian file is not changed.
+- Local images are read as binary data, uploaded to Feishu, and inserted in source order.
+- Feishu is a publishing copy. Manual Feishu edits are overwritten by the next sync.
+- App credentials are stored in plugin `data.json` and sent only to Feishu OpenAPI. The plugin sends no telemetry. Do not share `data.json`.
+
+See the [Feishu setup and permissions guide](docs/feishu-sync.md) before testing the command.
 
 ## Desktop requirement
 

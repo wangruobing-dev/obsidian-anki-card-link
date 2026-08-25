@@ -4,6 +4,8 @@
 
 [中文完整安装教程](docs/setup-guide.zh-CN.md) | [English setup guide](docs/setup-guide.md) | [下载可选 Anki 笔记类型模板包](assets/anki/anki-card-link-note-types.apkg)
 
+[飞书单向发布指南](docs/feishu-sync.zh-CN.md) | [Feishu one-way publishing guide](docs/feishu-sync.md)
+
 Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 - 在 Windows、macOS、Linux、Android、iOS/iPadOS 上通过 `obsidian://anki-card-link` 打开对应的 Anki 搜索；
@@ -26,8 +28,23 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 | Obsidian → Anki 内容同步 | 支持 | 不支持 | 不支持 |
 | Anki → Obsidian 跳转定位 | 安装并启用本插件后支持 | 安装并启用本插件后支持 | 安装并启用本插件后支持 |
 | 阅读模式复习遮罩 | 支持 | 支持 | 支持 |
+| Obsidian → 飞书笔记发布 | 支持 | 支持 | 支持 |
 
 移动端能否打开 Anki 还取决于对应 Anki 应用及其 URI 支持。插件清单设置为 `isDesktopOnly: false`，但这不等于所有移动设备均已真机验证。
+
+## 飞书单向发布
+
+命令 **同步当前笔记到飞书** 可以在 Windows、macOS、iOS/iPadOS 和 Android 上把当前编辑器内容发布为飞书新版文档。飞书链路只使用 Obsidian 跨平台的 `requestUrl`、`vault.readBinary` 和浏览器剪贴板 API，不依赖 Node.js 或 Electron。
+
+- 配置的飞书根目录对应 Vault 根目录，子目录在首次需要时逐级创建。
+- 插件使用持久化的 Vault 相对路径 binding 定位要更新的文档，不会按同名文档猜测和覆盖。
+- 在 Obsidian 中改名或移动文件会保留 documentToken 和分享 URL；删除本地笔记只清理本地 binding，不删除飞书文档。
+- 发布副本会移除 YAML、Anki Card Link 按钮、Cloze 区域标记和代码块外的 Cloze 语法，不修改 Obsidian 原文件。
+- 本地图片按正文顺序读取真实二进制、上传飞书并插入文档。
+- 飞书是发布副本。飞书中的人工修改会在下一次同步时被 Obsidian 内容覆盖。
+- App Secret 保存在插件 `data.json` 中，只直接发送给飞书 OpenAPI；插件不发送遥测。不要分享 `data.json`。
+
+使用命令前，请先完成[飞书配置与权限指南](docs/feishu-sync.zh-CN.md)。
 
 ## 桌面端要求
 

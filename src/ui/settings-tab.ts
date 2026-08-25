@@ -9,7 +9,7 @@ import {
 import { AnkiConnectService } from '../services/anki-connect';
 import { normalizeAnkiConnectUrl } from '../settings';
 import { getStrings } from '../strings';
-import { SEARCH_TYPES, type Language, type SearchType } from '../types';
+import { FEISHU_SHARE_MODES, SEARCH_TYPES, type Language, type SearchType } from '../types';
 import type AnkiCardLinkPlugin from '../main';
 
 const DEFAULT_ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
@@ -69,6 +69,35 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 					});
 				});
 		}
+
+		new Setting(this.containerEl).setName(strings.settings.feishuSync).setHeading();
+		this.addFeishuTextSetting(strings.settings.feishuAppId, strings.settings.feishuAppIdDesc, 'feishuAppId');
+		new Setting(this.containerEl)
+			.setName(strings.settings.feishuAppSecret)
+			.setDesc(strings.settings.feishuAppSecretDesc)
+			.addText((text) => {
+				text.inputEl.type = 'password';
+				text.setValue(this.plugin.settings.feishuAppSecret);
+				text.onChange((value) => void this.plugin.updateSettings({ feishuAppSecret: value }));
+			});
+		this.addFeishuTextSetting(strings.settings.feishuRootFolderUrl, strings.settings.feishuRootFolderUrlDesc, 'feishuRootFolderUrl');
+		new Setting(this.containerEl)
+			.setName(strings.settings.feishuShareMode)
+			.addDropdown((dropdown) => {
+				dropdown.addOption(FEISHU_SHARE_MODES[0], strings.settings.feishuShareTenant);
+				dropdown.addOption(FEISHU_SHARE_MODES[1], strings.settings.feishuShareAnyone);
+				dropdown.setValue(this.plugin.settings.feishuShareMode);
+				dropdown.onChange(async (value) => {
+					await this.plugin.updateSettings({ feishuShareMode: value as typeof FEISHU_SHARE_MODES[number] });
+					this.renderSettings();
+				});
+			});
+		if (this.plugin.settings.feishuShareMode === 'anyone_readable') {
+			this.containerEl.createEl('p', { text: strings.settings.feishuShareAnyoneWarning, cls: 'mod-warning' });
+		}
+		new Setting(this.containerEl)
+			.setName(strings.settings.testFeishuConnection)
+			.addButton((button) => button.setButtonText(strings.settings.testConnection).onClick(() => void this.testFeishuConnection()));
 
 		new Setting(this.containerEl).setName(strings.settings.readingReview).setHeading();
 		new Setting(this.containerEl)
@@ -208,6 +237,29 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 		} catch (error) {
 			this.plugin.handleError(error);
 		}
+	}
+
+	private async testFeishuConnection(): Promise<void> {
+		try {
+			await this.plugin.testFeishuConnection();
+			new Notice(getStrings(this.plugin.settings.language).notices.feishuConnectionOk);
+		} catch (error) {
+			this.plugin.handleError(error);
+		}
+	}
+
+	private addFeishuTextSetting(
+		name: string,
+		description: string,
+		key: 'feishuAppId' | 'feishuRootFolderUrl',
+	): void {
+		new Setting(this.containerEl)
+			.setName(name)
+			.setDesc(description)
+			.addText((text) => {
+				text.setValue(this.plugin.settings[key]);
+				text.onChange((value) => void this.plugin.updateSettings({ [key]: value }));
+			});
 	}
 
 	private addTextSetting(

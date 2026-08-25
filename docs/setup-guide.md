@@ -299,3 +299,7 @@ Synchronization is manual and one-way. It does not delete Anki notes, synchroniz
 - **Images:** images are uploaded as Anki media; keep the source attachment available during synchronization.
 - **Privacy:** the source URI includes the Vault name, relative path, and card UID. Avoid publishing exported cards without checking those fields.
 - **Mobile:** synchronization is desktop-only. Mobile navigation still depends on the installed applications and their URI handling.
+
+## 11. Optional Feishu publishing
+
+Anki content synchronization remains desktop-only, but **Sync current note to Feishu** is a separate cross-platform command for Windows, macOS, iOS/iPadOS, and Android. Follow the [Feishu setup and permissions guide](feishu-sync.md) to create a custom app, grant the exact scopes, authorize a Drive root folder, configure credentials, and test one-way publishing.

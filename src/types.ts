@@ -43,7 +43,14 @@ export interface AnkiCardLinkSettings {
 	choiceOptionFField: string;
 	choiceOptionGField: string;
 	choiceCorrectAnswerField: string;
+	feishuAppId: string;
+	feishuAppSecret: string;
+	feishuRootFolderUrl: string;
+	feishuShareMode: FeishuShareMode;
 }
+
+export const FEISHU_SHARE_MODES = ['tenant_readable', 'anyone_readable'] as const;
+export type FeishuShareMode = (typeof FEISHU_SHARE_MODES)[number];
 
 export interface SearchInput {
 	type: SearchType;
@@ -100,7 +107,20 @@ export type ErrorCode =
 	| 'MARKDOWN_VIEW_UNAVAILABLE'
 	| 'SOURCE_POSITION_FAILED'
 	| 'CARD_LINK_WRITE_FAILED'
-	| 'PLUGIN_DATA_MIGRATION_FAILED';
+	| 'PLUGIN_DATA_MIGRATION_FAILED'
+	| 'FEISHU_NOT_CONFIGURED'
+	| 'FEISHU_AUTH_FAILED'
+	| 'FEISHU_ROOT_FOLDER_INVALID'
+	| 'FEISHU_PERMISSION_DENIED'
+	| 'FEISHU_API_ERROR'
+	| 'FEISHU_FOLDER_CREATE_FAILED'
+	| 'FEISHU_DOCUMENT_NOT_FOUND'
+	| 'FEISHU_DOCUMENT_CREATE_FAILED'
+	| 'FEISHU_DOCUMENT_UPDATE_FAILED'
+	| 'FEISHU_DOCUMENT_MOVE_FAILED'
+	| 'FEISHU_MEDIA_UPLOAD_FAILED'
+	| 'FEISHU_SHARE_PERMISSION_FAILED'
+	| 'FEISHU_CLIPBOARD_FAILED';
 
 export class AnkiCardLinkError extends Error {
 	readonly cause?: unknown;

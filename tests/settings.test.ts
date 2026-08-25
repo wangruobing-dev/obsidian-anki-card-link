@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, validateAnkiConnectUrl } from '../src/settings';
+import { DEFAULT_SETTINGS, parseFeishuRootFolderUrl, validateAnkiConnectUrl } from '../src/settings';
 
 describe('default settings', () => {
 	it('uses English until the user selects another language', () => {
@@ -16,6 +16,20 @@ describe('default settings', () => {
 		expect(DEFAULT_SETTINGS.useCurrentFolderAsDeck).toBe(true);
 		expect(DEFAULT_SETTINGS.readingReviewEnabled).toBe(true);
 		expect(DEFAULT_SETTINGS.readingReviewEdgeTapEnabled).toBe(false);
+		expect(DEFAULT_SETTINGS.feishuShareMode).toBe('tenant_readable');
+	});
+});
+
+describe('Feishu root folder URL', () => {
+	it('extracts the tenant origin and folder token', () => {
+		expect(parseFeishuRootFolderUrl('https://acme.feishu.cn/drive/folder/fld123')).toEqual({
+			tenantOrigin: 'https://acme.feishu.cn',
+			rootFolderToken: 'fld123',
+		});
+	});
+
+	it.each(['http://acme.feishu.cn/drive/folder/fld123', 'https://example.com/drive/folder/fld123', 'https://acme.feishu.cn/docx/abc'])('rejects invalid root folder URL: %s', (url) => {
+		expect(() => parseFeishuRootFolderUrl(url)).toThrow();
 	});
 });
 

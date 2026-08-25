@@ -17,6 +17,8 @@ describe('localized strings', () => {
 		expect(getStrings('zh-CN').commands.exportPdf).toBe('导出当前文档为 PDF（显示挖空答案）');
 		expect(getStrings('en').commands.exportWord).toBe('Export current note to Word (.docx)');
 		expect(getStrings('zh-CN').commands.exportWord).toBe('导出当前文档为 Word（.docx）');
+		expect(getStrings('zh-CN').commands.syncCurrentNoteToFeishu).toBe('同步当前笔记到飞书');
+		expect(getStrings('en').settings.feishuShareAnyone).toBe('Anyone with the link can view');
 		expect(getStrings('en').notices.wordExportSaved('C:\\Exports\\note.docx')).toBe('Word document saved to: C:\\Exports\\note.docx');
 		expect(getStrings('zh-CN').notices.wordExportSaved('C:\\导出\\笔记.docx')).toBe('Word 文档已保存到：C:\\导出\\笔记.docx');
 	});

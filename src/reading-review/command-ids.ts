@@ -15,5 +15,6 @@ export const LOCALIZED_COMMAND_IDS = [
 	'insert-cloze-region',
 	'export-pdf',
 	'export-word',
+	'sync-current-note-to-feishu',
 	...READING_REVIEW_COMMAND_IDS,
 ] as const;

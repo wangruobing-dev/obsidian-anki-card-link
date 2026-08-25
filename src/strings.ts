@@ -11,6 +11,7 @@ const ENGLISH_STRINGS = {
 		insertClozeRegion: 'Cloze: Insert note region',
 		exportPdf: 'Export current note to PDF (show answers)',
 		exportWord: 'Export current note to Word (.docx)',
+		syncCurrentNoteToFeishu: 'Sync current note to Feishu',
 		revealNextReadingCloze: 'Reading review: Reveal next cloze',
 		toggleAllReadingClozes: 'Reading review: Toggle all clozes',
 		revealNextReadingBack: 'Reading review: Reveal next back',
@@ -96,6 +97,18 @@ const ENGLISH_STRINGS = {
 		readingReviewEnabledDesc: 'Only tagged anki-card-link notes are processed. Hides Basic backs, Cloze answers, choice answers, and explanations.',
 		readingReviewEdgeTapEnabled: 'Enable left/right edge gestures',
 		readingReviewEdgeTapEnabledDesc: 'On mobile, tap the left reading edge for the next cloze or the right edge for the next back.',
+		feishuSync: 'Feishu Sync',
+		feishuAppId: 'Feishu App ID',
+		feishuAppIdDesc: 'The custom app ID from the Feishu developer console.',
+		feishuAppSecret: 'Feishu App Secret',
+		feishuAppSecretDesc: 'Stored in this plugin data. Do not share data.json.',
+		feishuRootFolderUrl: 'Feishu root folder URL',
+		feishuRootFolderUrlDesc: 'Paste an HTTPS URL such as https://tenant.feishu.cn/drive/folder/{token}.',
+		feishuShareMode: 'Link sharing',
+		feishuShareTenant: 'Anyone in the organization with the link can view',
+		feishuShareAnyone: 'Anyone with the link can view',
+		feishuShareAnyoneWarning: 'Anyone who obtains this link may view the document.',
+		testFeishuConnection: 'Test Feishu connection',
 	},
 	defaultLinkText: 'Open corresponding Anki card',
 	notices: {
@@ -132,6 +145,11 @@ const ENGLISH_STRINGS = {
 						: 'The synchronized fields have not changed.',
 		},
 		unexpectedError: (message: string) => `An unexpected error occurred: ${message}`,
+		feishuConnectionOk: 'Connected to Feishu and accessed the configured folder.',
+		feishuCreatedCopied: 'Feishu document created; share link copied.',
+		feishuUpdatedCopied: 'Feishu document updated; share link copied.',
+		feishuSyncedClipboardFailed: (url: string) => `Feishu document synchronized, but the link could not be copied: ${url}`,
+		feishuShareWarning: (message: string) => `Feishu document synchronized, but sharing may be restricted: ${message}`,
 	},
 } as const;
 
@@ -146,6 +164,7 @@ const CHINESE_STRINGS = {
 		insertClozeRegion: 'Cloze：插入笔记区域',
 		exportPdf: '导出当前文档为 PDF（显示挖空答案）',
 		exportWord: '导出当前文档为 Word（.docx）',
+		syncCurrentNoteToFeishu: '同步当前笔记到飞书',
 		revealNextReadingCloze: '阅读复习：揭示下一个填空',
 		toggleAllReadingClozes: '阅读复习：显示或隐藏全部填空',
 		revealNextReadingBack: '阅读复习：揭示下一个背面',
@@ -231,6 +250,18 @@ const CHINESE_STRINGS = {
 		readingReviewEnabledDesc: '仅处理带 anki-card-link 标签的笔记。隐藏正反面卡片的 Back、Cloze 答案、选择题答案和解析。',
 		readingReviewEdgeTapEnabled: '启用左右边缘触控',
 		readingReviewEdgeTapEnabledDesc: '移动端点击阅读区域左侧边缘揭示下一个填空，点击右侧边缘揭示下一个背面。',
+		feishuSync: '飞书同步',
+		feishuAppId: '飞书 App ID',
+		feishuAppIdDesc: '填写飞书开发者后台中的企业自建应用 ID。',
+		feishuAppSecret: '飞书 App Secret',
+		feishuAppSecretDesc: '会保存在插件本地数据中，请勿分享 data.json。',
+		feishuRootFolderUrl: '飞书根目录 URL',
+		feishuRootFolderUrlDesc: '粘贴类似 https://tenant.feishu.cn/drive/folder/{token} 的 HTTPS 地址。',
+		feishuShareMode: '链接分享权限',
+		feishuShareTenant: '组织内持链接可查看',
+		feishuShareAnyone: '任何持链接的人可查看',
+		feishuShareAnyoneWarning: '任何获得该链接的人都可能查看此文档。',
+		testFeishuConnection: '测试飞书连接',
 	},
 	defaultLinkText: '打开对应的 Anki 卡片',
 	notices: {
@@ -252,6 +283,11 @@ const CHINESE_STRINGS = {
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`创建 ${summary.created} 张，更新 ${summary.updated} 张，跳过 ${summary.skipped} 张，失败 ${summary.failed} 张。`,
 		unexpectedError: (message: string) => `发生未预期的错误：${message}`,
+		feishuConnectionOk: '已连接飞书并访问配置的根目录。',
+		feishuCreatedCopied: '已创建飞书文档，分享链接已复制。',
+		feishuUpdatedCopied: '已更新飞书文档，分享链接已复制。',
+		feishuSyncedClipboardFailed: (url: string) => `飞书文档已同步，但无法复制链接：${url}`,
+		feishuShareWarning: (message: string) => `飞书文档已同步，但分享权限可能受限：${message}`,
 	},
 } as const;
 
@@ -286,6 +322,20 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 	}
 
 	const exactMessages: Record<string, string> = {
+		'Feishu App ID and App Secret are required.': '飞书 App ID 和 App Secret 不能为空。',
+		'Feishu root folder URL is invalid.': '飞书根目录 URL 无效。',
+		'Feishu root folder URL must use HTTPS on a feishu.cn domain.': '飞书根目录 URL 必须使用 feishu.cn 域名的 HTTPS 地址。',
+		'Feishu root folder URL must point to /drive/folder/{token}.': '飞书根目录 URL 必须指向 /drive/folder/{token}。',
+		'The configured Feishu root folder does not exist.': '配置的飞书根目录不存在。',
+		'Could not reach the Feishu OpenAPI.': '无法连接飞书 OpenAPI。',
+		'Could not reach Feishu authentication.': '无法连接飞书认证接口。',
+		'Feishu App ID or App Secret was rejected.': '飞书 App ID 或 App Secret 校验失败。',
+		'Feishu folder could not be created.': '飞书目录创建失败。',
+		'Feishu document could not be created.': '飞书文档创建失败。',
+		'Feishu document could not be moved.': '飞书文档移动失败。',
+		'Feishu document title could not be updated.': '飞书文档标题更新失败。',
+		'Feishu document content could not be updated.': '飞书文档内容更新失败。',
+		'Feishu share permission could not be updated.': '飞书分享权限更新失败。',
 		'Search content cannot be empty.': '搜索内容不能为空。',
 		'Note ID must contain digits only.': '笔记 ID 只能包含数字。',
 		'Card ID must contain digits only.': '卡片 ID 只能包含数字。',
@@ -328,6 +378,7 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 		'The source file was not found at the URI path or in the local card index.': '无法通过链接路径或本地卡片索引找到来源文件；文件可能已移动、删除或尚未重新同步。',
 		'The file was opened, but the card position could not be shown.': '已打开文件，但无法显示卡片位置。',
 		'Plugin data could not be migrated to version 2.': '插件数据无法迁移到版本 2。',
+		'Plugin data could not be migrated to version 3.': '插件数据无法迁移到版本 3。',
 		'Synchronization is currently available only on desktop. Anki links are still available.': '同步功能目前仅支持桌面端，Anki 跳转功能仍然可用。',
 	};
 
@@ -344,6 +395,16 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 	const errorPrefix = 'AnkiConnect returned an error: ';
 	if (error.message.startsWith(errorPrefix)) {
 		return `AnkiConnect 返回错误：${error.message.slice(errorPrefix.length)}`;
+	}
+
+	if (error.message.startsWith('Feishu denied access')) {
+		return `飞书拒绝访问。请检查应用 API scope 和目标根目录的“文档应用”权限。${error.message.slice('Feishu denied access'.length)}`;
+	}
+	if (error.message.startsWith('Feishu API request failed')) {
+		return `飞书 API 请求失败${error.message.slice('Feishu API request failed'.length)}`;
+	}
+	if (error.message.startsWith('Feishu image upload failed for ')) {
+		return `飞书图片上传失败：${error.message.slice('Feishu image upload failed for '.length)}`;
 	}
 
 	const modelPrefix = 'Anki note type was not found: ';

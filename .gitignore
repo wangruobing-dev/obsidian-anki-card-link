@@ -12,6 +12,8 @@ docs/*
 !docs/manual-test-checklist.md
 !docs/setup-guide.md
 !docs/setup-guide.zh-CN.md
+!docs/feishu-sync.md
+!docs/feishu-sync.zh-CN.md
 
 # Plugin user settings
 data.json

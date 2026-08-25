@@ -15,6 +15,7 @@ export default defineConfig(
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
+		'vitest.config.mts',
 	]),
 	{
 		languageOptions: {
@@ -36,6 +37,12 @@ export default defineConfig(
 		files: ['src/platform/export-word.ts'],
 		rules: {
 			'@typescript-eslint/no-require-imports': 'off',
+			'obsidianmd/no-nodejs-modules': 'off',
+		},
+	},
+	{
+		files: ['tests/feishu-platform.test.ts'],
+		rules: {
 			'obsidianmd/no-nodejs-modules': 'off',
 		},
 	},

@@ -38,7 +38,33 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	choiceOptionFField: 'OptionF',
 	choiceOptionGField: 'OptionG',
 	choiceCorrectAnswerField: 'CorrectAnswer',
+	feishuAppId: '',
+	feishuAppSecret: '',
+	feishuRootFolderUrl: '',
+	feishuShareMode: 'tenant_readable',
 };
+
+export interface FeishuRootFolderConfig {
+	tenantOrigin: string;
+	rootFolderToken: string;
+}
+
+export function parseFeishuRootFolderUrl(value: string): FeishuRootFolderConfig {
+	let parsed: URL;
+	try {
+		parsed = new URL(value.trim());
+	} catch (error) {
+		throw new AnkiCardLinkError('FEISHU_ROOT_FOLDER_INVALID', 'Feishu root folder URL is invalid.', { cause: error });
+	}
+	if (parsed.protocol !== 'https:' || !/(?:^|\.)feishu\.cn$/iu.test(parsed.hostname)) {
+		throw new AnkiCardLinkError('FEISHU_ROOT_FOLDER_INVALID', 'Feishu root folder URL must use HTTPS on a feishu.cn domain.');
+	}
+	const match = /^\/drive\/folder\/([^/?#]+)\/?$/u.exec(parsed.pathname);
+	if (match?.[1] === undefined) {
+		throw new AnkiCardLinkError('FEISHU_ROOT_FOLDER_INVALID', 'Feishu root folder URL must point to /drive/folder/{token}.');
+	}
+	return { tenantOrigin: parsed.origin, rootFolderToken: match[1] };
+}
 
 export function normalizeAnkiConnectUrl(value: string): string {
 	return value.trim().replace(/\/+$/, '');

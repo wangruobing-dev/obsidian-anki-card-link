@@ -336,3 +336,7 @@ macOS 对应使用 Command / Option，例如区域命令推荐 Command + Option 
 - **隐私：** `ObsidianURI` 包含 Vault 名称、相对路径和 UID，公开导出卡片前请检查这些字段。
 - **移动端：** 内容同步只支持桌面端；跳转能力仍取决于移动端应用是否支持 URI。
 - **不要删除字段：** 删除或改名 `ObsidianURI`、`Content`、`Front`、`Back` 等字段后，必须同步修改插件设置。
+
+## 十一、可选的飞书发布
+
+Anki 内容同步仍然只支持桌面端，但 **同步当前笔记到飞书** 是一项独立的跨平台功能，Windows、macOS、iOS/iPadOS 和 Android 使用同一套实现。请按照[飞书配置与权限指南](feishu-sync.zh-CN.md)创建企业自建应用、申请准确权限、授权云盘根目录、填写凭证并测试单向发布。
