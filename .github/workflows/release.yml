@@ -27,12 +27,14 @@ jobs:
         with:
           subject-path: |
             main.js
+            word-export-runtime.cjs
             manifest.json
             styles.css
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             main.js
+            word-export-runtime.cjs
             manifest.json
             styles.css
             versions.json

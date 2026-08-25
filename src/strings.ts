@@ -110,6 +110,9 @@ const ENGLISH_STRINGS = {
 		clozeRegionInside: 'The current position is already inside a Cloze note region.',
 		clozeRegionOverlap: 'The selection overlaps an existing Cloze note region.',
 		exportPdfUnavailable: 'Obsidian PDF export is unavailable in this version.',
+		wordExportSaved: (filePath?: string) => filePath === undefined
+			? 'Word export completed.'
+			: `Word document saved to: ${filePath}`,
 		sourceOpenedWithoutPosition: 'The file was opened, but the current view could not position the card precisely.',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`Created ${summary.created}, updated ${summary.updated}, skipped ${summary.skipped}, failed ${summary.failed}.`,
@@ -242,6 +245,9 @@ const CHINESE_STRINGS = {
 		clozeRegionInside: '当前位置已经位于 Cloze 笔记区域中。',
 		clozeRegionOverlap: '所选内容与现有 Cloze 笔记区域重叠。',
 		exportPdfUnavailable: '当前 Obsidian 版本无法使用 PDF 导出。',
+		wordExportSaved: (filePath?: string) => filePath === undefined
+			? 'Word 文档导出完成。'
+			: `Word 文档已保存到：${filePath}`,
 		sourceOpenedWithoutPosition: '已打开文件，但当前视图无法精确定位到卡片。',
 		syncSummary: (summary: { created: number; updated: number; skipped: number; failed: number }) =>
 			`创建 ${summary.created} 张，更新 ${summary.updated} 张，跳过 ${summary.skipped} 张，失败 ${summary.failed} 张。`,

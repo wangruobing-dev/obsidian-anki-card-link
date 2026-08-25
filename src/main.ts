@@ -107,7 +107,9 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		}));
 
 		this.registerLocalizedCommands();
-		this.registerMarkdownPostProcessor((el, ctx) => processReadingReviewSection(this, this.readingReviewControllers, el, ctx));
+		this.registerMarkdownPostProcessor((el, ctx) => processReadingReviewSection(this, this.readingReviewControllers, el, ctx).catch((error) => {
+			this.handleError(error);
+		}));
 		this.addSettingTab(new AnkiCardLinkSettingTab(this.app, this));
 		this.debug('Plugin loaded.');
 	}
@@ -459,11 +461,19 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			if (view === null || file === null || file === undefined) {
 				return;
 			}
-			await exportMarkdownToWord(this.app, {
+			const pluginDirectory = this.manifest.dir;
+			if (pluginDirectory === undefined) {
+				throw new Error('Could not resolve the Anki Card Link plugin directory.');
+			}
+			const result = await exportMarkdownToWord(this.app, {
 				markdown: view.getViewData(),
 				sourcePath: file.path,
 				documentTitle: file.basename,
+				pluginDirectory,
 			});
+			if (result.saved) {
+				this.showNotice(getStrings(this.settings.language).notices.wordExportSaved(result.filePath));
+			}
 		} catch (error) {
 			this.handleError(error);
 		}

@@ -29,6 +29,7 @@ const context = await esbuild.context({
 		'@lezer/highlight',
 		'@lezer/lr',
 		...builtinModules,
+		...builtinModules.map((moduleName) => `node:${moduleName}`),
 	],
 	format: 'cjs',
 	target: 'es2021',
@@ -40,9 +41,24 @@ const context = await esbuild.context({
 	minify: prod,
 });
 
+const wordRuntimeContext = await esbuild.context({
+	entryPoints: ['src/platform/word-export-runtime.ts'],
+	bundle: true,
+	format: 'cjs',
+	platform: 'node',
+	conditions: ['node'],
+	target: 'es2021',
+	define: { global: 'globalThis' },
+	logLevel: 'info',
+	outfile: 'word-export-runtime.cjs',
+	minify: prod,
+});
+
 if (prod) {
 	await context.rebuild();
+	await wordRuntimeContext.rebuild();
 	process.exit(0);
 } else {
 	await context.watch();
+	await wordRuntimeContext.watch();
 }

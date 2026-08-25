@@ -9,7 +9,7 @@ export class CardLocationIndex {
 	private readonly records: CardLocationIndexData;
 
 	constructor(data: CardLocationIndexData = {}) {
-		this.records = structuredClone(data);
+		this.records = cloneCardLocationIndexData(data);
 	}
 
 	get(uid: string): CardLocationRecord | undefined {
@@ -51,6 +51,13 @@ export class CardLocationIndex {
 	}
 
 	toJSON(): CardLocationIndexData {
-		return structuredClone(this.records);
+		return cloneCardLocationIndexData(this.records);
 	}
+}
+
+function cloneCardLocationIndexData(data: CardLocationIndexData): CardLocationIndexData {
+	if (typeof structuredClone === 'function') {
+		return structuredClone(data);
+	}
+	return JSON.parse(JSON.stringify(data)) as CardLocationIndexData;
 }

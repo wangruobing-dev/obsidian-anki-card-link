@@ -21,4 +21,23 @@ describe('card location index', () => {
 		expect(index.get('acl-11111111')).toBeUndefined();
 		expect(index.get('acl-22222222')).toBeDefined();
 	});
+
+	it('still clones safely when structuredClone is unavailable', () => {
+		const globalScope = globalThis as { structuredClone?: typeof structuredClone };
+		const original = globalScope.structuredClone;
+		globalScope.structuredClone = undefined;
+		try {
+			const index = new CardLocationIndex({
+				'acl-33333333': { path: 'folder/a.md', updatedAt: 1 },
+			});
+			index.set('acl-44444444', 'folder/b.md', 2);
+			expect(index.get('acl-33333333')).toEqual({ path: 'folder/a.md', updatedAt: 1 });
+			expect(index.toJSON()).toEqual({
+				'acl-33333333': { path: 'folder/a.md', updatedAt: 1 },
+				'acl-44444444': { path: 'folder/b.md', updatedAt: 2 },
+			});
+		} finally {
+			globalScope.structuredClone = original;
+		}
+	});
 });

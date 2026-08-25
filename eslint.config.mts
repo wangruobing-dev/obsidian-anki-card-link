@@ -10,6 +10,8 @@ export default defineConfig(
 		'version-bump.mjs',
 		'versions.json',
 		'main.js',
+		'word-export-runtime.cjs',
+		'word-export-runtime.js',
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
@@ -30,4 +32,11 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: ['src/platform/export-word.ts'],
+		rules: {
+			'@typescript-eslint/no-require-imports': 'off',
+			'obsidianmd/no-nodejs-modules': 'off',
+		},
+	},
 );

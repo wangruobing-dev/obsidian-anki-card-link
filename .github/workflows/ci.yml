@@ -22,4 +22,4 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Verify release files
-        run: test -f main.js && test -f manifest.json && test -f styles.css && test -f versions.json
+        run: test -f main.js && test -f word-export-runtime.cjs && test -f manifest.json && test -f styles.css && test -f versions.json

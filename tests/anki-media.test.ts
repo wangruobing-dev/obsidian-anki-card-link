@@ -3,6 +3,7 @@ import {
 	buildAnkiMediaFilename,
 	encodeArrayBufferAsBase64,
 	extractObsidianImageReferences,
+	extractObsidianImageReferencesInOrder,
 } from '../src/core/anki-media';
 
 describe('Anki media helpers', () => {
@@ -23,5 +24,13 @@ describe('Anki media helpers', () => {
 	it('uses a stable media filename and Base64-encodes image bytes', () => {
 		expect(buildAnkiMediaFilename('附件/Pasted image.png', 'png')).toBe(buildAnkiMediaFilename('附件/Pasted image.png', 'PNG'));
 		expect(encodeArrayBufferAsBase64(new Uint8Array([0, 255, 192]).buffer)).toBe('AP/A');
+	});
+
+	it('keeps repeated local image references in Markdown order for rendered-image matching', () => {
+		expect(
+			extractObsidianImageReferencesInOrder(
+				'![[one.png]] ![远程](https://example.com/a.png) ![[folder/two.jpg]] ![[one.png|320]]',
+			),
+		).toEqual(['one.png', 'folder/two.jpg', 'one.png']);
 	});
 });

@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 main.js
+word-export-runtime.cjs
+word-export-runtime.js
 *.js.map
 
 # Project documentation

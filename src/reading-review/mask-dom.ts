@@ -146,7 +146,7 @@ function findCompactTextRange(root: HTMLElement, text: string): Range | undefine
 	const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 	let current = walker.nextNode();
 	while (current !== null) {
-		if (current.instanceOf(Text) && current.parentElement?.closest('.acl-review-mask') === null) {
+		if (isTextNode(current) && current.parentElement?.closest('.acl-review-mask') === null) {
 			for (let offset = 0; offset < current.data.length; offset += 1) {
 				const character = current.data[offset];
 				if (character !== undefined && !/\s/u.test(character)) {
@@ -167,6 +167,10 @@ function findCompactTextRange(root: HTMLElement, text: string): Range | undefine
 	range.setStart(first.node, first.offset);
 	range.setEnd(last.node, last.offset + 1);
 	return range;
+}
+
+function isTextNode(node: Node): node is Text {
+	return node.nodeType === 3;
 }
 
 function findExactRenderedElement(root: HTMLElement, markdown: string): HTMLElement | undefined {

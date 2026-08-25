@@ -30,14 +30,21 @@ export function findObsidianImageEmbeds(markdown: string): ObsidianImageEmbed[] 
 export function extractObsidianImageReferences(markdown: string): string[] {
 	const references: string[] = [];
 	const seen = new Set<string>();
-	for (const { reference } of findObsidianImageEmbeds(markdown)) {
-		if (EXTERNAL_IMAGE_REFERENCE.test(reference) || seen.has(reference)) {
+	for (const reference of extractObsidianImageReferencesInOrder(markdown)) {
+		if (seen.has(reference)) {
 			continue;
 		}
 		seen.add(reference);
 		references.push(reference);
 	}
 	return references;
+}
+
+/** 按 Markdown 中的出现顺序返回本地图片引用，保留重复项以便和渲染后的图片逐一对应。 */
+export function extractObsidianImageReferencesInOrder(markdown: string): string[] {
+	return findObsidianImageEmbeds(markdown)
+		.map(({ reference }) => reference)
+		.filter((reference) => !EXTERNAL_IMAGE_REFERENCE.test(reference));
 }
 
 function normalizeImageReference(value: string): string {
