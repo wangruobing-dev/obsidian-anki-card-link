@@ -40,6 +40,8 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 - 插件使用持久化的 Vault 相对路径 binding 定位要更新的文档，不会按同名文档猜测和覆盖。
 - 在 Obsidian 中改名或移动文件会保留 documentToken 和分享 URL；删除本地笔记只清理本地 binding，不删除飞书文档。
 - 发布副本会移除 YAML、Anki Card Link 按钮、Cloze 区域标记和代码块外的 Cloze 语法，不修改 Obsidian 原文件。
+- 同步成功后，源笔记会写入或更新 `feishu` 属性，值为分享链接。
+- 分享链接会尽量自动复制，成功通知里也会提供可选中的链接框和 **复制链接** 按钮。
 - 本地图片按正文顺序读取真实二进制、上传飞书并插入文档。
 - 飞书是发布副本。飞书中的人工修改会在下一次同步时被 Obsidian 内容覆盖。
 - App Secret 保存在插件 `data.json` 中，只直接发送给飞书 OpenAPI；插件不发送遥测。不要分享 `data.json`。

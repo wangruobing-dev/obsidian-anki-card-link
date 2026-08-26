@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.6.0 - 2026-08-26
+
+- Add Feishu one-way note publishing for Windows, macOS, iOS/iPadOS, and Android using Obsidian-compatible networking and attachment APIs.
+- Preserve Vault-relative Feishu bindings, lazily mirror folders, upload local images, and avoid overwriting unbound same-name documents.
+- Strip YAML, generated Anki links, Cloze region markers, and multi-line Cloze syntax from published copies while keeping fenced-code examples intact.
+- Add a copy-friendly Feishu success notice with a selectable share URL field and copy button, and write/update a `feishu` source-note property with the share URL.
+- Expand Feishu setup documentation, manual test coverage, localized strings, and regression tests.
+
 ## 1.5.0 - 2026-08-24
 
 - Add Word export for the current note using rendered Markdown, while hiding plugin-generated Anki links and leaving the source note untouched.

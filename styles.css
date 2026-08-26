@@ -30,6 +30,29 @@
 	padding-inline-start: 1.25rem;
 }
 
+.anki-card-link-feishu-link-notice {
+	display: grid;
+	gap: var(--size-2-2);
+	max-width: min(32rem, 78vw);
+}
+
+.anki-card-link-feishu-link-notice__url {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 18rem;
+	padding: var(--size-2-1) var(--size-2-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-modifier-form-field);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+}
+
+.anki-card-link-feishu-link-notice__message {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 .acl-review-mask {
 	position: relative;
 	align-items: center;

@@ -146,9 +146,15 @@ const ENGLISH_STRINGS = {
 		},
 		unexpectedError: (message: string) => `An unexpected error occurred: ${message}`,
 		feishuConnectionOk: 'Connected to Feishu and accessed the configured folder.',
-		feishuCreatedCopied: 'Feishu document created; share link copied.',
-		feishuUpdatedCopied: 'Feishu document updated; share link copied.',
-		feishuSyncedClipboardFailed: (url: string) => `Feishu document synchronized, but the link could not be copied: ${url}`,
+		feishuSyncing: 'Syncing the current note to Feishu...',
+		feishuPropertyWriteFailed: 'Feishu was synchronized, but the feishu note property could not be written.',
+		feishuLinkNotice: {
+			title: (status: 'created' | 'updated', copied: boolean) =>
+				`Feishu document ${status}.${copied ? ' Share link copied.' : ' Share link is ready.'}`,
+			copy: 'Copy link',
+			copied: 'Copied',
+			copyFailed: 'Copy failed. Select the link manually or try the button again.',
+		},
 		feishuShareWarning: (message: string) => `Feishu document synchronized, but sharing may be restricted: ${message}`,
 	},
 } as const;
@@ -284,9 +290,15 @@ const CHINESE_STRINGS = {
 			`创建 ${summary.created} 张，更新 ${summary.updated} 张，跳过 ${summary.skipped} 张，失败 ${summary.failed} 张。`,
 		unexpectedError: (message: string) => `发生未预期的错误：${message}`,
 		feishuConnectionOk: '已连接飞书并访问配置的根目录。',
-		feishuCreatedCopied: '已创建飞书文档，分享链接已复制。',
-		feishuUpdatedCopied: '已更新飞书文档，分享链接已复制。',
-		feishuSyncedClipboardFailed: (url: string) => `飞书文档已同步，但无法复制链接：${url}`,
+		feishuSyncing: '正在同步当前笔记到飞书...',
+		feishuPropertyWriteFailed: '飞书同步成功，但 feishu 笔记属性写入失败。',
+		feishuLinkNotice: {
+			title: (status: 'created' | 'updated', copied: boolean) =>
+				`${status === 'created' ? '飞书文档创建成功' : '飞书文档更新成功'}。${copied ? '分享链接已复制。' : '分享链接已生成。'}`,
+			copy: '复制链接',
+			copied: '已复制',
+			copyFailed: '复制失败。请手动选中链接，或再次点击复制按钮。',
+		},
 		feishuShareWarning: (message: string) => `飞书文档已同步，但分享权限可能受限：${message}`,
 	},
 } as const;

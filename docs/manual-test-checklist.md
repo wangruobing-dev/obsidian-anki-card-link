@@ -112,12 +112,13 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] The connection test succeeds for an authorized root folder and distinguishes invalid URL, auth, scope, and folder permission failures.
 - [ ] First sync creates the document and returns a share URL.
 - [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Successful sync writes or updates the source note's `feishu` frontmatter property with the share URL.
 - [ ] Local images and repeated images render in source order.
 - [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
 - [ ] Nested folders are created under the exact parent folder.
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
-- [ ] The URL is copied; clipboard denial still displays the URL and leaves sync successful.
+- [ ] The URL is copied when possible; the notice also exposes a selectable URL field and a copy button.
 
 ## Feishu Sync - macOS
 
@@ -126,12 +127,13 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] The connection test succeeds for an authorized root folder and distinguishes invalid URL, auth, scope, and folder permission failures.
 - [ ] First sync creates the document and returns a share URL.
 - [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Successful sync writes or updates the source note's `feishu` frontmatter property with the share URL.
 - [ ] Local images and repeated images render in source order.
 - [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
 - [ ] Nested folders are created under the exact parent folder.
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
-- [ ] The URL is copied; clipboard denial still displays the URL and leaves sync successful.
+- [ ] The URL is copied when possible; the notice also exposes a selectable URL field and a copy button.
 
 ## Feishu Sync - iOS
 
@@ -140,12 +142,13 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] The connection test succeeds for an authorized root folder.
 - [ ] First sync creates the document and returns a share URL.
 - [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Successful sync writes or updates the source note's `feishu` frontmatter property with the share URL.
 - [ ] Local images and repeated images render in source order.
 - [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
 - [ ] Nested folders are created under the exact parent folder.
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
-- [ ] The URL is copied or remains visible when iOS denies clipboard access.
+- [ ] The URL is copied when possible; clipboard denial still leaves a selectable URL field and a copy button.
 
 ## Feishu Sync - Android
 
@@ -154,9 +157,10 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] The connection test succeeds for an authorized root folder.
 - [ ] First sync creates the document and returns a share URL.
 - [ ] Second sync updates the original document without creating a duplicate.
+- [ ] Successful sync writes or updates the source note's `feishu` frontmatter property with the share URL.
 - [ ] Local images and repeated images render in source order.
 - [ ] YAML, generated Anki links, region markers, and body Cloze syntax are removed while fenced-code Cloze remains.
 - [ ] Nested folders are created under the exact parent folder.
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
-- [ ] The URL is copied or remains visible when Android denies clipboard access.
+- [ ] The URL is copied when possible; clipboard denial still leaves a selectable URL field and a copy button.

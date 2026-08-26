@@ -21,6 +21,10 @@ describe('localized strings', () => {
 		expect(getStrings('en').settings.feishuShareAnyone).toBe('Anyone with the link can view');
 		expect(getStrings('en').notices.wordExportSaved('C:\\Exports\\note.docx')).toBe('Word document saved to: C:\\Exports\\note.docx');
 		expect(getStrings('zh-CN').notices.wordExportSaved('C:\\导出\\笔记.docx')).toBe('Word 文档已保存到：C:\\导出\\笔记.docx');
+		expect(getStrings('zh-CN').notices.feishuSyncing).toBe('正在同步当前笔记到飞书...');
+		expect(getStrings('zh-CN').notices.feishuPropertyWriteFailed).toContain('feishu 笔记属性');
+		expect(getStrings('zh-CN').notices.feishuLinkNotice.copy).toBe('复制链接');
+		expect(getStrings('en').notices.feishuLinkNotice.title('updated', true)).toContain('Share link copied');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {

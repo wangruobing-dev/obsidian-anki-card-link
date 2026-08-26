@@ -26,6 +26,17 @@ ATP 是 {{c1::三磷酸腺苷::中文名称}}，{{c2::储存能量}}。
 		);
 	});
 
+	it('removes multi-line Cloze syntax outside fenced code', () => {
+		const markdown = `口诀：
+> {{c1::能被4整除：通常是闰年
+> - 能被100整除：不是闰年
+> - 能被400整除：仍然是闰年}}`;
+		expect(prepareMarkdownForSharing(markdown).markdown).toBe(`口诀：
+> 能被4整除：通常是闰年
+> - 能被100整除：不是闰年
+> - 能被400整除：仍然是闰年`);
+	});
+
 	it('replaces local images in source order and retains duplicates', () => {
 		const result = prepareMarkdownForSharing('![[a.png]] then ![B](b.png) then ![[a.png|200]]');
 		expect(result.images.map((image) => image.reference)).toEqual(['a.png', 'b.png', 'a.png']);

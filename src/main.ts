@@ -50,12 +50,13 @@ import {
 import { InsertLinkModal, OpenLinkModal } from './ui/insert-link-modal';
 import { AnkiCardLinkSettingTab } from './ui/settings-tab';
 import { buildCardSyntax } from './core/card-syntax';
-import { ensureObsidianTag } from './core/note-tag';
+import { ensureObsidianProperty, ensureObsidianTag } from './core/note-tag';
 import { ReadingReviewControllerRegistry, type ReadingReviewController } from './reading-review/controller';
 import { processReadingReviewSection } from './reading-review/markdown-processor';
 import type { ReadingReviewMaskKind } from './reading-review/mask-model';
 import { LOCALIZED_COMMAND_IDS } from './reading-review/command-ids';
 import { showSyncReport, type SyncReportEntry } from './ui/sync-report-notice';
+import { showFeishuLinkNotice } from './ui/feishu-link-notice';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
@@ -520,24 +521,37 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			return;
 		}
 		try {
+			const strings = getStrings(this.settings.language);
+			this.showNotice(strings.notices.feishuSyncing);
+			const source = view.getViewData();
 			const result = await new FeishuSyncService({
 				host: new AppFeishuSyncHost(this.app),
 				settings: this.settings,
 				index: this.feishuSyncIndex,
 				api: this.getFeishuApi(),
-			}).syncNote(view.file.path, view.getViewData());
+			}).syncNote(view.file.path, source);
 			await this.savePluginData();
-			const strings = getStrings(this.settings.language);
 			if (result.shareWarning !== undefined) {
 				this.showNotice(strings.notices.feishuShareWarning(result.shareWarning));
 			}
 			try {
-				await navigator.clipboard.writeText(result.shareUrl);
-				this.showNotice(result.status === 'created' ? strings.notices.feishuCreatedCopied : strings.notices.feishuUpdatedCopied);
+				const current = view.getViewData();
+				const updated = ensureObsidianProperty(current, 'feishu', result.shareUrl);
+				if (updated !== current) {
+					view.setViewData(updated, false);
+				}
 			} catch (error) {
-				this.showNotice(strings.notices.feishuSyncedClipboardFailed(result.shareUrl));
+				this.showNotice(strings.notices.feishuPropertyWriteFailed);
+				this.debug('Feishu property write failed.', error);
+			}
+			let copied = false;
+			try {
+				await navigator.clipboard.writeText(result.shareUrl);
+				copied = true;
+			} catch (error) {
 				this.debug('Feishu link clipboard failed.', error);
 			}
+			showFeishuLinkNotice(result.status, result.shareUrl, copied, strings.notices.feishuLinkNotice);
 		} catch (error) {
 			this.handleError(error);
 		}

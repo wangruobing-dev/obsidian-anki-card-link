@@ -34,6 +34,8 @@ The command **Sync current note to Feishu** publishes the active editor content 
 - A persisted vault-relative binding selects the document to update. A same-name unbound Feishu document is never overwritten.
 - Renaming or moving an Obsidian file keeps the document token and share URL. Deleting a local note removes only the local binding, never the Feishu document.
 - YAML, Anki Card Link buttons, Cloze region markers, and Cloze syntax outside code fences are removed from the published copy. The Obsidian file is not changed.
+- After a successful sync, the source note gets/updates a `feishu` frontmatter property with the share URL.
+- The share URL is copied automatically when possible, and the success notice includes a selectable URL field plus a **Copy link** button.
 - Local images are read as binary data, uploaded to Feishu, and inserted in source order.
 - Feishu is a publishing copy. Manual Feishu edits are overwritten by the next sync.
 - App credentials are stored in plugin `data.json` and sent only to Feishu OpenAPI. The plugin sends no telemetry. Do not share `data.json`.
