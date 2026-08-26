@@ -3,10 +3,18 @@ import { describe, expect, it } from 'vitest';
 
 const FEISHU_FILES = [
 	'src/core/share-markdown.ts',
+	'src/core/content-hash.ts',
 	'src/core/multipart.ts',
 	'src/services/feishu-api.ts',
 	'src/services/feishu-sync-index.ts',
 	'src/services/feishu-sync.ts',
+	'src/services/feishu-batch-sync.ts',
+	'src/services/feishu-batch-selection.ts',
+	'src/ui/feishu-file-picker-state.ts',
+	'src/ui/feishu-file-picker-modal.ts',
+	'src/ui/feishu-batch-progress-state.ts',
+	'src/ui/feishu-batch-progress-modal.ts',
+	'src/ui/feishu-batch-progress-toast.ts',
 ];
 
 describe('Feishu platform compatibility', () => {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.6.1 - 2026-08-26
+
+- Add batch Feishu note publishing with a folder-aware Markdown picker, per-folder selection, and serial progress tracking.
+- Preserve manually collapsed picker folders across selection redraws, separate folder expansion from checkbox selection, and keep parent folders indeterminate when only some child notes are selected.
+- Keep a hidden batch sync reachable through one live bottom-right progress prompt, reopen the original progress window on click, and show final completed or cancelled statistics in the progress window.
+- Avoid unnecessary Feishu document writes by storing content hashes and share modes, reporting unchanged notes, and updating only changed title, folder, content, or share permission state.
+
 ## 1.6.0 - 2026-08-26
 
 - Add Feishu one-way note publishing for Windows, macOS, iOS/iPadOS, and Android using Obsidian-compatible networking and attachment APIs.

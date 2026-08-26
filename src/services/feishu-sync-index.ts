@@ -1,9 +1,13 @@
+import type { FeishuShareMode } from '../types';
+
 export interface FeishuNoteBinding {
 	sourcePath: string;
 	documentToken: string;
 	parentFolderToken: string;
 	shareUrl: string;
 	title: string;
+	contentHash?: string;
+	shareMode?: FeishuShareMode;
 	updatedAt: number;
 }
 

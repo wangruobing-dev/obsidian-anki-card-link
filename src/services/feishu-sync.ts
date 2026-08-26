@@ -1,12 +1,13 @@
 import { TFile, type App } from 'obsidian';
 import { prepareMarkdownForSharing, type ShareMarkdownResult } from '../core/share-markdown';
+import { lengthPrefixedBytes, sha256Hex, utf8Bytes } from '../core/content-hash';
 import { parseFeishuRootFolderUrl } from '../settings';
 import { AnkiCardLinkError, type AnkiCardLinkSettings } from '../types';
 import { FeishuApiError, type FeishuImageUpload, type FeishuSyncApi } from './feishu-api';
 import { FeishuSyncIndex, normalizeVaultPath, type FeishuNoteBinding } from './feishu-sync-index';
 
 export interface FeishuSyncResult {
-	status: 'created' | 'updated';
+	status: 'created' | 'updated' | 'unchanged';
 	documentToken: string;
 	shareUrl: string;
 	shareWarning?: string;
@@ -77,31 +78,40 @@ export class FeishuSyncService {
 		}
 		const title = normalizedPath.slice(normalizedPath.lastIndexOf('/') + 1, -3);
 		const folderPath = normalizedPath.slice(0, Math.max(0, normalizedPath.lastIndexOf('/')));
-		const parentFolderToken = await this.ensureFolder(root.rootFolderToken, folderPath);
 		const prepared = prepareMarkdownForSharing(markdown);
 		const images = await this.resolveImages(prepared, normalizedPath);
+		const contentHash = await calculateContentHash(prepared.markdown, images);
 		const existing = this.options.index.getByPath(normalizedPath);
 		let documentToken = existing?.documentToken;
-		let status: FeishuSyncResult['status'] = 'updated';
-		if (documentToken === undefined || await this.options.api.getDocument(documentToken) === undefined) {
+		const remoteDocument = documentToken === undefined ? undefined : await this.options.api.getDocument(documentToken);
+		const parentFolderToken = await this.ensureFolder(root.rootFolderToken, folderPath);
+		let status: FeishuSyncResult['status'];
+		let shareWarning: string | undefined;
+		if (documentToken === undefined || remoteDocument === undefined) {
 			documentToken = await this.options.api.createDocument(title);
 			status = 'created';
 			await this.options.api.moveDocument(documentToken, parentFolderToken);
-		} else if (existing?.parentFolderToken !== parentFolderToken) {
-			await this.options.api.moveDocument(documentToken, parentFolderToken);
-		}
-		await this.options.api.updateDocumentTitle(documentToken, title);
-		await this.options.api.replaceDocumentContent(documentToken, prepared.markdown, images);
-		let shareWarning: string | undefined;
-		try {
-			await this.options.api.setSharePermission(documentToken, this.options.settings.feishuShareMode);
-		} catch (error) {
-			if (error instanceof AnkiCardLinkError
-				&& (error.code === 'FEISHU_PERMISSION_DENIED' || error.code === 'FEISHU_SHARE_PERMISSION_FAILED')) {
-				shareWarning = 'Document content was synchronized, but Feishu did not allow the selected share permission.';
-			} else {
-				throw error;
+			await this.options.api.replaceDocumentContent(documentToken, prepared.markdown, images);
+			shareWarning = await this.applySharePermission(documentToken);
+		} else {
+			const binding = existing!;
+			const contentChanged = binding.contentHash !== contentHash;
+			const titleChanged = binding.title !== title;
+			const folderChanged = binding.parentFolderToken !== parentFolderToken;
+			const shareModeChanged = binding.shareMode !== this.options.settings.feishuShareMode;
+			if (titleChanged) {
+				await this.options.api.updateDocumentTitle(documentToken, title);
 			}
+			if (folderChanged) {
+				await this.options.api.moveDocument(documentToken, parentFolderToken);
+			}
+			if (contentChanged) {
+				await this.options.api.replaceDocumentContent(documentToken, prepared.markdown, images);
+			}
+			if (shareModeChanged) {
+				shareWarning = await this.applySharePermission(documentToken);
+			}
+			status = titleChanged || folderChanged || contentChanged || shareModeChanged ? 'updated' : 'unchanged';
 		}
 		const shareUrl = status === 'created'
 			? `${root.tenantOrigin}/docx/${documentToken}`
@@ -112,10 +122,25 @@ export class FeishuSyncService {
 			parentFolderToken,
 			shareUrl,
 			title,
+			contentHash,
+			shareMode: shareWarning === undefined ? this.options.settings.feishuShareMode : existing?.shareMode,
 			updatedAt: this.now(),
 		};
 		this.options.index.set(binding);
 		return { status, documentToken, shareUrl, shareWarning, binding };
+	}
+
+	private async applySharePermission(documentToken: string): Promise<string | undefined> {
+		try {
+			await this.options.api.setSharePermission(documentToken, this.options.settings.feishuShareMode);
+			return undefined;
+		} catch (error) {
+			if (error instanceof AnkiCardLinkError
+				&& (error.code === 'FEISHU_PERMISSION_DENIED' || error.code === 'FEISHU_SHARE_PERMISSION_FAILED')) {
+				return 'Document content was synchronized, but Feishu did not allow the selected share permission.';
+			}
+			throw error;
+		}
 	}
 
 	private requireConfig(): ReturnType<typeof parseFeishuRootFolderUrl> {
@@ -173,6 +198,14 @@ export class FeishuSyncService {
 		}
 		return uploads;
 	}
+}
+
+async function calculateContentHash(markdown: string, images: readonly FeishuImageUpload[]): Promise<string> {
+	const parts = [lengthPrefixedBytes(utf8Bytes(markdown))];
+	for (const image of images) {
+		parts.push(lengthPrefixedBytes(image.data));
+	}
+	return sha256Hex(parts);
 }
 
 function isMissingFolderError(error: unknown): boolean {

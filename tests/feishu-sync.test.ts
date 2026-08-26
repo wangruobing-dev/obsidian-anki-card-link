@@ -95,6 +95,87 @@ describe('FeishuSyncService', () => {
 		expect(result.shareWarning).toContain('synchronized');
 	});
 
+	it('does not write remotely when title, content, images, folder, and sharing are unchanged', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		const sync = service(api, index);
+		await sync.syncNote('note.md', '![[a.png]]');
+		const before = api.writeCounts();
+		const result = await sync.syncNote('note.md', '![[a.png]]');
+		expect(result.status).toBe('unchanged');
+		expect(api.writeCounts()).toEqual(before);
+	});
+
+	it('performs only the title update after a rename', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		const sync = service(api, index);
+		await sync.syncNote('IOC.md', 'content');
+		index.renamePath('IOC.md', 'Spring IOC.md');
+		const before = api.writeCounts();
+		const result = await sync.syncNote('Spring IOC.md', 'content');
+		expect(result.status).toBe('updated');
+		expect(api.titles).toHaveLength(before.titles + 1);
+		expect(api.writeCounts()).toMatchObject({ moves: before.moves, replaced: before.replaced, shares: before.shares });
+	});
+
+	it('performs only the document move after a folder change', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		const sync = service(api, index);
+		await sync.syncNote('Java/note.md', 'content');
+		index.renamePath('Java/note.md', 'Backend/note.md');
+		const before = api.writeCounts();
+		const result = await sync.syncNote('Backend/note.md', 'content');
+		expect(result.status).toBe('updated');
+		expect(api.writeCounts()).toMatchObject({ titles: before.titles, moves: before.moves + 1, replaced: before.replaced, shares: before.shares });
+	});
+
+	it('updates content when image bytes change at the same path', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		const host = new FakeHost();
+		const sync = service(api, index, host);
+		await sync.syncNote('note.md', '![[a.png]]');
+		host.imageBytes.set('a.png', 9);
+		const before = api.writeCounts();
+		const result = await sync.syncNote('note.md', '![[a.png]]');
+		expect(result.status).toBe('updated');
+		expect(api.writeCounts()).toMatchObject({ titles: before.titles, moves: before.moves, replaced: before.replaced + 1, shares: before.shares });
+	});
+
+	it('performs only the share permission update when sharing changes', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		await service(api, index).syncNote('note.md', 'content');
+		const before = api.writeCounts();
+		const result = await service(api, index, new FakeHost(), 'anyone_readable').syncNote('note.md', 'content');
+		expect(result.status).toBe('updated');
+		expect(api.writeCounts()).toMatchObject({ titles: before.titles, moves: before.moves, replaced: before.replaced, shares: before.shares + 1 });
+	});
+
+	it('recreates a deleted document even when its content hash is unchanged', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		const sync = service(api, index);
+		const first = await sync.syncNote('note.md', 'content');
+		api.documents.delete(first.documentToken);
+		const result = await sync.syncNote('note.md', 'content');
+		expect(result.status).toBe('created');
+		expect(result.documentToken).not.toBe(first.documentToken);
+	});
+
+	it('upgrades a legacy binding without creating a duplicate document', async () => {
+		const api = new FakeFeishuApi();
+		const index = new FeishuSyncIndex();
+		index.set(binding('note.md', 'doc-existing', 'root'));
+		api.documents.set('doc-existing', { documentToken: 'doc-existing', title: 'note' });
+		const result = await service(api, index).syncNote('note.md', 'content');
+		expect(result.status).toBe('updated');
+		expect(api.createdDocuments).toEqual([]);
+		expect(result.binding.contentHash).toMatch(/^[a-f0-9]{64}$/u);
+	});
+
 	it('fails before remote writes when a local image is missing or unsupported', async () => {
 		const missingHost: FeishuSyncHost = { resolveImage: () => undefined, readBinary: async () => new ArrayBuffer(0) };
 		const unsupportedHost: FeishuSyncHost = {
@@ -106,7 +187,7 @@ describe('FeishuSyncService', () => {
 	});
 });
 
-function service(api: FakeFeishuApi, index: FeishuSyncIndex, host: FeishuSyncHost = new FakeHost()) {
+function service(api: FakeFeishuApi, index: FeishuSyncIndex, host: FeishuSyncHost = new FakeHost(), feishuShareMode: FeishuShareMode = 'tenant_readable') {
 	return new FeishuSyncService({
 		host,
 		api,
@@ -116,6 +197,7 @@ function service(api: FakeFeishuApi, index: FeishuSyncIndex, host: FeishuSyncHos
 			feishuAppId: 'app-id',
 			feishuAppSecret: 'secret',
 			feishuRootFolderUrl: 'https://tenant.feishu.cn/drive/folder/root',
+			feishuShareMode,
 		},
 		now: () => 10,
 	});
@@ -126,12 +208,13 @@ function binding(sourcePath: string, documentToken: string, parentFolderToken: s
 }
 
 class FakeHost implements FeishuSyncHost {
+	readonly imageBytes = new Map<string, number>([['a.png', 1], ['b.png', 2]]);
 	resolveImage(reference: string) {
 		return { path: reference, name: reference, extension: 'png' };
 	}
 
 	async readBinary(path: string): Promise<ArrayBuffer> {
-		return new Uint8Array([path.startsWith('a') ? 1 : 2]).buffer;
+		return new Uint8Array([this.imageBytes.get(path) ?? 2]).buffer;
 	}
 }
 
@@ -144,6 +227,7 @@ class FakeFeishuApi implements FeishuSyncApi {
 	readonly moves: Array<{ documentToken: string; folderToken: string }> = [];
 	readonly titles: Array<{ documentToken: string; title: string }> = [];
 	readonly replaced: Array<{ documentToken: string; markdown: string; images: readonly FeishuImageUpload[] }> = [];
+	readonly shareCalls: Array<{ documentToken: string; mode: FeishuShareMode }> = [];
 	shareError?: Error;
 
 	async testConnection(): Promise<void> {}
@@ -168,7 +252,11 @@ class FakeFeishuApi implements FeishuSyncApi {
 	async replaceDocumentContent(documentToken: string, markdown: string, images: readonly FeishuImageUpload[]): Promise<void> {
 		this.replaced.push({ documentToken, markdown, images });
 	}
-	async setSharePermission(_documentToken: string, _mode: FeishuShareMode): Promise<void> {
+	async setSharePermission(documentToken: string, mode: FeishuShareMode): Promise<void> {
+		this.shareCalls.push({ documentToken, mode });
 		if (this.shareError !== undefined) throw this.shareError;
+	}
+	writeCounts() {
+		return { titles: this.titles.length, moves: this.moves.length, replaced: this.replaced.length, shares: this.shareCalls.length };
 	}
 }

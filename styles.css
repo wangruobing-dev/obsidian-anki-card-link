@@ -53,6 +53,114 @@
 	font-size: var(--font-ui-smaller);
 }
 
+.anki-card-link-feishu-picker__tree {
+	max-height: min(55vh, 32rem);
+	overflow-y: auto;
+	padding: var(--size-2-2) 0;
+}
+
+.anki-card-link-feishu-picker__folder {
+	margin-inline-start: var(--size-4-2);
+}
+
+.anki-card-link-feishu-picker__folder-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-height: 2.5rem;
+}
+
+.anki-card-link-feishu-picker__children {
+	margin-inline-start: var(--size-4-2);
+}
+
+.anki-card-link-feishu-picker__children--collapsed {
+	display: none;
+}
+
+.anki-card-link-feishu-picker__row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-height: 2rem;
+	cursor: pointer;
+}
+
+.anki-card-link-feishu-picker__checkbox {
+	flex: 0 0 auto;
+	min-width: 1.25rem;
+	min-height: 1.25rem;
+}
+
+.anki-card-link-feishu-picker__folder-toggle {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-width: 0;
+	min-height: 2.5rem;
+	padding: var(--size-2-1) var(--size-2-2);
+	border: 0;
+	background: transparent;
+	color: var(--text-normal);
+	text-align: start;
+	cursor: pointer;
+}
+
+.anki-card-link-feishu-picker__folder-toggle:hover,
+.anki-card-link-feishu-picker__folder-toggle:focus-visible {
+	background-color: var(--background-modifier-hover);
+}
+
+.anki-card-link-feishu-picker__folder-arrow {
+	flex: 0 0 1rem;
+	text-align: center;
+}
+
+.anki-card-link-feishu-picker__folder-name {
+	overflow-wrap: anywhere;
+}
+
+.anki-card-link-feishu-progress__current {
+	margin-bottom: var(--size-2-2);
+	overflow-wrap: anywhere;
+}
+
+.anki-card-link-feishu-progress__meter {
+	width: 100%;
+	margin: var(--size-2-2) 0;
+}
+
+.anki-card-link-feishu-progress__failures {
+	max-height: 12rem;
+	overflow-y: auto;
+	margin-top: var(--size-2-2);
+}
+
+.anki-card-link-feishu-batch-toast {
+	position: fixed;
+	right: max(1rem, env(safe-area-inset-right));
+	bottom: max(1rem, env(safe-area-inset-bottom));
+	z-index: var(--layer-notice, 1000);
+	max-width: min(26rem, calc(100vw - 2rem));
+	min-height: 2.75rem;
+	padding: var(--size-2-2) var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background-color: var(--background-primary);
+	box-shadow: var(--shadow-l);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	text-align: start;
+	overflow-wrap: anywhere;
+	cursor: pointer;
+}
+
+.anki-card-link-feishu-batch-toast:hover,
+.anki-card-link-feishu-batch-toast:focus-visible {
+	background-color: var(--background-modifier-hover);
+}
+
 .acl-review-mask {
 	position: relative;
 	align-items: center;

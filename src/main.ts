@@ -39,6 +39,7 @@ import { migratePluginData, type PersistedPluginDataV3 } from './services/plugin
 import { FeishuApiService } from './services/feishu-api';
 import { FeishuSyncIndex } from './services/feishu-sync-index';
 import { AppFeishuSyncHost, FeishuSyncService } from './services/feishu-sync';
+import { FeishuBatchSyncTask, type FeishuBatchProgress } from './services/feishu-batch-sync';
 import { DEFAULT_SETTINGS } from './settings';
 import { getLocalizedErrorMessage, getStrings, getSyncReportStrings } from './strings';
 import {
@@ -57,12 +58,18 @@ import type { ReadingReviewMaskKind } from './reading-review/mask-model';
 import { LOCALIZED_COMMAND_IDS } from './reading-review/command-ids';
 import { showSyncReport, type SyncReportEntry } from './ui/sync-report-notice';
 import { showFeishuLinkNotice } from './ui/feishu-link-notice';
+import { FeishuFilePickerModal } from './ui/feishu-file-picker-modal';
+import { FeishuBatchProgressModal } from './ui/feishu-batch-progress-modal';
+import { FeishuBatchProgressToast } from './ui/feishu-batch-progress-toast';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
 	private cardLocations = new CardLocationIndex();
 	private feishuSyncIndex = new FeishuSyncIndex();
 	private feishuApi?: FeishuApiService;
+	private feishuBatchTask?: FeishuBatchSyncTask<TFile>;
+	private feishuBatchProgressModal?: FeishuBatchProgressModal;
+	private feishuBatchProgressToast?: FeishuBatchProgressToast;
 	private localizedCommandsRegistered = false;
 	private layoutReady = false;
 	private pendingOpenSource?: OpenObsidianSourceParams;
@@ -115,6 +122,18 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				void this.savePluginData();
 			}
 		}));
+		this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
+			if (!(file instanceof TFile) || file.extension !== 'md') return;
+			const strings = getStrings(this.settings.language);
+			menu.addItem((item) => item
+				.setTitle(strings.commands.syncCurrentNoteToFeishu)
+				.setIcon('upload')
+				.onClick(() => void this.syncCurrentFeishuFile(file)));
+			menu.addItem((item) => item
+				.setTitle(strings.commands.syncMultipleNotesToFeishu)
+				.setIcon('files')
+				.onClick(() => this.openFeishuBatchSync()));
+		}));
 
 		this.registerLocalizedCommands();
 		this.registerMarkdownPostProcessor((el, ctx) => processReadingReviewSection(this, this.readingReviewControllers, el, ctx).catch((error) => {
@@ -146,6 +165,11 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				}
 				return available;
 			},
+		});
+		this.addCommand({
+			id: 'sync-multiple-notes-to-feishu',
+			name: strings.commands.syncMultipleNotesToFeishu,
+			callback: () => this.openFeishuBatchSync(),
 		});
 		this.addCommand({ id: 'cloze-next-number', name: strings.commands.clozeNextNumber, editorCallback: (editor) => this.insertCloze(editor, 'next') });
 		this.addCommand({ id: 'cloze-current-number', name: strings.commands.clozeCurrentNumber, editorCallback: (editor) => this.insertCloze(editor, 'current') });
@@ -214,6 +238,8 @@ export default class AnkiCardLinkPlugin extends Plugin {
 
 	override onunload(): void {
 		this.readingReviewControllers.clear();
+		this.feishuBatchProgressToast?.dispose();
+		this.feishuBatchProgressToast = undefined;
 	}
 
 	resolveReadingReviewRoot(el: HTMLElement): HTMLElement | undefined {
@@ -520,29 +546,16 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		if (view.file === null) {
 			return;
 		}
+		await this.syncCurrentFeishuFile(view.file);
+	}
+
+	private async syncCurrentFeishuFile(file: TFile): Promise<void> {
 		try {
 			const strings = getStrings(this.settings.language);
 			this.showNotice(strings.notices.feishuSyncing);
-			const source = view.getViewData();
-			const result = await new FeishuSyncService({
-				host: new AppFeishuSyncHost(this.app),
-				settings: this.settings,
-				index: this.feishuSyncIndex,
-				api: this.getFeishuApi(),
-			}).syncNote(view.file.path, source);
-			await this.savePluginData();
+			const result = await this.syncFeishuFile(file);
 			if (result.shareWarning !== undefined) {
 				this.showNotice(strings.notices.feishuShareWarning(result.shareWarning));
-			}
-			try {
-				const current = view.getViewData();
-				const updated = ensureObsidianProperty(current, 'feishu', result.shareUrl);
-				if (updated !== current) {
-					view.setViewData(updated, false);
-				}
-			} catch (error) {
-				this.showNotice(strings.notices.feishuPropertyWriteFailed);
-				this.debug('Feishu property write failed.', error);
 			}
 			let copied = false;
 			try {
@@ -555,6 +568,97 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		} catch (error) {
 			this.handleError(error);
 		}
+	}
+
+	private openFeishuBatchSync(): void {
+		if (this.feishuBatchTask !== undefined) {
+			this.openFeishuBatchProgress(this.feishuBatchTask.getProgress());
+			return;
+		}
+		new FeishuFilePickerModal(this.app, this.settings.language, (files) => this.startFeishuBatchSync(files)).open();
+	}
+
+	private startFeishuBatchSync(files: TFile[]): void {
+		if (this.feishuBatchTask !== undefined) {
+			this.openFeishuBatchProgress(this.feishuBatchTask.getProgress());
+			return;
+		}
+		const task = new FeishuBatchSyncTask({
+			files,
+			pathOf: (file) => file.path,
+			syncFile: (file) => this.syncFeishuFile(file),
+			onProgress: (progress) => this.updateFeishuBatchProgress(progress),
+		});
+		this.feishuBatchTask = task;
+		this.openFeishuBatchProgress(task.getProgress());
+		void task.run().then((progress) => this.finishFeishuBatchSync(task, progress));
+	}
+
+	private openFeishuBatchProgress(progress: FeishuBatchProgress): void {
+		this.feishuBatchProgressToast?.dispose();
+		this.feishuBatchProgressModal ??= new FeishuBatchProgressModal(
+			this.app,
+			this.settings.language,
+			() => this.feishuBatchTask?.requestCancel(),
+			() => this.showHiddenFeishuBatchProgress(),
+		);
+		this.feishuBatchProgressModal.update(progress);
+		this.feishuBatchProgressModal.open();
+	}
+
+	private updateFeishuBatchProgress(progress: FeishuBatchProgress): void {
+		this.feishuBatchProgressModal?.update(progress);
+		if (this.feishuBatchTask !== undefined && this.feishuBatchProgressModal?.isVisible() !== true) {
+			this.showFeishuBatchProgressToast(progress);
+		}
+	}
+
+	private showHiddenFeishuBatchProgress(): void {
+		const progress = this.feishuBatchTask?.getProgress();
+		if (progress !== undefined) {
+			this.showFeishuBatchProgressToast(progress);
+		}
+	}
+
+	private showFeishuBatchProgressToast(progress: FeishuBatchProgress): void {
+		this.feishuBatchProgressToast ??= new FeishuBatchProgressToast(() => {
+			const latest = this.feishuBatchTask?.getProgress();
+			if (latest !== undefined) {
+				this.openFeishuBatchProgress(latest);
+			}
+		});
+		this.feishuBatchProgressToast.update(progress, this.settings.language);
+	}
+
+	private finishFeishuBatchSync(task: FeishuBatchSyncTask<TFile>, progress: FeishuBatchProgress): void {
+		if (this.feishuBatchTask !== task) return;
+		this.feishuBatchTask = undefined;
+		this.feishuBatchProgressToast?.dispose();
+		this.feishuBatchProgressModal?.update(progress);
+		if (this.feishuBatchProgressModal?.isVisible() !== true) {
+			this.openFeishuBatchProgress(progress);
+		}
+	}
+
+	private async syncFeishuFile(file: TFile) {
+		const source = await this.app.vault.read(file);
+		const result = await new FeishuSyncService({
+			host: new AppFeishuSyncHost(this.app),
+			settings: this.settings,
+			index: this.feishuSyncIndex,
+			api: this.getFeishuApi(),
+		}).syncNote(file.path, source);
+		await this.savePluginData();
+		try {
+			await this.app.vault.process(file, (current) => ensureObsidianProperty(current, 'feishu', result.shareUrl));
+		} catch (error) {
+			throw new AnkiCardLinkError(
+				'FEISHU_PROPERTY_WRITE_FAILED',
+				'Feishu sync succeeded, but the feishu note property could not be written.',
+				{ cause: error },
+			);
+		}
+		return result;
 	}
 
 	private addReadingReviewCommand(

@@ -18,6 +18,11 @@ describe('localized strings', () => {
 		expect(getStrings('en').commands.exportWord).toBe('Export current note to Word (.docx)');
 		expect(getStrings('zh-CN').commands.exportWord).toBe('导出当前文档为 Word（.docx）');
 		expect(getStrings('zh-CN').commands.syncCurrentNoteToFeishu).toBe('同步当前笔记到飞书');
+		expect(getStrings('zh-CN').commands.syncMultipleNotesToFeishu).toBe('同步多个笔记到飞书');
+		expect(getStrings('en').titles.feishuFilePicker).toBe('Select notes to sync');
+		expect(getStrings('zh-CN').titles.feishuBatchCompleted).toBe('飞书同步完成');
+		expect(getStrings('zh-CN').labels.selectedNotes(2)).toBe('已选择 2 个笔记');
+		expect(getStrings('zh-CN').labels.feishuBatchBackgroundProgress(73, 126)).toBe('正在同步到飞书 73 / 126 · 点击查看');
 		expect(getStrings('en').settings.feishuShareAnyone).toBe('Anyone with the link can view');
 		expect(getStrings('en').notices.wordExportSaved('C:\\Exports\\note.docx')).toBe('Word document saved to: C:\\Exports\\note.docx');
 		expect(getStrings('zh-CN').notices.wordExportSaved('C:\\导出\\笔记.docx')).toBe('Word 文档已保存到：C:\\导出\\笔记.docx');
@@ -25,6 +30,7 @@ describe('localized strings', () => {
 		expect(getStrings('zh-CN').notices.feishuPropertyWriteFailed).toContain('feishu 笔记属性');
 		expect(getStrings('zh-CN').notices.feishuLinkNotice.copy).toBe('复制链接');
 		expect(getStrings('en').notices.feishuLinkNotice.title('updated', true)).toContain('Share link copied');
+		expect(getStrings('zh-CN').notices.feishuLinkNotice.title('unchanged', false)).toContain('内容无变化');
 	});
 
 	it('localizes known errors while preserving dynamic details', () => {

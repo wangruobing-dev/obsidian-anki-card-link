@@ -12,6 +12,7 @@ const ENGLISH_STRINGS = {
 		exportPdf: 'Export current note to PDF (show answers)',
 		exportWord: 'Export current note to Word (.docx)',
 		syncCurrentNoteToFeishu: 'Sync current note to Feishu',
+		syncMultipleNotesToFeishu: 'Sync multiple notes to Feishu',
 		revealNextReadingCloze: 'Reading review: Reveal next cloze',
 		toggleAllReadingClozes: 'Reading review: Toggle all clozes',
 		revealNextReadingBack: 'Reading review: Reveal next back',
@@ -20,6 +21,11 @@ const ENGLISH_STRINGS = {
 	titles: {
 		insertLink: 'Insert Anki link',
 		openLink: 'Open Anki search',
+		feishuFilePicker: 'Select notes to sync',
+		feishuBatchProgress: 'Syncing to Feishu',
+		feishuBatchCompleted: 'Feishu sync completed',
+		feishuBatchCancelled: 'Feishu sync cancelled',
+		feishuBatchFailures: 'Failed notes',
 	},
 	labels: {
 		searchType: 'Search type',
@@ -29,6 +35,16 @@ const ENGLISH_STRINGS = {
 		open: 'Open',
 		openAnkiCard: 'Open corresponding Anki card',
 		cancel: 'Cancel',
+		close: 'Close',
+		allNotes: 'All notes',
+		selectedNotes: (count: number) => `${count} notes selected`,
+		startSync: 'Start sync',
+		hide: 'Hide',
+		cancelSync: 'Cancel sync',
+		viewFailures: 'View failed items',
+		hideFailures: 'Hide failed items',
+		feishuBatchProcessed: (completed: number, total: number) => `${completed} / ${total} processed`,
+		feishuBatchBackgroundProgress: (completed: number, total: number) => `Syncing to Feishu ${completed} / ${total} · Click to view`,
 		valuePlaceholder: 'Enter an ID or Anki query',
 		revealReadingCloze: 'Reveal this cloze answer',
 		revealReadingBack: 'Reveal this card back',
@@ -147,10 +163,17 @@ const ENGLISH_STRINGS = {
 		unexpectedError: (message: string) => `An unexpected error occurred: ${message}`,
 		feishuConnectionOk: 'Connected to Feishu and accessed the configured folder.',
 		feishuSyncing: 'Syncing the current note to Feishu...',
+		feishuUnchanged: 'Content has not changed; no update is needed.',
+		feishuBatchCompleted: (summary: { total: number; created: number; updated: number; unchanged: number; failed: number }) =>
+			`Feishu sync completed: ${summary.total} total, ${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged, ${summary.failed} failed.`,
+		feishuBatchCancelled: (summary: { total: number; completed: number; created: number; updated: number; unchanged: number; failed: number }) =>
+			`Feishu sync cancelled: ${summary.completed}/${summary.total} processed, ${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged, ${summary.failed} failed.`,
 		feishuPropertyWriteFailed: 'Feishu was synchronized, but the feishu note property could not be written.',
 		feishuLinkNotice: {
-			title: (status: 'created' | 'updated', copied: boolean) =>
-				`Feishu document ${status}.${copied ? ' Share link copied.' : ' Share link is ready.'}`,
+			title: (status: 'created' | 'updated' | 'unchanged', copied: boolean) =>
+				status === 'unchanged'
+					? `${'Content has not changed; no update is needed.'}${copied ? ' Share link copied.' : ' Share link is ready.'}`
+					: `Feishu document ${status}.${copied ? ' Share link copied.' : ' Share link is ready.'}`,
 			copy: 'Copy link',
 			copied: 'Copied',
 			copyFailed: 'Copy failed. Select the link manually or try the button again.',
@@ -171,6 +194,7 @@ const CHINESE_STRINGS = {
 		exportPdf: '导出当前文档为 PDF（显示挖空答案）',
 		exportWord: '导出当前文档为 Word（.docx）',
 		syncCurrentNoteToFeishu: '同步当前笔记到飞书',
+		syncMultipleNotesToFeishu: '同步多个笔记到飞书',
 		revealNextReadingCloze: '阅读复习：揭示下一个填空',
 		toggleAllReadingClozes: '阅读复习：显示或隐藏全部填空',
 		revealNextReadingBack: '阅读复习：揭示下一个背面',
@@ -179,6 +203,11 @@ const CHINESE_STRINGS = {
 	titles: {
 		insertLink: '插入 Anki 链接',
 		openLink: '打开 Anki 搜索',
+		feishuFilePicker: '选择要同步的笔记',
+		feishuBatchProgress: '正在同步到飞书',
+		feishuBatchCompleted: '飞书同步完成',
+		feishuBatchCancelled: '飞书同步已取消',
+		feishuBatchFailures: '失败项',
 	},
 	labels: {
 		searchType: '搜索类型',
@@ -188,6 +217,16 @@ const CHINESE_STRINGS = {
 		open: '打开',
 		openAnkiCard: '打开对应 Anki 卡片',
 		cancel: '取消',
+		close: '关闭',
+		allNotes: '全部笔记',
+		selectedNotes: (count: number) => `已选择 ${count} 个笔记`,
+		startSync: '开始同步',
+		hide: '隐藏',
+		cancelSync: '取消同步',
+		viewFailures: '查看失败项',
+		hideFailures: '隐藏失败项',
+		feishuBatchProcessed: (completed: number, total: number) => `已处理 ${completed} / ${total}`,
+		feishuBatchBackgroundProgress: (completed: number, total: number) => `正在同步到飞书 ${completed} / ${total} · 点击查看`,
 		valuePlaceholder: '输入 ID 或 Anki 查询语句',
 		revealReadingCloze: '揭示当前填空答案',
 		revealReadingBack: '揭示当前卡片背面',
@@ -291,10 +330,15 @@ const CHINESE_STRINGS = {
 		unexpectedError: (message: string) => `发生未预期的错误：${message}`,
 		feishuConnectionOk: '已连接飞书并访问配置的根目录。',
 		feishuSyncing: '正在同步当前笔记到飞书...',
+		feishuUnchanged: '内容无变化，无需更新。',
+		feishuBatchCompleted: (summary: { total: number; created: number; updated: number; unchanged: number; failed: number }) =>
+			`飞书同步完成：总计 ${summary.total}，已创建 ${summary.created}，已更新 ${summary.updated}，无变化 ${summary.unchanged}，失败 ${summary.failed}。`,
+		feishuBatchCancelled: (summary: { total: number; completed: number; created: number; updated: number; unchanged: number; failed: number }) =>
+			`批量同步已取消：已处理 ${summary.completed}/${summary.total}，已创建 ${summary.created}，已更新 ${summary.updated}，无变化 ${summary.unchanged}，失败 ${summary.failed}。`,
 		feishuPropertyWriteFailed: '飞书同步成功，但 feishu 笔记属性写入失败。',
 		feishuLinkNotice: {
-			title: (status: 'created' | 'updated', copied: boolean) =>
-				`${status === 'created' ? '飞书文档创建成功' : '飞书文档更新成功'}。${copied ? '分享链接已复制。' : '分享链接已生成。'}`,
+			title: (status: 'created' | 'updated' | 'unchanged', copied: boolean) =>
+				`${status === 'unchanged' ? '内容无变化，无需更新' : status === 'created' ? '飞书文档创建成功' : '飞书文档更新成功'}。${copied ? '分享链接已复制。' : '分享链接已生成。'}`,
 			copy: '复制链接',
 			copied: '已复制',
 			copyFailed: '复制失败。请手动选中链接，或再次点击复制按钮。',
@@ -339,6 +383,7 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 		'Feishu root folder URL must use HTTPS on a feishu.cn domain.': '飞书根目录 URL 必须使用 feishu.cn 域名的 HTTPS 地址。',
 		'Feishu root folder URL must point to /drive/folder/{token}.': '飞书根目录 URL 必须指向 /drive/folder/{token}。',
 		'The configured Feishu root folder does not exist.': '配置的飞书根目录不存在。',
+		'Feishu sync succeeded, but the feishu note property could not be written.': '飞书同步成功，但 feishu 笔记属性写入失败。',
 		'Could not reach the Feishu OpenAPI.': '无法连接飞书 OpenAPI。',
 		'Could not reach Feishu authentication.': '无法连接飞书认证接口。',
 		'Feishu App ID or App Secret was rejected.': '飞书 App ID 或 App Secret 校验失败。',

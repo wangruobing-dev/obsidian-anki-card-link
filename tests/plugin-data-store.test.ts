@@ -30,13 +30,14 @@ describe('plugin data migration', () => {
 			settings: { language: 'zh-CN', feishuAppId: 'app-id' },
 			cardLocations: { 'acl-1234abcd': { path: 'a.md', updatedAt: 1 } },
 			feishuSync: {
-				notes: { 'a.md': { sourcePath: 'a.md', documentToken: 'doc-a', parentFolderToken: 'root', shareUrl: 'https://tenant.feishu.cn/docx/doc-a', title: 'a', updatedAt: 2 } },
+				notes: { 'a.md': { sourcePath: 'a.md', documentToken: 'doc-a', parentFolderToken: 'root', shareUrl: 'https://tenant.feishu.cn/docx/doc-a', title: 'a', contentHash: 'hash', shareMode: 'anyone_readable', updatedAt: 2 } },
 				folders: {},
 			},
 		});
 		expect(data.settings.feishuAppId).toBe('app-id');
 		expect(data.cardLocations['acl-1234abcd']?.path).toBe('a.md');
 		expect(data.feishuSync.notes['a.md']?.documentToken).toBe('doc-a');
+		expect(data.feishuSync.notes['a.md']).toMatchObject({ contentHash: 'hash', shareMode: 'anyone_readable' });
 	});
 
 	it('falls back to tenant-only sharing for an invalid persisted mode', () => {

@@ -80,6 +80,10 @@ function parseFeishuSync(value: unknown): FeishuSyncIndexData {
 				parentFolderToken: candidate.parentFolderToken,
 				shareUrl: candidate.shareUrl,
 				title: candidate.title,
+				contentHash: typeof candidate.contentHash === 'string' ? candidate.contentHash : undefined,
+				shareMode: candidate.shareMode === 'tenant_readable' || candidate.shareMode === 'anyone_readable'
+					? candidate.shareMode
+					: undefined,
 				updatedAt: candidate.updatedAt,
 			};
 		}
