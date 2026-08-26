@@ -47,6 +47,10 @@ export interface AnkiCardLinkSettings {
 	feishuAppSecret: string;
 	feishuRootFolderUrl: string;
 	feishuShareMode: FeishuShareMode;
+	youdaoApiKey: string;
+	youdaoYnNotePc: string;
+	youdaoSessionCookies: string;
+	youdaoSessionUpdatedAt: number;
 }
 
 export const FEISHU_SHARE_MODES = ['tenant_readable', 'anyone_readable'] as const;
@@ -121,7 +125,19 @@ export type ErrorCode =
 	| 'FEISHU_MEDIA_UPLOAD_FAILED'
 	| 'FEISHU_SHARE_PERMISSION_FAILED'
 	| 'FEISHU_PROPERTY_WRITE_FAILED'
-	| 'FEISHU_CLIPBOARD_FAILED';
+	| 'FEISHU_CLIPBOARD_FAILED'
+	| 'YOUDAO_NOT_CONFIGURED'
+	| 'YOUDAO_AUTH_FAILED'
+	| 'YOUDAO_API_ERROR'
+	| 'YOUDAO_FOLDER_CREATE_FAILED'
+	| 'YOUDAO_NOTE_NOT_FOUND'
+	| 'YOUDAO_NOTE_CREATE_FAILED'
+	| 'YOUDAO_NOTE_UPDATE_FAILED'
+	| 'YOUDAO_NOTE_MOVE_FAILED'
+	| 'YOUDAO_MEDIA_UPLOAD_FAILED'
+	| 'YOUDAO_SHARE_PERMISSION_FAILED'
+	| 'YOUDAO_PROPERTY_WRITE_FAILED'
+	| 'YOUDAO_CLIPBOARD_FAILED';
 
 export class AnkiCardLinkError extends Error {
 	readonly cause?: unknown;

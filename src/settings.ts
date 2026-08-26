@@ -42,6 +42,10 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	feishuAppSecret: '',
 	feishuRootFolderUrl: '',
 	feishuShareMode: 'tenant_readable',
+	youdaoApiKey: '',
+	youdaoYnNotePc: '',
+	youdaoSessionCookies: '',
+	youdaoSessionUpdatedAt: 0,
 };
 
 export interface FeishuRootFolderConfig {

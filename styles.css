@@ -53,6 +53,19 @@
 	font-size: var(--font-ui-smaller);
 }
 
+.anki-card-link-youdao-login-modal {
+	width: min(52rem, calc(100vw - 2rem));
+}
+
+.anki-card-link-youdao-login-modal__frame {
+	display: block;
+	width: 100%;
+	height: min(62vh, 38rem);
+	min-height: 24rem;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+}
+
 .anki-card-link-feishu-picker__tree {
 	max-height: min(55vh, 32rem);
 	overflow-y: auto;

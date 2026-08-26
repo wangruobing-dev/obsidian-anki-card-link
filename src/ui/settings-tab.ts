@@ -99,6 +99,51 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			.setName(strings.settings.testFeishuConnection)
 			.addButton((button) => button.setButtonText(strings.settings.testConnection).onClick(() => void this.testFeishuConnection()));
 
+		new Setting(this.containerEl).setName(strings.settings.youdaoSync).setHeading();
+		new Setting(this.containerEl)
+			.setName(strings.settings.youdaoApiKey)
+			.setDesc(strings.settings.youdaoApiKeyDesc)
+			.addText((text) => {
+				text.inputEl.type = 'password';
+				text.setValue(this.plugin.settings.youdaoApiKey);
+				text.onChange((value) => void this.plugin.updateSettings({ youdaoApiKey: value }));
+			});
+		if (Platform.isDesktopApp) {
+			const connected = this.plugin.settings.youdaoYnNotePc.trim().length > 0 || this.plugin.settings.youdaoSessionCookies.trim().length > 0;
+			new Setting(this.containerEl)
+				.setName(strings.settings.youdaoAccount)
+				.setDesc(connected ? strings.settings.youdaoAccountConnected : strings.settings.youdaoAccountDisconnected)
+				.addButton((button) => {
+					button.setButtonText(connected ? strings.settings.youdaoReconnect : strings.settings.youdaoConnect);
+					button.setCta();
+					button.onClick(() => this.plugin.openYoudaoLogin(() => this.renderSettings()));
+				})
+				.addExtraButton((button) => {
+					button.setIcon('unlink');
+					button.setTooltip(strings.settings.youdaoDisconnect);
+					button.setDisabled(!connected);
+					button.onClick(async () => {
+						await this.plugin.disconnectYoudao();
+						this.renderSettings();
+					});
+				});
+		} else {
+			this.containerEl.createEl('p', { text: strings.settings.youdaoLoginDesktopOnly, cls: 'setting-item-description' });
+		}
+		const manualCredentials = this.containerEl.createEl('details');
+		manualCredentials.createEl('summary', { text: strings.settings.youdaoManualCredentials });
+		new Setting(manualCredentials)
+			.setName(strings.settings.youdaoYnNotePc)
+			.setDesc(strings.settings.youdaoYnNotePcDesc)
+			.addText((text) => {
+				text.inputEl.type = 'password';
+				text.setValue(this.plugin.settings.youdaoYnNotePc);
+				text.onChange((value) => void this.plugin.updateSettings({ youdaoYnNotePc: value }));
+			});
+		new Setting(this.containerEl)
+			.setName(strings.settings.testYoudaoConnection)
+			.addButton((button) => button.setButtonText(strings.settings.testConnection).onClick(() => void this.testYoudaoConnection()));
+
 		new Setting(this.containerEl).setName(strings.settings.readingReview).setHeading();
 		new Setting(this.containerEl)
 			.setName(strings.settings.readingReviewEnabled)
@@ -243,6 +288,15 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 		try {
 			await this.plugin.testFeishuConnection();
 			new Notice(getStrings(this.plugin.settings.language).notices.feishuConnectionOk);
+		} catch (error) {
+			this.plugin.handleError(error);
+		}
+	}
+
+	private async testYoudaoConnection(): Promise<void> {
+		try {
+			await this.plugin.testYoudaoConnection();
+			new Notice(getStrings(this.plugin.settings.language).notices.youdaoConnectionOk);
 		} catch (error) {
 			this.plugin.handleError(error);
 		}

@@ -35,11 +35,14 @@ import { CardLocationIndex } from './services/card-location-index';
 import { CardSyncService, type CardSyncResult } from './services/card-sync';
 import { AppObsidianSourceHost } from './services/obsidian-source-host';
 import { ObsidianSourceLocator } from './services/obsidian-source-locator';
-import { migratePluginData, type PersistedPluginDataV3 } from './services/plugin-data-store';
+import { migratePluginData, type PersistedPluginDataV4 } from './services/plugin-data-store';
 import { FeishuApiService } from './services/feishu-api';
 import { FeishuSyncIndex } from './services/feishu-sync-index';
 import { AppFeishuSyncHost, FeishuSyncService } from './services/feishu-sync';
 import { FeishuBatchSyncTask, type FeishuBatchProgress } from './services/feishu-batch-sync';
+import { YoudaoApiService } from './services/youdao-api';
+import { YoudaoSyncIndex } from './services/youdao-sync-index';
+import { AppYoudaoSyncHost, YoudaoSyncService } from './services/youdao-sync';
 import { DEFAULT_SETTINGS } from './settings';
 import { getLocalizedErrorMessage, getStrings, getSyncReportStrings } from './strings';
 import {
@@ -61,12 +64,16 @@ import { showFeishuLinkNotice } from './ui/feishu-link-notice';
 import { FeishuFilePickerModal } from './ui/feishu-file-picker-modal';
 import { FeishuBatchProgressModal } from './ui/feishu-batch-progress-modal';
 import { FeishuBatchProgressToast } from './ui/feishu-batch-progress-toast';
+import { YoudaoLoginModal } from './ui/youdao-login-modal';
+import { normalizeYoudaoCredentialInput } from './services/youdao-auth';
 
 export default class AnkiCardLinkPlugin extends Plugin {
 	settings: AnkiCardLinkSettings = DEFAULT_SETTINGS;
 	private cardLocations = new CardLocationIndex();
 	private feishuSyncIndex = new FeishuSyncIndex();
 	private feishuApi?: FeishuApiService;
+	private youdaoSyncIndex = new YoudaoSyncIndex();
+	private youdaoApi?: YoudaoApiService;
 	private feishuBatchTask?: FeishuBatchSyncTask<TFile>;
 	private feishuBatchProgressModal?: FeishuBatchProgressModal;
 	private feishuBatchProgressToast?: FeishuBatchProgressToast;
@@ -111,14 +118,16 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			const newPath = file.path.replaceAll('\\', '/');
 			const cardChanged = this.cardLocations.renamePath(oldPath, newPath) > 0;
 			const feishuChanged = this.feishuSyncIndex.renamePathPrefix(oldPath, newPath) > 0;
-			if (cardChanged || feishuChanged) {
+			const youdaoChanged = this.youdaoSyncIndex.renamePathPrefix(oldPath, newPath) > 0;
+			if (cardChanged || feishuChanged || youdaoChanged) {
 				void this.savePluginData();
 			}
 		}));
 		this.registerEvent(this.app.vault.on('delete', (file) => {
 			const cardChanged = this.cardLocations.removePath(file.path) > 0;
 			const feishuChanged = this.feishuSyncIndex.removePath(file.path) > 0;
-			if (cardChanged || feishuChanged) {
+			const youdaoChanged = this.youdaoSyncIndex.removePath(file.path) > 0;
+			if (cardChanged || feishuChanged || youdaoChanged) {
 				void this.savePluginData();
 			}
 		}));
@@ -129,6 +138,10 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				.setTitle(strings.commands.syncCurrentNoteToFeishu)
 				.setIcon('upload')
 				.onClick(() => void this.syncCurrentFeishuFile(file)));
+			menu.addItem((item) => item
+				.setTitle(strings.commands.syncCurrentNoteToYoudao)
+				.setIcon('upload-cloud')
+				.onClick(() => void this.syncCurrentYoudaoFile(file)));
 			menu.addItem((item) => item
 				.setTitle(strings.commands.syncMultipleNotesToFeishu)
 				.setIcon('files')
@@ -162,6 +175,18 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				const available = view?.file !== null && view?.file !== undefined && view.file.extension === 'md';
 				if (!checking && available && view !== null && view !== undefined && view.file !== null) {
 					void this.syncCurrentNoteToFeishu(view);
+				}
+				return available;
+			},
+		});
+		this.addCommand({
+			id: 'sync-current-note-to-youdao',
+			name: strings.commands.syncCurrentNoteToYoudao,
+			checkCallback: (checking) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const available = view?.file !== null && view?.file !== undefined && view.file.extension === 'md';
+				if (!checking && available && view !== null && view !== undefined && view.file !== null) {
+					void this.syncCurrentNoteToYoudao(view);
 				}
 				return available;
 			},
@@ -221,11 +246,21 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	}
 
 	async updateSettings(changes: Partial<AnkiCardLinkSettings>): Promise<void> {
+		const updatedSettings: Partial<AnkiCardLinkSettings> = { ...changes };
 		const refreshReadingReview = changes.readingReviewEnabled !== undefined
 			|| changes.readingReviewEdgeTapEnabled !== undefined;
-		this.settings = { ...this.settings, ...changes };
+		if (changes.youdaoYnNotePc !== undefined) {
+			const credentials = normalizeYoudaoCredentialInput(changes.youdaoYnNotePc);
+			updatedSettings.youdaoYnNotePc = credentials.ynotePc;
+			updatedSettings.youdaoSessionCookies = credentials.sessionCookies;
+			updatedSettings.youdaoSessionUpdatedAt = 0;
+		}
+		this.settings = { ...this.settings, ...updatedSettings };
 		if (changes.feishuAppId !== undefined || changes.feishuAppSecret !== undefined) {
 			this.feishuApi = undefined;
+		}
+		if (changes.youdaoApiKey !== undefined || changes.youdaoYnNotePc !== undefined) {
+			this.youdaoApi = undefined;
 		}
 		if (changes.feishuRootFolderUrl !== undefined) {
 			this.feishuSyncIndex.invalidateFolderPrefix('');
@@ -271,6 +306,31 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			index: this.feishuSyncIndex,
 			api: this.getFeishuApi(),
 		}).testConnection();
+	}
+
+	async testYoudaoConnection(): Promise<void> {
+		await new YoudaoSyncService({
+			host: new AppYoudaoSyncHost(this.app),
+			settings: this.settings,
+			index: this.youdaoSyncIndex,
+			api: this.getYoudaoApi(),
+		}).testConnection();
+	}
+
+	openYoudaoLogin(onConnected?: () => void): void {
+		const strings = getStrings(this.settings.language);
+		if (!Platform.isDesktopApp) {
+			this.showNotice(strings.notices.youdaoLoginDesktopOnly);
+			return;
+		}
+		new YoudaoLoginModal(this.app, this.settings.language, async (ynotePc) => {
+			await this.updateSettings({ youdaoYnNotePc: ynotePc });
+			onConnected?.();
+		}).open();
+	}
+
+	async disconnectYoudao(): Promise<void> {
+		await this.updateSettings({ youdaoYnNotePc: '' });
 	}
 
 	showNotice(message: string): void {
@@ -549,6 +609,13 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		await this.syncCurrentFeishuFile(view.file);
 	}
 
+	private async syncCurrentNoteToYoudao(view: MarkdownView): Promise<void> {
+		if (view.file === null) {
+			return;
+		}
+		await this.syncCurrentYoudaoFile(view.file);
+	}
+
 	private async syncCurrentFeishuFile(file: TFile): Promise<void> {
 		try {
 			const strings = getStrings(this.settings.language);
@@ -565,6 +632,26 @@ export default class AnkiCardLinkPlugin extends Plugin {
 				this.debug('Feishu link clipboard failed.', error);
 			}
 			showFeishuLinkNotice(result.status, result.shareUrl, copied, strings.notices.feishuLinkNotice);
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
+	private async syncCurrentYoudaoFile(file: TFile): Promise<void> {
+		try {
+			const strings = getStrings(this.settings.language);
+			this.showNotice(strings.notices.youdaoSyncing);
+			const result = await this.syncYoudaoFile(file);
+			let copied = false;
+			try {
+				await navigator.clipboard.writeText(result.shareUrl);
+				copied = true;
+			} catch (error) {
+				this.debug('Youdao link clipboard failed.', error);
+			}
+			this.showNotice(copied
+				? strings.notices.youdaoSyncResult(result.status)
+				: strings.notices.youdaoClipboardFailed);
 		} catch (error) {
 			this.handleError(error);
 		}
@@ -661,6 +748,24 @@ export default class AnkiCardLinkPlugin extends Plugin {
 		return result;
 	}
 
+	private async syncYoudaoFile(file: TFile) {
+		const source = await this.app.vault.read(file);
+		const result = await new YoudaoSyncService({
+			host: new AppYoudaoSyncHost(this.app),
+			settings: this.settings,
+			index: this.youdaoSyncIndex,
+			api: this.getYoudaoApi(),
+		}).syncNote(file.path, source);
+		await this.savePluginData();
+		try {
+			await this.app.vault.process(file, (current) => ensureObsidianProperty(current, 'youdao', result.shareUrl));
+		} catch (error) {
+			this.showNotice(getStrings(this.settings.language).notices.youdaoPropertyWriteFailed);
+			this.debug('Youdao property write failed.', error);
+		}
+		return result;
+	}
+
 	private addReadingReviewCommand(
 		id: string,
 		name: string,
@@ -743,17 +848,19 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			this.settings = data.settings;
 			this.cardLocations = new CardLocationIndex(data.cardLocations);
 			this.feishuSyncIndex = new FeishuSyncIndex(data.feishuSync);
+			this.youdaoSyncIndex = new YoudaoSyncIndex(data.youdaoSync);
 		} catch (error) {
-			throw new AnkiCardLinkError('PLUGIN_DATA_MIGRATION_FAILED', 'Plugin data could not be migrated to version 3.', { cause: error });
+			throw new AnkiCardLinkError('PLUGIN_DATA_MIGRATION_FAILED', 'Plugin data could not be migrated to version 4.', { cause: error });
 		}
 	}
 
 	private async savePluginData(): Promise<void> {
-		const data: PersistedPluginDataV3 = {
-			version: 3,
+		const data: PersistedPluginDataV4 = {
+			version: 4,
 			settings: this.settings,
 			cardLocations: this.cardLocations.toJSON(),
 			feishuSync: this.feishuSyncIndex.toJSON(),
+			youdaoSync: this.youdaoSyncIndex.toJSON(),
 		};
 		await this.saveData(data);
 	}
@@ -761,6 +868,16 @@ export default class AnkiCardLinkPlugin extends Plugin {
 	private getFeishuApi(): FeishuApiService {
 		this.feishuApi ??= new FeishuApiService({ appId: this.settings.feishuAppId, appSecret: this.settings.feishuAppSecret });
 		return this.feishuApi;
+	}
+
+	private getYoudaoApi(): YoudaoApiService {
+		this.youdaoApi ??= new YoudaoApiService({
+			settings: this.settings,
+			onSessionChanged: () => {
+				void this.savePluginData();
+			},
+		});
+		return this.youdaoApi;
 	}
 
 	private async copyQuery(query: string): Promise<void> {

@@ -4,10 +4,11 @@ import { migratePluginData } from '../src/services/plugin-data-store';
 describe('plugin data migration', () => {
 	it('migrates flat settings without losing configured values', () => {
 		const data = migratePluginData({ language: 'zh-CN', ankiConnectUrl: 'http://localhost:8765', defaultDeckName: '软考', debugLogging: true });
-		expect(data.version).toBe(3);
+		expect(data.version).toBe(4);
 		expect(data.settings).toMatchObject({ language: 'zh-CN', ankiConnectUrl: 'http://localhost:8765', defaultDeckName: '软考', debugLogging: true });
 		expect(data.cardLocations).toEqual({});
 		expect(data.feishuSync).toEqual({ notes: {}, folders: {} });
+		expect(data.youdaoSync).toEqual({ notes: {}, folders: {} });
 		expect(data.settings.singleLineSeparators).toBe('::\n：：');
 		expect(data.settings.multiLineSeparators).toBe('?\n？');
 		expect(data.settings.choiceModelName).toBe('Multiple Choice');
@@ -20,8 +21,9 @@ describe('plugin data migration', () => {
 		const data = migratePluginData({ version: 2, settings: { language: 'zh-CN' }, cardLocations: { 'acl-1234abcd': { path: 'a.md', updatedAt: 1 } } });
 		expect(data.settings.language).toBe('zh-CN');
 		expect(data.cardLocations['acl-1234abcd']?.path).toBe('a.md');
-		expect(data.version).toBe(3);
+		expect(data.version).toBe(4);
 		expect(data.feishuSync).toEqual({ notes: {}, folders: {} });
+		expect(data.youdaoSync).toEqual({ notes: {}, folders: {} });
 	});
 
 	it('loads V3 Feishu bindings without losing V2 data', () => {
@@ -35,9 +37,44 @@ describe('plugin data migration', () => {
 			},
 		});
 		expect(data.settings.feishuAppId).toBe('app-id');
+		expect(data.version).toBe(4);
 		expect(data.cardLocations['acl-1234abcd']?.path).toBe('a.md');
 		expect(data.feishuSync.notes['a.md']?.documentToken).toBe('doc-a');
 		expect(data.feishuSync.notes['a.md']).toMatchObject({ contentHash: 'hash', shareMode: 'anyone_readable' });
+		expect(data.youdaoSync).toEqual({ notes: {}, folders: {} });
+	});
+
+	it('loads V4 Youdao bindings without losing existing data', () => {
+		const data = migratePluginData({
+			version: 4,
+			settings: { language: 'zh-CN', youdaoApiKey: 'key' },
+			cardLocations: { 'acl-1234abcd': { path: 'a.md', updatedAt: 1 } },
+			feishuSync: {
+				notes: { 'a.md': { sourcePath: 'a.md', documentToken: 'doc-a', parentFolderToken: 'root', shareUrl: 'https://tenant.feishu.cn/docx/doc-a', title: 'a', contentHash: 'hash', shareMode: 'anyone_readable', updatedAt: 2 } },
+				folders: {},
+			},
+			youdaoSync: {
+				notes: { 'a.md': { sourcePath: 'a.md', fileId: 'youdao-a', parentFolderId: 'folder-a', shareUrl: 'https://share.note.youdao.com/share-a', title: 'a.md', contentHash: 'hash', shareKey: 'share-a', updatedAt: 3 } },
+				folders: { Obsidian: { sourceFolderPath: 'Obsidian', folderId: 'folder-obsidian', updatedAt: 3 } },
+			},
+		});
+		expect(data.settings.youdaoApiKey).toBe('key');
+		expect(data.cardLocations['acl-1234abcd']?.path).toBe('a.md');
+		expect(data.feishuSync.notes['a.md']?.documentToken).toBe('doc-a');
+		expect(data.youdaoSync.notes['a.md']).toMatchObject({ fileId: 'youdao-a', shareKey: 'share-a' });
+		expect(data.youdaoSync.folders.Obsidian?.folderId).toBe('folder-obsidian');
+	});
+
+	it('normalizes a copied Youdao browser cookie header', () => {
+		const data = migratePluginData({
+			version: 4,
+			settings: { youdaoYnNotePc: 'YNOTE-PC=pc; YNOTE_SESS=session; YNOTE_LOGIN=login' },
+			cardLocations: {},
+			feishuSync: {},
+			youdaoSync: {},
+		});
+		expect(data.settings.youdaoYnNotePc).toBe('pc');
+		expect(data.settings.youdaoSessionCookies).toBe('YNOTE_SESS=session; YNOTE_LOGIN=login');
 	});
 
 	it('falls back to tenant-only sharing for an invalid persisted mode', () => {
