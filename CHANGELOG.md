@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.6.2 - 2026-08-27
+
+- Add Youdao Cloud Note one-way publishing with official-login and manual Cookie connection flows, account-root discovery, vault-relative folder mirroring, image upload, public share links, and source-note `youdao` properties.
+- Accept complete copied browser Cookie headers, use valid browser sessions without an unavailable HttpOnly `YNOTE-PC`, normalize response headers, and use the YNote client identity for web API requests.
+- Fix initial public sharing for newly created notes by matching the Youdao web client's no-version publish request, preventing `VERSION_CONFLICT` failures.
+- Add English and Simplified Chinese Youdao setup, expiry, folder-location, and troubleshooting guides plus API regression coverage.
+
 ## 1.6.1 - 2026-08-26
 
 - Add batch Feishu note publishing with a folder-aware Markdown picker, per-folder selection, and serial progress tracking.

@@ -126,9 +126,8 @@ export class YoudaoSyncService {
 	}
 
 	private requireConfig(): void {
-		if (this.options.settings.youdaoApiKey.trim().length === 0
-			|| (this.options.settings.youdaoYnNotePc.trim().length === 0 && this.options.settings.youdaoSessionCookies.trim().length === 0)) {
-			throw new AnkiCardLinkError('YOUDAO_NOT_CONFIGURED', 'Youdao API Key and a Youdao browser Cookie or YNOTE-PC are required.');
+		if (this.options.settings.youdaoYnNotePc.trim().length === 0 && this.options.settings.youdaoSessionCookies.trim().length === 0) {
+			throw new AnkiCardLinkError('YOUDAO_NOT_CONFIGURED', 'A Youdao browser Cookie or YNOTE-PC is required.');
 		}
 	}
 

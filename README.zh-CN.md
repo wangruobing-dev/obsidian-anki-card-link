@@ -6,6 +6,8 @@
 
 [飞书单向发布指南](docs/feishu-sync.zh-CN.md) | [Feishu one-way publishing guide](docs/feishu-sync.md)
 
+[有道云笔记发布指南](docs/youdao-sync.zh-CN.md) | [Youdao Cloud Note publishing guide](docs/youdao-sync.md)
+
 Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 - 在 Windows、macOS、Linux、Android、iOS/iPadOS 上通过 `obsidian://anki-card-link` 打开对应的 Anki 搜索；
@@ -29,6 +31,7 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 | Anki → Obsidian 跳转定位 | 安装并启用本插件后支持 | 安装并启用本插件后支持 | 安装并启用本插件后支持 |
 | 阅读模式复习遮罩 | 支持 | 支持 | 支持 |
 | Obsidian → 飞书笔记发布 | 支持 | 支持 | 支持 |
+| Obsidian → 有道云笔记发布 | 支持 | 手动 Cookie 配置尚未真机验证 | 手动 Cookie 配置尚未真机验证 |
 
 移动端能否打开 Anki 还取决于对应 Anki 应用及其 URI 支持。插件清单设置为 `isDesktopOnly: false`，但这不等于所有移动设备均已真机验证。
 
@@ -47,6 +50,19 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 - App Secret 保存在插件 `data.json` 中，只直接发送给飞书 OpenAPI；插件不发送遥测。不要分享 `data.json`。
 
 使用命令前，请先完成[飞书配置与权限指南](docs/feishu-sync.zh-CN.md)。
+
+## 有道云笔记单向发布
+
+命令 **同步当前笔记到有道云** 会为当前 Markdown 笔记创建或更新一份有道云笔记发布副本。首次同步会在有道云笔记中创建固定的 `Obsidian` 文件夹，再按源笔记在 Vault 内的相对路径创建子目录；Vault 根目录的笔记会直接放在 `Obsidian` 文件夹内。
+
+- 可通过官方有道登录窗口连接，也可在“手动连接（备用）”中粘贴完整的网页 Cookie Header。完整 Header 会按 Cookie 对解析，不会被当作一个 `YNOTE-PC` 值。
+- **测试有道连接** 只读取账号根目录，不会创建文件夹、笔记、图片或公开链接。
+- 同步成功后会创建或更新云端笔记、开启公开分享、保存 Vault 相对路径 binding，并向源笔记写入 `youdao` 属性及分享链接。
+- 本地图片会上传到有道云笔记。它是单向发布副本：下次同步会覆盖云端的人工修改。
+- 设置中的旧版 API Key 输入框仅为兼容保留；当前有道网页同步使用已登录的浏览器凭据，不会发送该值。
+- 网页 Cookie 可能随时失效，没有固定有效期或后台自动续期。测试连接或同步提示认证失败时，重新连接账号或重新复制完整 Cookie 即可。
+
+详细操作和报错处理请看[有道云笔记发布指南](docs/youdao-sync.zh-CN.md)。
 
 ## 桌面端要求
 

@@ -323,8 +323,8 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			this.showNotice(strings.notices.youdaoLoginDesktopOnly);
 			return;
 		}
-		new YoudaoLoginModal(this.app, this.settings.language, async (ynotePc) => {
-			await this.updateSettings({ youdaoYnNotePc: ynotePc });
+		new YoudaoLoginModal(this.app, this.settings.language, async (cookieHeader) => {
+			await this.updateSettings({ youdaoYnNotePc: cookieHeader });
 			onConnected?.();
 		}).open();
 	}

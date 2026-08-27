@@ -1,5 +1,4 @@
 import { Modal, Notice, Setting, type App, type ButtonComponent } from 'obsidian';
-import { YOUDAO_PC_COOKIE } from '../services/youdao-auth';
 import { getStrings } from '../strings';
 import type { Language } from '../types';
 
@@ -12,25 +11,52 @@ interface ElectronCookie {
 }
 
 interface ElectronSessionModule {
+	BrowserWindow?: ElectronBrowserWindowConstructor;
 	session?: {
-		defaultSession?: {
-			cookies: {
-				get(filter: { url: string }): Promise<ElectronCookie[]>;
-			};
-		};
+		defaultSession?: ElectronSession;
 	};
 	remote?: {
+		BrowserWindow?: ElectronBrowserWindowConstructor;
 		session?: {
-			defaultSession?: {
-				cookies: {
-					get(filter: { url: string }): Promise<ElectronCookie[]>;
-				};
-			};
+			defaultSession?: ElectronSession;
 		};
 	};
 }
 
+interface ElectronBrowserWindowConstructor {
+	new(options: ElectronBrowserWindowOptions): ElectronBrowserWindow;
+}
+
+interface ElectronBrowserWindowOptions {
+	width: number;
+	height: number;
+	title: string;
+	autoHideMenuBar: boolean;
+	webPreferences: {
+		nodeIntegration: boolean;
+		contextIsolation: boolean;
+		sandbox: boolean;
+	};
+}
+
+interface ElectronBrowserWindow {
+	loadURL(url: string): Promise<void>;
+	focus(): void;
+	close(): void;
+	on(event: 'closed', listener: () => void): void;
+	webContents?: {
+		session?: ElectronSession;
+	};
+}
+
+interface ElectronSession {
+	cookies: {
+		get(filter: { url: string }): Promise<ElectronCookie[]>;
+	};
+}
+
 export class YoudaoLoginModal extends Modal {
+	private loginWindow?: ElectronBrowserWindow;
 	private frame?: HTMLIFrameElement;
 	private completeButton?: ButtonComponent;
 	private ready = false;
@@ -39,7 +65,7 @@ export class YoudaoLoginModal extends Modal {
 	constructor(
 		app: App,
 		private readonly language: Language,
-		private readonly onConnected: (ynotePc: string) => Promise<void>,
+		private readonly onConnected: (cookieHeader: string) => Promise<void>,
 	) {
 		super(app);
 	}
@@ -50,7 +76,7 @@ export class YoudaoLoginModal extends Modal {
 		this.setTitle(strings.settings.youdaoLoginTitle);
 		this.contentEl.createEl('p', { text: strings.settings.youdaoLoginDesc });
 
-		this.openEmbeddedLogin();
+		this.openLoginWindow();
 
 		new Setting(this.contentEl)
 			.addButton((button) => {
@@ -68,9 +94,43 @@ export class YoudaoLoginModal extends Modal {
 	}
 
 	onClose(): void {
+		this.loginWindow?.close();
+		this.loginWindow = undefined;
 		this.frame?.remove();
 		this.frame = undefined;
 		this.contentEl.empty();
+	}
+
+	private openLoginWindow(): void {
+		const electron = getElectron();
+		const BrowserWindow = electron?.remote?.BrowserWindow ?? electron?.BrowserWindow;
+		if (BrowserWindow === undefined) {
+			this.openEmbeddedLogin();
+			return;
+		}
+		try {
+			const loginWindow = new BrowserWindow({
+				width: 1040,
+				height: 760,
+				title: getStrings(this.language).settings.youdaoLoginTitle,
+				autoHideMenuBar: true,
+				webPreferences: {
+					nodeIntegration: false,
+					contextIsolation: true,
+					sandbox: true,
+				},
+			});
+			this.loginWindow = loginWindow;
+			loginWindow.on('closed', () => {
+				this.loginWindow = undefined;
+			});
+			void loginWindow.loadURL(YOUDAO_LOGIN_URL);
+			loginWindow.focus();
+			this.ready = true;
+			this.completeButton?.setDisabled(false);
+		} catch {
+			this.openEmbeddedLogin();
+		}
 	}
 
 	private openEmbeddedLogin(): void {
@@ -93,38 +153,40 @@ export class YoudaoLoginModal extends Modal {
 		this.completeButton?.setDisabled(true);
 		const strings = getStrings(this.language);
 		try {
-			const ynotePc = await this.readYnotePc();
-			if (ynotePc === undefined) {
+			const cookieHeader = await this.readCookieHeader();
+			if (cookieHeader === undefined) {
 				new Notice(strings.notices.youdaoLoginCookieMissing);
 				return;
 			}
-			await this.onConnected(ynotePc);
+			await this.onConnected(cookieHeader);
 			new Notice(strings.notices.youdaoLoginConnected);
 			this.close();
 		} catch {
 			new Notice(strings.notices.youdaoLoginFailed);
 		} finally {
 			this.saving = false;
-			if (this.frame !== undefined) {
-				this.completeButton?.setDisabled(false);
-			}
+			this.completeButton?.setDisabled(false);
 		}
 	}
 
-	private async readYnotePc(): Promise<string | undefined> {
-		return readDesktopYoudaoCookie();
+	private async readCookieHeader(): Promise<string | undefined> {
+		return readDesktopYoudaoCookieHeader(this.loginWindow);
 	}
 }
 
-async function readDesktopYoudaoCookie(): Promise<string | undefined> {
+async function readDesktopYoudaoCookieHeader(loginWindow?: ElectronBrowserWindow): Promise<string | undefined> {
 	try {
 		const electron = getElectron();
 		if (electron === undefined) {
 			return undefined;
 		}
-		const session = electron.remote?.session ?? electron.session;
-		const cookies = await session?.defaultSession?.cookies.get({ url: YOUDAO_COOKIE_URL });
-		return cookies?.find((cookie) => cookie.name === YOUDAO_PC_COOKIE)?.value;
+		const session = loginWindow?.webContents?.session ?? electron.remote?.session?.defaultSession ?? electron.session?.defaultSession;
+		const cookies = await session?.cookies.get({ url: YOUDAO_COOKIE_URL });
+		const credentialCookies = cookies?.filter((cookie) => cookie.name.trim().length > 0 && cookie.value.length > 0) ?? [];
+		if (!credentialCookies.some((cookie) => /^(?:YNOTE-PC|YNOTE_SESS|YNOTE_LOGIN|YNOTE_CSTK|YNOTE_PERS|P_INFO)$/u.test(cookie.name))) {
+			return undefined;
+		}
+		return credentialCookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
 	} catch {
 		return undefined;
 	}

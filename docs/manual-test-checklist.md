@@ -99,8 +99,8 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 
 - [ ] An existing flat settings file loads with language, endpoint, deck, model, field mapping, label, and debug values preserved.
 - [ ] An old settings file without choice keys receives all Multiple Choice defaults without losing existing values.
-- [ ] V2 data migrates to V3 with `settings` and `cardLocations` unchanged and empty `feishuSync.notes` / `feishuSync.folders`.
-- [ ] A subsequent save writes V3 data containing `settings`, `cardLocations`, and `feishuSync`.
+- [ ] V2/V3 data migrates to V4 with `settings` and `cardLocations` unchanged and empty missing Feishu/Youdao indexes.
+- [ ] A subsequent save writes V4 data containing `settings`, `cardLocations`, `feishuSync`, and `youdaoSync`.
 - [ ] Plugin startup does not scan Markdown files.
 - [ ] Normal source navigation reads only the target Markdown file.
 - [ ] Disabling the plugin removes commands, settings, protocol handlers, and Vault listeners.
@@ -119,6 +119,18 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
 - [ ] The URL is copied when possible; the notice also exposes a selectable URL field and a copy button.
+
+## Youdao Cloud Note Sync - Windows
+
+- [ ] The official login window can complete connection and save a usable Cookie header without exposing credentials in the UI or logs.
+- [ ] The manual fallback accepts a complete copied browser Cookie header, including a session that has no visible `YNOTE-PC`.
+- [ ] The connection test reads the account root but creates no cloud folder, note, image, or share link.
+- [ ] First sync creates the `Obsidian` root folder, mirrors nested Vault folders, creates the note, and returns a public share link.
+- [ ] A root-level source note appears directly under `My folders → Obsidian`; a nested source note retains its relative folder path.
+- [ ] Second sync updates the same cloud note without creating a duplicate, and writes or updates the source note's `youdao` frontmatter property.
+- [ ] Local images upload and render in the published note; a missing or unsupported image reports an error without writing the `youdao` property.
+- [ ] First public sharing succeeds without a `VERSION_CONFLICT`; the public link opens the expected note.
+- [ ] Expired or removed Cookie credentials cause an authentication error without creating a note; reconnecting or replacing the Cookie makes the test and sync succeed again.
 
 ## Feishu Sync - macOS
 

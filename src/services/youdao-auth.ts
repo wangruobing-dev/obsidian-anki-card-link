@@ -13,12 +13,17 @@ export function extractCookieValue(cookieHeader: string, name: string): string |
 }
 
 export function normalizeYoudaoCredentialInput(value: string): YoudaoCredentialInput {
-	const input = value.trim().replace(/^cookie:\s*/iu, '');
+	const trimmed = value.trim();
+	const hasCookiePrefix = /^cookie:\s*/iu.test(trimmed);
+	const input = trimmed.replace(/^cookie:\s*/iu, '');
 	const cookies = parseCookiePairs(input);
 	const ynotePc = cookies.find((cookie) => cookie.name === YOUDAO_PC_COOKIE)?.value;
-	const isBrowserCookieHeader = ynotePc !== undefined || cookies.some((cookie) => /^(?:P_INFO|YNOTE_(?:CSTK|LOGIN|PERS|SESS))$/u.test(cookie.name));
+	const isBrowserCookieHeader = hasCookiePrefix
+		|| ynotePc !== undefined
+		|| cookies.length > 1
+		|| cookies.some((cookie) => /^(?:P_INFO|YNOTE_(?:CSTK|LOGIN|PERS|SESS))$/u.test(cookie.name));
 	if (!isBrowserCookieHeader) {
-		return { ynotePc: value.trim(), sessionCookies: '', isCookieHeader: false };
+		return { ynotePc: trimmed, sessionCookies: '', isCookieHeader: false };
 	}
 	return {
 		ynotePc: ynotePc ?? '',

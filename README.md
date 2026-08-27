@@ -6,6 +6,8 @@
 
 [Feishu one-way publishing guide](docs/feishu-sync.md) | [飞书单向发布指南](docs/feishu-sync.zh-CN.md)
 
+[Youdao Cloud Note publishing guide](docs/youdao-sync.md) | [有道云笔记发布指南](docs/youdao-sync.zh-CN.md)
+
 Anki Card Link is an Obsidian community plugin for portable Obsidian-to-Anki search links, desktop Markdown-to-Anki synchronization, and plugin-owned Anki-to-Obsidian source navigation. It supports Basic, Cloze, and dedicated single-choice/multiple-choice Markdown cards. Version 1.2.0 no longer requires Advanced URI for newly synchronized cards and no longer writes a visible `^acl-xxxxxxxx` block ID.
 
 Version 1.4.0 also adds an optional reading-mode review mask for tagged notes. It hides Basic backs, Cloze answers, choice answer markers, and choice explanations without changing Markdown or synchronized Anki fields.
@@ -23,6 +25,7 @@ Version 1.4.2 recognizes choice answer markers anywhere in the question heading 
 | Anki → Obsidian source navigation | Supported when this plugin is enabled | Supported when this plugin is enabled | Supported when this plugin is enabled |
 | Reading-mode review masks | Supported | Supported | Supported |
 | Obsidian → Feishu note publishing | Supported | Supported | Supported |
+| Obsidian → Youdao Cloud Note publishing | Supported | Manual Cookie setup is unverified | Manual Cookie setup is unverified |
 
 Mobile behavior still depends on the installed Anki app and its URI support. `isDesktopOnly: false` is not evidence that every mobile combination has been physically tested.
 
@@ -41,6 +44,19 @@ The command **Sync current note to Feishu** publishes the active editor content 
 - App credentials are stored in plugin `data.json` and sent only to Feishu OpenAPI. The plugin sends no telemetry. Do not share `data.json`.
 
 See the [Feishu setup and permissions guide](docs/feishu-sync.md) before testing the command.
+
+## Youdao Cloud Note publishing
+
+The command **Sync current note to Youdao Cloud Note** creates or updates a published copy of the active Markdown note. The first sync creates an `Obsidian` folder in Youdao Cloud Note, then mirrors the source note's vault-relative folder path below it. A root-level source note is therefore created directly under `Obsidian`.
+
+- Connect through the official Youdao login window, or paste a complete browser Cookie header in the manual fallback. A copied Cookie header is parsed as separate cookies; it is never treated as a single `YNOTE-PC` value.
+- **Test Youdao connection** only reads the account root folder. It does not create a folder, note, image, or public link.
+- A successful sync creates or updates the cloud note, enables its public share link, stores the vault-relative binding locally, and writes that link to the source note's `youdao` property.
+- Local images are uploaded to Youdao Cloud Note. The published note is one-way: manual cloud edits are overwritten by the next sync.
+- The legacy API Key field is retained in settings for compatibility, but current Youdao web synchronization uses the logged-in browser credential and does not send that value.
+- Browser Cookies can expire at any time. When connection testing or syncing reports authentication failure, reconnect or replace the manual Cookie header; no fixed expiry duration or background auto-renewal is assumed.
+
+See the [Youdao Cloud Note publishing guide](docs/youdao-sync.md) for the setup steps and troubleshooting.
 
 ## Desktop requirement
 

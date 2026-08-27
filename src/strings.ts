@@ -446,6 +446,8 @@ export function getLocalizedErrorMessage(error: AnkiCardLinkError, language: Lan
 		'Feishu root folder URL must point to /drive/folder/{token}.': '飞书根目录 URL 必须指向 /drive/folder/{token}。',
 		'The configured Feishu root folder does not exist.': '配置的飞书根目录不存在。',
 		'Feishu sync succeeded, but the feishu note property could not be written.': '飞书同步成功，但 feishu 笔记属性写入失败。',
+		'A Youdao browser Cookie or YNOTE-PC is required.': '请先连接有道账号，或在手动连接中填写有道网页 Cookie / YNOTE-PC。',
+		'Youdao authentication failed.': '有道认证失败。请重新连接有道账号，或重新复制完整有道网页 Cookie。',
 		'Could not reach the Feishu OpenAPI.': '无法连接飞书 OpenAPI。',
 		'Could not reach Feishu authentication.': '无法连接飞书认证接口。',
 		'Feishu App ID or App Secret was rejected.': '飞书 App ID 或 App Secret 校验失败。',

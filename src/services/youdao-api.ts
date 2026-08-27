@@ -127,11 +127,14 @@ export class YoudaoApiService implements YoudaoSyncApi {
 			},
 		});
 		const source = optionalArray(payload.entries) ?? optionalArray(payload.children) ?? optionalArray(payload.files) ?? [];
-		return source.map((item) => mapDriveEntry(requireRecord(item, 'Youdao folder entry'), folderId));
+		return source.map((item) => {
+			const rawEntry = requireRecord(item, 'Youdao folder entry');
+			return mapDriveEntry(unwrapEntry(rawEntry) ?? rawEntry, folderId);
+		});
 	}
 
 	async createFolder(parentFolderId: string, name: string): Promise<string> {
-		const now = this.webTimestamp();
+		const now = this.webTimestampSeconds();
 		const fileId = createWebFileId();
 		const payload = await this.webRequest('POST', '/yws/api/personal/sync?method=push', {
 			body: {
@@ -310,14 +313,11 @@ export class YoudaoApiService implements YoudaoSyncApi {
 	}
 
 	async publishNote(fileId: string): Promise<YoudaoPublishedShare> {
-		await this.ensureSessionReady(true);
-		const info = await this.getNote(fileId);
 		const payload = await this.webRequest('POST', '/yws/api/personal/share', {
 			body: {
 				method: 'publish',
 				fileId,
-				version: info?.version,
-				passwordEnable: false,
+				// 网页端首次公开分享不提交版本号；提交刚创建笔记的版本会导致 VERSION_CONFLICT。
 				collabEnable: false,
 				markEnable: true,
 				searchEnable: true,
@@ -407,8 +407,9 @@ export class YoudaoApiService implements YoudaoSyncApi {
 				body: method === 'GET' || options.body === undefined ? undefined : formBody({ ...options.body, cstk: this.cstk() }),
 				headers: {
 					Accept: '*/*',
+					// 有道网页接口会校验客户端标识；刷新会话与后续业务请求必须保持一致。
+					'User-Agent': 'YNote',
 					Cookie: this.cookieHeader(),
-					'X-API-Key': this.options.settings.youdaoApiKey.trim(),
 					...options.headers,
 				},
 				throw: false,
@@ -454,8 +455,9 @@ export class YoudaoApiService implements YoudaoSyncApi {
 				body,
 				headers: {
 					Accept: '*/*',
+					// 原始图片分片与普通接口使用同一认证上下文，避免服务端按客户端标识拒绝请求。
+					'User-Agent': 'YNote',
 					Cookie: this.cookieHeader(),
-					'X-API-Key': this.options.settings.youdaoApiKey.trim(),
 					'X-Content-Length': String(bytes.byteLength),
 					'parameters-length': '0',
 				},
@@ -516,8 +518,9 @@ export class YoudaoApiService implements YoudaoSyncApi {
 	}
 
 	private hasUsableSession(): boolean {
-		return this.options.settings.youdaoSessionUpdatedAt > 0
-			&& this.sessionCookies().some((cookie) => cookie.startsWith('YNOTE_SESS='));
+		// 复制的浏览器 Cookie 通常已经包含有效的 YNOTE_SESS，即使没有 YNOTE-PC。
+		// 时间戳只用于记录刷新时间，不能阻止首次直接使用这类会话。
+		return this.sessionCookies().some((cookie) => cookie.startsWith('YNOTE_SESS='));
 	}
 
 	private clearSession(): void {
@@ -553,9 +556,8 @@ export class YoudaoApiService implements YoudaoSyncApi {
 	}
 
 	private requireConfig(): void {
-		if (this.options.settings.youdaoApiKey.trim().length === 0
-			|| (this.options.settings.youdaoYnNotePc.trim().length === 0 && this.sessionCookies().length === 0)) {
-			throw new AnkiCardLinkError('YOUDAO_NOT_CONFIGURED', 'Youdao API Key and a Youdao browser Cookie or YNOTE-PC are required.');
+		if (this.options.settings.youdaoYnNotePc.trim().length === 0 && this.sessionCookies().length === 0) {
+			throw new AnkiCardLinkError('YOUDAO_NOT_CONFIGURED', 'A Youdao browser Cookie or YNOTE-PC is required.');
 		}
 	}
 
@@ -627,18 +629,27 @@ function parseJsonResponse(response: RequestUrlResponse): Record<string, unknown
 	}
 }
 
-function parseSetCookieHeader(headers: Record<string, string>): string[] {
-	const combined = headers['set-cookie'] ?? headers['Set-Cookie'] ?? '';
+function parseSetCookieHeader(headers: Record<string, unknown>): string[] {
+	const combined = normalizeHeaderValue(headers['set-cookie'] ?? headers['Set-Cookie']);
 	return combined
 		.split(/,(?=\s*[!#$%&'*+\-.^_`|~0-9A-Za-z]+=)/u)
 		.map((value) => value.split(';', 1)[0]?.trim() ?? '')
 		.filter((cookie) => /^(?:YNOTE_SESS|YNOTE_LOGIN|JSESSIONID)=/u.test(cookie));
 }
 
+function normalizeHeaderValue(value: unknown): string {
+	if (typeof value === 'string') return value;
+	if (Array.isArray(value)) {
+		return value
+			.filter((item): item is string => typeof item === 'string')
+			.join(',');
+	}
+	return '';
+}
+
 function isAuthResponse(response: RequestUrlResponse, payload: Record<string, unknown>): boolean {
 	const message = firstString(payload, ['message', 'msg', 'desc']) ?? '';
 	return response.status === 401
-		|| response.status === 403
 		|| payload.code === 401
 		|| payload.code === 403
 		|| /未登录|登录.*过期|authentication failed|login expired|not\s*login/iu.test(message);
