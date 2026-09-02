@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.6.3 - 2026-09-02
+
+- Prefix folder-mapped Anki decks with the vault name, with an optional custom vault deck name. Resync verified notes into the current target deck, including all Cloze sibling cards, while retaining note/card IDs and review history.
+- Render HTTP/HTTPS Markdown links as clickable Anki HTML, preserving query parameters, Chinese text, escaped characters, balanced parentheses, and optional titles without changing code, formulas, or images.
+- Avoid adding an extra blank line between newly created tag frontmatter and the original note body on first sync.
+- Remove the automatic filename heading from Basic and Choice fronts while keeping their relative-path title fields and the existing Cloze heading behavior.
+- Apply the changes to existing cards on their next explicit sync; no automatic vault-wide migration or empty-deck cleanup is performed. Update bilingual documentation and synchronization regression coverage.
+
 ## 1.6.2 - 2026-08-27
 
 - Add Youdao Cloud Note one-way publishing with official-login and manual Cookie connection flows, account-root discovery, vault-relative folder mirroring, image upload, public share links, and source-note `youdao` properties.

@@ -16,6 +16,8 @@ Version 1.4.1 simplifies Cloze regions to one repeated marker and converts Markd
 
 Version 1.4.2 recognizes choice answer markers anywhere in the question heading and improves reading review for multi-line and fenced-code Cloze answers.
 
+Version 1.6.3 adds a configurable vault-name prefix to folder-mapped Anki decks, renders clickable Markdown links, avoids an extra first-sync blank line, and removes automatic filename headings from Basic and Choice fronts. Resync existing cards to apply these changes; their note/card IDs and review history are retained.
+
 ## Platform scope
 
 | Feature | Windows/macOS/Linux | Android | iOS/iPadOS |

@@ -22,6 +22,8 @@ Anki Card Link 是一款 Obsidian 社区插件，支持：
 
 1.4.2 支持选择题答案标记位于题干任意位置，并改进阅读模式对多行 Cloze 和代码围栏内 Cloze 的遮罩。
 
+1.6.3 为按文件夹映射的 Anki 牌组增加可自定义的知识库名称前缀，支持可点击的 Markdown 链接，修复首次同步额外空行，并取消 Basic 和 Choice 正面的自动文件名标题。已有卡片重新同步后应用这些变化，原 noteId、卡片 ID 和复习记录会保留。
+
 ## 平台范围
 
 | 功能 | Windows/macOS/Linux | Android | iOS/iPadOS |
