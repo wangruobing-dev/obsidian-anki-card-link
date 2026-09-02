@@ -14,6 +14,7 @@ describe('default settings', () => {
 		expect(DEFAULT_SETTINGS.choiceObsidianUrlField).toBe('ObsidianURL');
 		expect(DEFAULT_SETTINGS.choiceCorrectAnswerField).toBe('CorrectAnswer');
 		expect(DEFAULT_SETTINGS.useCurrentFolderAsDeck).toBe(true);
+		expect(DEFAULT_SETTINGS.vaultDeckName).toBe('');
 		expect(DEFAULT_SETTINGS.readingReviewEnabled).toBe(true);
 		expect(DEFAULT_SETTINGS.readingReviewEdgeTapEnabled).toBe(false);
 		expect(DEFAULT_SETTINGS.feishuShareMode).toBe('tenant_readable');

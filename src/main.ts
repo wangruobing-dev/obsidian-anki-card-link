@@ -12,7 +12,6 @@ import {
 	encodeArrayBufferAsBase64,
 	extractObsidianImageReferences,
 } from './core/anki-media';
-import { buildFolderDeckName } from './core/deck-name';
 import {
 	buildClozeReplacement,
 	getClozeContentCursorOffset,
@@ -478,7 +477,6 @@ export default class AnkiCardLinkPlugin extends Plugin {
 			title: getCardTitle(filePath),
 			vaultName: this.app.vault.getName(),
 			filePath,
-			folderDeckName: buildFolderDeckName(filePath),
 			imageMedia,
 		});
 	}

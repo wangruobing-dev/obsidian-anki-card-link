@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: AnkiCardLinkSettings = {
 	readingReviewEnabled: true,
 	readingReviewEdgeTapEnabled: false,
 	defaultDeckName: 'Default',
+	vaultDeckName: '',
 	useCurrentFolderAsDeck: true,
 	singleLineSeparators: DEFAULT_SINGLE_LINE_SEPARATORS,
 	multiLineSeparators: DEFAULT_MULTI_LINE_SEPARATORS,

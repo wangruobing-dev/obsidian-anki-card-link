@@ -1,5 +1,6 @@
 import { toAnkiHtml } from '../core/anki-content';
 import { buildOpenObsidianUri } from '../core/open-source-uri';
+import { buildFolderDeckName } from '../core/deck-name';
 import type { ParsedCard } from '../core/card-parser';
 import type { AnkiNoteInfo, AnkiNoteInput } from './anki-connect';
 import { AnkiCardLinkError, type AnkiCardLinkSettings } from '../types';
@@ -9,6 +10,8 @@ export interface AnkiSyncClient {
 	modelNames(): Promise<string[]>;
 	deckNames(): Promise<string[]>;
 	createDeck(deck: string): Promise<number>;
+	getDecks(cards: number[]): Promise<Record<string, number[]>>;
+	changeDeck(cards: number[], deck: string): Promise<void>;
 	modelFieldNames(modelName: string): Promise<string[]>;
 	notesInfo(noteIds: number[]): Promise<AnkiNoteInfo[]>;
 	addNote(note: AnkiNoteInput): Promise<number>;
@@ -22,7 +25,6 @@ export interface CardSyncInput {
 	title: string;
 	vaultName: string;
 	filePath: string;
-	folderDeckName?: string;
 	imageMedia?: ReadonlyMap<string, string>;
 }
 
@@ -60,7 +62,9 @@ export class CardSyncService {
 
 	async testConfiguration(): Promise<SyncConfigurationResult> {
 		await this.anki.testConnection();
-		this.requireDeckName();
+		if (!this.settings.useCurrentFolderAsDeck) {
+			this.requireDeckName();
+		}
 		const models = await this.anki.modelNames();
 		const basicModelFields = await this.validateBasicConfiguration(models);
 		const clozeModelFields = await this.validateClozeConfiguration(models);
@@ -92,14 +96,28 @@ export class CardSyncService {
 			if (typeof note === 'string') {
 				return { status: 'skipped', reason: note };
 			}
-			if (this.hasSameFields(note, fieldsToSync)) {
+			const targetDeck = this.settings.useCurrentFolderAsDeck ? this.resolveDeckName(input) : undefined;
+			const fieldsChanged = !this.hasSameFields(note, fieldsToSync);
+			if (fieldsChanged) {
+				await this.anki.updateNoteFields(note.noteId, fieldsToSync);
+			}
+			let deckChanged = false;
+			if (targetDeck !== undefined) {
+				// 更新挖空内容可能生成新卡片，重新核验后再读取完整卡片列表。
+				const latestNote = fieldsChanged ? await this.getVerifiedNote(input) : note;
+				if (typeof latestNote === 'string') {
+					throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'Anki note could not be verified after updating its fields.');
+				}
+				deckChanged = await this.moveNoteCards(latestNote, targetDeck);
+			}
+			if (!fieldsChanged && !deckChanged) {
 				return { status: 'skipped', reason: 'NO_CHANGES' };
 			}
-			await this.anki.updateNoteFields(note.noteId, fieldsToSync);
 			return { status: 'updated', noteId: note.noteId };
 		}
 
-		const deckName = await this.ensureDeck(input);
+		const deckName = this.resolveDeckName(input);
+		await this.ensureDeck(deckName);
 		const noteId = await this.anki.addNote({
 			deckName,
 			modelName: this.getModelName(input.card.type),
@@ -109,7 +127,7 @@ export class CardSyncService {
 		return { status: 'created', noteId };
 	}
 
-	/** 优先核对链接中的 noteId；失效或 UID 不一致时才执行兼容性回退查找。 */
+	/** 核对链接中的 noteId、笔记类型和 UID；不匹配时跳过，不按内容查找替代笔记。 */
 	private async getVerifiedNote(input: CardSyncInput): Promise<AnkiNoteInfo | CardSyncSkipReason> {
 		const noteId = input.noteIdHint;
 		if (noteId === undefined) {
@@ -211,24 +229,50 @@ export class CardSyncService {
 		return deckName;
 	}
 
+	/** 牌组名称可以自定义，来源链接始终使用真实知识库名称。 */
 	private resolveDeckName(input: CardSyncInput): string {
-		const folderDeckName = input.folderDeckName?.trim();
-		if (this.settings.useCurrentFolderAsDeck && folderDeckName !== undefined && folderDeckName.length > 0) {
-			return folderDeckName;
+		if (!this.settings.useCurrentFolderAsDeck) {
+			return this.requireDeckName();
 		}
-		return this.requireDeckName();
+		const vaultDeckName = this.settings.vaultDeckName.trim() || input.vaultName.trim();
+		const folderDeckName = buildFolderDeckName(input.filePath);
+		return folderDeckName === undefined ? vaultDeckName : `${vaultDeckName}::${folderDeckName}`;
 	}
 
 	/**
 	 * AnkiConnect 不会在 addNote 时自动创建牌组，必须先明确创建。
 	 */
-	private async ensureDeck(input: CardSyncInput): Promise<string> {
-		const deckName = this.resolveDeckName(input);
+	private async ensureDeck(deckName: string): Promise<void> {
 		const existingDecks = await this.anki.deckNames();
 		if (!existingDecks.includes(deckName)) {
 			await this.anki.createDeck(deckName);
 		}
-		return deckName;
+	}
+
+	/** 只移动已核验笔记中归组不符的卡片；查询或移动失败交给同步报告，重试时重新比较。 */
+	private async moveNoteCards(note: AnkiNoteInfo, deckName: string): Promise<boolean> {
+		if (!Array.isArray(note.cards) || note.cards.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+			throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'AnkiConnect returned an invalid card list.');
+		}
+		if (note.cards.length === 0) {
+			return false;
+		}
+		const decks = await this.anki.getDecks(note.cards);
+		if (typeof decks !== 'object' || decks === null || Array.isArray(decks)) {
+			throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'AnkiConnect returned incomplete card deck information.');
+		}
+		const groups = Object.values(decks);
+		if (groups.some((cards) => !Array.isArray(cards)) || !note.cards.every((id) => groups.some((cards) => cards.includes(id)))) {
+			throw new AnkiCardLinkError('ANKICONNECT_ERROR', 'AnkiConnect returned incomplete card deck information.');
+		}
+		const targetCards = new Set(Object.entries(decks).find(([name]) => name === deckName)?.[1] ?? []);
+		const cardsToMove = note.cards.filter((id) => !targetCards.has(id));
+		if (cardsToMove.length === 0) {
+			return false;
+		}
+		await this.ensureDeck(deckName);
+		await this.anki.changeDeck(cardsToMove, deckName);
+		return true;
 	}
 
 	private buildFields(input: CardSyncInput): Record<string, string> {

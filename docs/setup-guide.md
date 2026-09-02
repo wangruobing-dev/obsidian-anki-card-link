@@ -108,9 +108,25 @@ Open **Settings → Anki Card Link → Synchronization** and check:
 - Cloze fields: `Content`, `Note`, `ObsidianURI`
 - Multiple-choice note type: `Multiple Choice`
 - Multiple-choice fields: the 13 fields listed above, including `ObsidianURL` rather than `ObsidianURI`
-- Default deck, or enable folder-path-to-deck mapping
+- Enable **Use current folder path as deck name** (on by default), or turn it off and set **Default deck name** for new cards
+- **Vault deck name**: leave blank to use the current vault folder name, or enter a custom name; surrounding spaces are ignored
 
 Run **Test synchronization configuration**. This test checks Basic and Cloze without changing Anki data. A missing or incomplete Multiple Choice note type is shown as an optional warning and does not block existing Basic/Cloze users. Synchronizing an actual choice card requires the choice model and every configured field.
+
+### Choose the deck name
+
+With folder-path mapping enabled and a vault folder named `Obsidian`:
+
+| Note path relative to the vault | Vault deck name left blank | Custom name `My library` |
+| --- | --- | --- |
+| `Life/General knowledge/Codes.md` | `Obsidian::Life::General knowledge` | `My library::Life::General knowledge` |
+| `Home.md` | `Obsidian` | `My library` |
+
+Use **Sync current card to Anki** or **Sync all cards in current file to Anki** to apply the rule. Existing cards move on their next sync even if their content has not changed. All cards belonging to the same note, including multiple Cloze deletions, move to the matching deck while keeping their note IDs, card IDs, and review history. A deck-only change is reported as an update; repeating the same sync is skipped.
+
+Changing the custom name, renaming the vault folder, moving the note to another folder, or manually moving cards in Anki causes the next sync to follow the current rule. The link back to Obsidian always uses the real vault name. Only cards included in a sync are processed, and old empty decks remain. If moving fails after content was updated, retry synchronization to complete the move.
+
+Turning folder-path mapping off uses **Default deck name** for new cards and leaves existing cards in their current decks. A default deck name is not required while folder-path mapping is on.
 
 ## 6. Basic card syntax
 

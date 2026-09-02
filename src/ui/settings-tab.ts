@@ -186,6 +186,12 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 					void this.plugin.updateSettings({ useCurrentFolderAsDeck: value });
 				});
 			});
+		this.addTextSetting(
+			strings.settings.vaultDeckName,
+			strings.settings.vaultDeckNameDesc,
+			'vaultDeckName',
+			this.app.vault.getName(),
+		);
 		new Setting(this.containerEl).setName(strings.settings.basicConfiguration).setHeading();
 		this.addTextSetting(strings.settings.basicModelName, strings.settings.basicModelNameDesc, 'basicModelName');
 		this.addTextSetting(strings.settings.basicTitleField, '', 'basicTitleField');
@@ -321,6 +327,7 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 		description: string,
 		key:
 			| 'defaultDeckName'
+			| 'vaultDeckName'
 			| 'basicModelName'
 			| 'basicTitleField'
 			| 'basicFrontField'
@@ -345,11 +352,13 @@ export class AnkiCardLinkSettingTab extends PluginSettingTab {
 			| 'choiceOptionFField'
 			| 'choiceOptionGField'
 			| 'choiceCorrectAnswerField',
+		placeholder = '',
 	): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)
 			.addText((text) => {
+				text.setPlaceholder(placeholder);
 				text.setValue(this.plugin.settings[key]);
 				text.onChange((value) => {
 					void this.plugin.updateSettings({ [key]: value });

@@ -16,6 +16,7 @@ export interface AnkiCardLinkSettings {
 	readingReviewEnabled: boolean;
 	readingReviewEdgeTapEnabled: boolean;
 	defaultDeckName: string;
+	vaultDeckName: string;
 	useCurrentFolderAsDeck: boolean;
 	singleLineSeparators: string;
 	multiLineSeparators: string;

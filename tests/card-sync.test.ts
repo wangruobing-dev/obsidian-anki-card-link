@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseCardBlock } from '../src/core/card-parser';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { CardSyncService, type AnkiSyncClient } from '../src/services/card-sync';
+import { CardSyncService, type AnkiSyncClient, type CardSyncInput } from '../src/services/card-sync';
 import type { AnkiNoteInfo, AnkiNoteInput } from '../src/services/anki-connect';
+import type { AnkiCardLinkSettings } from '../src/types';
 
 class FakeAnkiClient implements AnkiSyncClient {
 	modelList = ['Anki Card Link Basic', 'Enhanced Cloze 2.1 v2', 'Multiple Choice'];
@@ -10,11 +11,27 @@ class FakeAnkiClient implements AnkiSyncClient {
 	createdNotes: AnkiNoteInput[] = [];
 	updatedNotes: Array<{ id: number; fields: Record<string, string> }> = [];
 	noteInfoById = new Map<number, AnkiNoteInfo>();
+	deckByCard = new Map<number, string>();
+	movedCards: Array<{ cards: number[]; deck: string }> = [];
+	onUpdate?: (note: AnkiNoteInfo) => void;
 
 	async testConnection(): Promise<void> {}
 	async modelNames(): Promise<string[]> { return this.modelList; }
 	async deckNames(): Promise<string[]> { return this.decks; }
 	async createDeck(deck: string): Promise<number> { this.decks.push(deck); return 1; }
+	async getDecks(cards: number[]): Promise<Record<string, number[]>> {
+		const decks: Record<string, number[]> = {};
+		for (const card of cards) {
+			const deck = this.deckByCard.get(card) ?? 'Default';
+			(decks[deck] ??= []).push(card);
+		}
+		return decks;
+	}
+	async changeDeck(cards: number[], deck: string): Promise<void> {
+		if (!this.decks.includes(deck)) throw new Error('Target deck was not created.');
+		this.movedCards.push({ cards: [...cards], deck });
+		for (const card of cards) this.deckByCard.set(card, deck);
+	}
 	async modelFieldNames(modelName: string): Promise<string[]> {
 		return modelName === 'Anki Card Link Basic'
 			? ['Title', 'Front', 'Back', 'Hint', 'ObsidianURI']
@@ -22,24 +39,201 @@ class FakeAnkiClient implements AnkiSyncClient {
 				? ['Content', 'Note', 'ObsidianURI']
 				: ['CardID', 'Title', 'Front', 'Back', 'ObsidianURL', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'OptionF', 'OptionG', 'CorrectAnswer'];
 	}
-	async notesInfo(noteIds: number[]): Promise<AnkiNoteInfo[]> { return noteIds.flatMap((id) => this.noteInfoById.get(id) ?? []); }
-	async addNote(note: AnkiNoteInput): Promise<number> { this.createdNotes.push(note); return 100; }
-	async updateNoteFields(noteId: number, fields: Record<string, string>): Promise<void> { this.updatedNotes.push({ id: noteId, fields }); }
+	async notesInfo(noteIds: number[]): Promise<AnkiNoteInfo[]> {
+		return structuredClone(noteIds.flatMap((id) => this.noteInfoById.get(id) ?? []));
+	}
+	async addNote(input: AnkiNoteInput): Promise<number> {
+		const noteId = 100 + this.createdNotes.length;
+		const cardId = noteId + 1000;
+		this.createdNotes.push(input);
+		this.noteInfoById.set(noteId, {
+			noteId, cards: [cardId], modelName: input.modelName, tags: input.tags,
+			fields: Object.fromEntries(Object.entries(input.fields).map(([name, value], order) => [name, { order, value }])),
+		});
+		this.deckByCard.set(cardId, input.deckName);
+		return noteId;
+	}
+	async updateNoteFields(noteId: number, fields: Record<string, string>): Promise<void> {
+		this.updatedNotes.push({ id: noteId, fields });
+		const existing = this.noteInfoById.get(noteId);
+		if (existing === undefined) throw new Error('Note does not exist.');
+		for (const [name, value] of Object.entries(fields)) {
+			existing.fields[name] = { order: existing.fields[name]?.order ?? 0, value };
+		}
+		this.onUpdate?.(existing);
+	}
 }
 
-function basicInput(extra: { noteIdHint?: number; filePath?: string; title?: string } = {}) {
+function basicInput(extra: Partial<CardSyncInput> = {}): CardSyncInput {
 	const card = parseCardBlock('Front\n?\nBack');
 	if (card === null) throw new Error('Test card was not parsed.');
 	return { card, uid: 'acl-1234abcd', title: 'Cards', vaultName: 'vault', filePath: 'cards.md', ...extra };
 }
 
 function note(noteId: number, modelName = 'Anki Card Link Basic', uri = 'obsidian://anki-card-link-open?v=2&uid=acl-1234abcd'): AnkiNoteInfo {
-	return { noteId, modelName, tags: ['anki-card-link'], fields: { ObsidianURI: { order: 0, value: uri } } };
+	return { noteId, cards: [noteId + 1000], modelName, tags: ['anki-card-link'], fields: { ObsidianURI: { order: 0, value: uri } } };
 }
 
-function service(client: FakeAnkiClient): CardSyncService {
-	return new CardSyncService(client, { ...DEFAULT_SETTINGS, basicTitleField: 'Title', basicHintField: 'Hint' });
+function service(client: FakeAnkiClient, settings: Partial<AnkiCardLinkSettings> = {}): CardSyncService {
+	return new CardSyncService(client, { ...DEFAULT_SETTINGS, basicTitleField: 'Title', basicHintField: 'Hint', ...settings });
 }
+
+describe('vault deck synchronization', () => {
+	it.each([
+		['生活/百科知识/区划代码.md', '', 'Obsidian::生活::百科知识'],
+		['生活/百科知识/区划代码.md', ' 我的知识库 ', '我的知识库::生活::百科知识'],
+		['生活/百科知识/区划代码.md', '   ', 'Obsidian::生活::百科知识'],
+		['首页.md', '', 'Obsidian'],
+		['首页.md', ' 我的知识库 ', '我的知识库'],
+		['Obsidian/首页.md', '', 'Obsidian::Obsidian'],
+	])('creates %s with custom name "%s" in %s', async (filePath, vaultDeckName, deckName) => {
+		const client = new FakeAnkiClient();
+		await service(client, { vaultDeckName }).sync(basicInput({ filePath, vaultName: 'Obsidian' }));
+		expect(client.createdNotes[0]?.deckName).toBe(deckName);
+		expect(client.decks).toContain(deckName);
+		const uri = new URL(client.createdNotes[0]?.fields.ObsidianURI ?? '');
+		expect(uri.searchParams.get('vault')).toBe('Obsidian');
+		expect(uri.searchParams.get('filePath')).toBe(filePath);
+	});
+
+	it('moves unchanged content and skips the next identical sync without recreating a note', async () => {
+		const client = new FakeAnkiClient();
+		const input = basicInput({ vaultName: 'Obsidian', filePath: '生活/百科知识/区划代码.md' });
+		await service(client, { useCurrentFolderAsDeck: false, defaultDeckName: '生活::百科知识' }).sync(input);
+		const sync = service(client);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(client.updatedNotes).toHaveLength(0);
+		expect(client.movedCards).toEqual([{ cards: [1100], deck: 'Obsidian::生活::百科知识' }]);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+		expect(client.movedCards).toHaveLength(1);
+		expect(client.createdNotes).toHaveLength(1);
+		expect(client.noteInfoById.get(100)?.cards).toEqual([1100]);
+	});
+
+	it('moves every misplaced sibling card without moving unrelated cards or cards already in the target deck', async () => {
+		const client = new FakeAnkiClient();
+		await service(client).sync(basicInput());
+		const existing = client.noteInfoById.get(100)!;
+		existing.cards = [1100, 1101, 1102];
+		client.deckByCard.set(1101, 'Manually moved');
+		client.deckByCard.set(1102, 'Old deck');
+		client.deckByCard.set(9999, 'Old deck');
+		await expect(service(client).sync(basicInput({ noteIdHint: 100 }))).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(client.movedCards).toEqual([{ cards: [1101, 1102], deck: 'vault' }]);
+		expect(client.deckByCard.get(9999)).toBe('Old deck');
+		expect(existing.cards).toEqual([1100, 1101, 1102]);
+	});
+
+	it('refreshes note information after an update so newly generated cloze cards move too', async () => {
+		const client = new FakeAnkiClient();
+		const card = parseCardBlock('{{c1::one}} and {{c2::two}}');
+		if (card?.type !== 'cloze') throw new Error('Cloze card was not parsed.');
+		client.noteInfoById.set(20, {
+			...note(20, 'Enhanced Cloze 2.1 v2'),
+			cards: [1020, 1021],
+		});
+		client.onUpdate = (updated) => updated.cards.push(1022);
+		const notesInfo = vi.spyOn(client, 'notesInfo');
+		await expect(service(client).sync(basicInput({ noteIdHint: 20, card }))).resolves.toEqual({ status: 'updated', noteId: 20 });
+		expect(notesInfo).toHaveBeenCalledTimes(2);
+		expect(client.updatedNotes).toHaveLength(1);
+		expect(client.movedCards).toEqual([{ cards: [1020, 1021, 1022], deck: 'vault' }]);
+	});
+
+	it('follows custom names, vault renames and source moves without changing note identity', async () => {
+		const client = new FakeAnkiClient();
+		await service(client).sync(basicInput());
+		await service(client, { vaultDeckName: 'My library' }).sync(basicInput({ noteIdHint: 100 }));
+		await service(client).sync(basicInput({ noteIdHint: 100, vaultName: 'Renamed', filePath: 'Moved/cards.md' }));
+		expect(client.movedCards).toEqual([
+			{ cards: [1100], deck: 'My library' },
+			{ cards: [1100], deck: 'Renamed::Moved' },
+		]);
+		expect(client.createdNotes).toHaveLength(1);
+		const uri = new URL(client.noteInfoById.get(100)?.fields.ObsidianURI?.value ?? '');
+		expect(uri.searchParams.get('vault')).toBe('Renamed');
+		expect(uri.searchParams.get('filePath')).toBe('Moved/cards.md');
+	});
+
+	it('uses the default deck for new cards and never moves existing cards when folder mapping is off', async () => {
+		const client = new FakeAnkiClient();
+		const sync = service(client, { useCurrentFolderAsDeck: false, vaultDeckName: 'Ignored', defaultDeckName: ' Custom default ' });
+		const input = basicInput({ filePath: '生活/百科知识/区划代码.md' });
+		await sync.sync(input);
+		expect(client.createdNotes[0]?.deckName).toBe('Custom default');
+		client.deckByCard.set(1100, 'Manually moved');
+		const getDecks = vi.spyOn(client, 'getDecks');
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+		await expect(sync.sync({ ...input, noteIdHint: 100, title: 'Changed title' })).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(getDecks).not.toHaveBeenCalled();
+		expect(client.movedCards).toHaveLength(0);
+		expect(client.deckByCard.get(1100)).toBe('Manually moved');
+	});
+
+	it('does not require an unused default deck during configuration checks or root-level sync', async () => {
+		const client = new FakeAnkiClient();
+		const sync = service(client, { defaultDeckName: '' });
+		await expect(sync.testConfiguration()).resolves.toHaveProperty('basicModelFields');
+		expect(client.decks).toEqual(['Default']);
+		await expect(sync.sync(basicInput())).resolves.toHaveProperty('status', 'created');
+		await expect(service(client, { useCurrentFolderAsDeck: false, defaultDeckName: '' }).testConfiguration()).rejects.toThrow('Default deck name cannot be empty.');
+	});
+
+	it.each(['getDecks', 'createDeck', 'changeDeck'] as const)('reports %s failures and retries a move even after the content update succeeded', async (action) => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(20, note(20));
+		vi.spyOn(client, action).mockRejectedValueOnce(new Error('Temporary failure'));
+		const sync = service(client);
+		const input = basicInput({ noteIdHint: 20 });
+		await expect(sync.sync(input)).rejects.toThrow('Temporary failure');
+		expect(client.updatedNotes).toHaveLength(1);
+		expect(client.movedCards).toHaveLength(0);
+		await expect(sync.sync(input)).resolves.toEqual({ status: 'updated', noteId: 20 });
+		expect(client.updatedNotes).toHaveLength(1);
+		expect(client.movedCards).toEqual([{ cards: [1020], deck: 'vault' }]);
+		expect(client.createdNotes).toHaveLength(0);
+		await expect(sync.sync(input)).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+	});
+
+	it('stops before moving cards when updating content fails', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(20, note(20));
+		vi.spyOn(client, 'updateNoteFields').mockRejectedValueOnce(new Error('Update failed'));
+		await expect(service(client).sync(basicInput({ noteIdHint: 20 }))).rejects.toThrow('Update failed');
+		expect(client.movedCards).toHaveLength(0);
+	});
+
+	it('reports a failure instead of moving cards when the refreshed note no longer matches', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(20, note(20));
+		client.onUpdate = (updated) => { updated.modelName = 'Other'; };
+		await expect(service(client).sync(basicInput({ noteIdHint: 20 }))).rejects.toThrow('Anki note could not be verified');
+		expect(client.movedCards).toHaveLength(0);
+	});
+
+	it.each([
+		[undefined, 'NOTE_NOT_FOUND'],
+		[note(20, 'Other'), 'MODEL_MISMATCH'],
+		[note(20, 'Anki Card Link Basic', 'obsidian://anki-card-link-open?uid=other'), 'URI_UID_MISMATCH'],
+	] as const)('does not inspect or move decks when note verification fails: %s', async (existing, reason) => {
+		const client = new FakeAnkiClient();
+		if (existing !== undefined) client.noteInfoById.set(20, existing);
+		const getDecks = vi.spyOn(client, 'getDecks');
+		await expect(service(client).sync(basicInput({ noteIdHint: 20 }))).resolves.toEqual({ status: 'skipped', reason });
+		expect(getDecks).not.toHaveBeenCalled();
+		expect(client.updatedNotes).toHaveLength(0);
+		expect(client.movedCards).toHaveLength(0);
+		expect(client.decks).toEqual(['Default']);
+	});
+
+	it('rejects incomplete deck information without moving cards', async () => {
+		const client = new FakeAnkiClient();
+		client.noteInfoById.set(20, note(20));
+		vi.spyOn(client, 'getDecks').mockResolvedValueOnce({ vault: [] });
+		await expect(service(client).sync(basicInput({ noteIdHint: 20 }))).rejects.toThrow('incomplete card deck information');
+		expect(client.movedCards).toHaveLength(0);
+	});
+});
 
 describe('card synchronization', () => {
 	it('creates an unlinked card with a plugin-owned URI', async () => {
@@ -63,10 +257,11 @@ describe('card synchronization', () => {
 		expect(client.updatedNotes[0]?.fields.ObsidianURI).toContain('filePath=moved%2Fcards.md');
 	});
 
-	it('does not use the deck when verifying an existing note', async () => {
+	it('verifies an existing note independently of its deck and then moves it', async () => {
 		const client = new FakeAnkiClient();
 		client.noteInfoById.set(21, note(21));
 		await expect(service(client).sync(basicInput({ noteIdHint: 21 }))).resolves.toEqual({ status: 'updated', noteId: 21 });
+		expect(client.movedCards).toEqual([{ cards: [1021], deck: 'vault' }]);
 	});
 
 	it('updates a linked note when Anki HTML-escapes the URI query separators', async () => {
@@ -98,10 +293,12 @@ describe('card synchronization', () => {
 		if (created === undefined) throw new Error('Test note was not created.');
 		client.noteInfoById.set(26, {
 			noteId: 26,
+			cards: [1026],
 			modelName: created.modelName,
 			tags: created.tags,
 			fields: Object.fromEntries(Object.entries(created.fields).map(([name, value], order) => [name, { order, value }])),
 		});
+		client.deckByCard.set(1026, created.deckName);
 		await expect(service(client).sync(basicInput({ noteIdHint: 26 }))).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
 		expect(client.updatedNotes).toHaveLength(0);
 	});
@@ -153,6 +350,7 @@ describe('card synchronization', () => {
 		if (card?.type !== 'choice') throw new Error('Choice card was not parsed.');
 		client.noteInfoById.set(25, {
 			noteId: 25,
+			cards: [1025],
 			modelName: 'Multiple Choice',
 			tags: [],
 			fields: { ObsidianURL: { order: 0, value: 'obsidian://anki-card-link-open?v=2&uid=acl-1234abcd' } },

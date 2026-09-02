@@ -7,7 +7,7 @@ describe('folder deck names', () => {
 		expect(buildFolderDeckName('软考/数据结构/线性表.md')).toBe('软考::数据结构');
 	});
 
-	it('uses the configured default deck for a note at the vault root', () => {
+	it('has no relative folder component for a note at the vault root', () => {
 		expect(buildFolderDeckName('首页.md')).toBeUndefined();
 	});
 });

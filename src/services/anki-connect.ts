@@ -22,6 +22,7 @@ export interface AnkiFieldInfo {
 
 export interface AnkiNoteInfo {
 	noteId: number;
+	cards: number[];
 	modelName: string;
 	tags: string[];
 	fields: Record<string, AnkiFieldInfo>;
@@ -66,6 +67,15 @@ export class AnkiConnectService {
 
 	async createDeck(deck: string): Promise<number> {
 		return this.invoke<number>('createDeck', { deck });
+	}
+
+	async getDecks(cards: number[]): Promise<Record<string, number[]>> {
+		return this.invoke<Record<string, number[]>>('getDecks', { cards });
+	}
+
+	/** 按卡片 ID 移动牌组，保留原卡片和复习记录。 */
+	async changeDeck(cards: number[], deck: string): Promise<void> {
+		await this.invoke<unknown>('changeDeck', { cards, deck });
 	}
 
 	async modelFieldNames(modelName: string): Promise<string[]> {

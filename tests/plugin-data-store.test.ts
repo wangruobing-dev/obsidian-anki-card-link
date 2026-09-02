@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { migratePluginData } from '../src/services/plugin-data-store';
 
 describe('plugin data migration', () => {
+	it.each([2, 3, 4])('adds the automatic vault name default to V%s settings and preserves a custom name', (version) => {
+		const old = migratePluginData({ version, settings: { defaultDeckName: '软考', useCurrentFolderAsDeck: false } });
+		expect(old.settings).toMatchObject({ vaultDeckName: '', defaultDeckName: '软考', useCurrentFolderAsDeck: false });
+		const custom = migratePluginData({ version, settings: { vaultDeckName: '我的知识库' } });
+		expect(custom.version).toBe(4);
+		expect(custom.settings.vaultDeckName).toBe('我的知识库');
+	});
+
+	it('keeps automatic naming for an invalid persisted vault name', () => {
+		expect(migratePluginData({ version: 4, settings: { vaultDeckName: 42 } }).settings.vaultDeckName).toBe('');
+	});
+
 	it('migrates flat settings without losing configured values', () => {
 		const data = migratePluginData({ language: 'zh-CN', ankiConnectUrl: 'http://localhost:8765', defaultDeckName: '软考', debugLogging: true });
 		expect(data.version).toBe(4);
@@ -10,6 +22,7 @@ describe('plugin data migration', () => {
 		expect(data.feishuSync).toEqual({ notes: {}, folders: {} });
 		expect(data.youdaoSync).toEqual({ notes: {}, folders: {} });
 		expect(data.settings.singleLineSeparators).toBe('::\n：：');
+		expect(data.settings.vaultDeckName).toBe('');
 		expect(data.settings.multiLineSeparators).toBe('?\n？');
 		expect(data.settings.choiceModelName).toBe('Multiple Choice');
 		expect(data.settings.choiceOptionGField).toBe('OptionG');
