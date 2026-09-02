@@ -190,3 +190,11 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] Links with Chinese characters, balanced or escaped parentheses, angle-bracket destinations, and optional titles open correctly. Links inside code and math remain literal; malformed nested links are not guessed.
 - [ ] First sync of a note without frontmatter inserts the tag but no extra blank line before the original body. Original leading blank lines, existing frontmatter spacing, and LF/CRLF line endings are preserved.
 - [ ] Resync an existing card with the old unconverted link HTML: it reports an update and retains its note/card IDs and review history. A subsequent identical sync reports no changes.
+
+## Basic and Choice filename headings
+
+Status: automated coverage is available; the following checks in the real Anki interface have not yet been performed for this change.
+
+- [ ] With both single-card and whole-file sync, new Basic, single-choice, and multiple-choice fronts show the question without an extra filename heading. The title field still contains the Vault-relative path without `.md`.
+- [ ] Resync existing Basic and Choice cards: the old automatic heading disappears, source-authored headings remain, and note/card IDs and review history are retained. A subsequent identical sync reports no changes.
+- [ ] Cloze content still starts with its automatically added filename heading.

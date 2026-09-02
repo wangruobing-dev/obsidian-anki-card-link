@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseCardBlock } from '../src/core/card-parser';
+import { getCardTitle, parseCardBlock } from '../src/core/card-parser';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { CardSyncService, type AnkiSyncClient, type CardSyncInput } from '../src/services/card-sync';
 import type { AnkiNoteInfo, AnkiNoteInput } from '../src/services/anki-connect';
@@ -270,12 +270,19 @@ describe('card synchronization', () => {
 		expect(client.createdNotes[0]?.fields.ObsidianURI).toContain('uid=acl-1234abcd');
 	});
 
-	it('prepends the file name heading to basic front content without changing the title field', async () => {
+	it.each([
+		['你好\n?\n哈哈', '你好'],
+		// 顶格标题是现有解析器的卡片边界；缩进标题属于题面，验证它仍正常渲染。
+		[' # 特特\n你好\n?\n哈哈', '<h1>特特</h1>你好'],
+	])('syncs the original basic front and keeps the relative path title: %s', async (source, front) => {
 		const client = new FakeAnkiClient();
-		await expect(service(client).sync(basicInput({ filePath: 'notes/Basic card.md', title: 'Custom Title' }))).resolves.toEqual({ status: 'created', noteId: 100 });
-		expect(client.createdNotes[0]?.fields.Title).toBe('Custom Title');
-		expect(client.createdNotes[0]?.fields.Front).toMatch(/^<h1>Basic card<\/h1>/u);
-		expect(client.createdNotes[0]?.fields.Front).toContain('Front');
+		const card = parseCardBlock(source);
+		if (card?.type !== 'basic') throw new Error('Basic card was not parsed.');
+		const filePath = 'test/特特.md';
+		await expect(service(client).sync(basicInput({ card, filePath, title: getCardTitle(filePath) }))).resolves.toEqual({ status: 'created', noteId: 100 });
+		expect(client.createdNotes[0]?.fields.Title).toBe('test/特特');
+		expect(client.createdNotes[0]?.fields.Front).toBe(front);
+		expect(client.createdNotes[0]?.fields.Back).toBe('哈哈');
 	});
 
 	it('updates only the linked note after the Obsidian file moves', async () => {
@@ -387,17 +394,68 @@ describe('card synchronization', () => {
 		expect(client.updatedNotes[0]?.fields).toHaveProperty('ObsidianURL');
 	});
 
-	it('prepends the file name heading to choice front content', async () => {
+	it.each(['B', 'A,B'])('syncs the original choice question with answers %s and keeps the relative path title', async (answers) => {
 		const client = new FakeAnkiClient();
-		const card = parseCardBlock('### Question 【B】\n- A\n- B\n解析');
+		const card = parseCardBlock(`### Question 【${answers}】\n- A\n- B\n解析`);
 		if (card?.type !== 'choice') throw new Error('Choice card was not parsed.');
+		const filePath = 'test/多选题.md';
 		await expect(service(client).sync({
-			...basicInput({ filePath: 'subfolder/Choice card.md', title: 'Choice Title' }),
+			...basicInput({ filePath, title: getCardTitle(filePath) }),
 			card,
 		})).resolves.toEqual({ status: 'created', noteId: 100 });
-		expect(client.createdNotes[0]?.fields.Title).toBe('Choice Title');
-		expect(client.createdNotes[0]?.fields.Front).toMatch(/^<h1>Choice card<\/h1>/u);
-		expect(client.createdNotes[0]?.fields.Front).toContain('Question');
+		expect(client.createdNotes[0]?.fields.Title).toBe('test/多选题');
+		expect(client.createdNotes[0]?.fields.Front).toBe('Question【　】');
+		expect(client.createdNotes[0]?.fields.CorrectAnswer).toBe(answers);
+		expect(client.createdNotes[0]?.fields.OptionA).toBe('A');
+		expect(client.createdNotes[0]?.fields.OptionB).toBe('B');
+		expect(client.createdNotes[0]?.fields.Back).toBe('解析');
+	});
+
+	it.each([
+		[' # 卡片\n你好\n?\n哈哈', '<h1>卡片</h1>你好'],
+		['### Question 【B】\n- A\n- B\n解析', 'Question【　】'],
+		['### Question 【A,B】\n- A\n- B\n解析', 'Question【　】'],
+	])('removes only the automatic heading on resync and skips the next identical sync: %s', async (source, front) => {
+		const client = new FakeAnkiClient();
+		const sync = service(client);
+		const card = parseCardBlock(source);
+		if (card === null) throw new Error('Test card was not parsed.');
+		const filePath = 'test/卡片.md';
+		const input = basicInput({ card, filePath, title: getCardTitle(filePath) });
+		await sync.sync(input);
+		const existing = client.noteInfoById.get(100)!;
+		existing.fields.Front!.value = `<h1>卡片</h1>${front}`;
+		const beforeCards = [...existing.cards];
+		const otherFields = Object.fromEntries(Object.entries(existing.fields).filter(([name]) => name !== 'Front'));
+		const beforeFields = structuredClone(otherFields);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(existing.fields.Front?.value).toBe(front);
+		expect(Object.fromEntries(Object.entries(existing.fields).filter(([name]) => name !== 'Front'))).toEqual(beforeFields);
+		expect(existing.cards).toEqual(beforeCards);
+		expect(client.createdNotes).toHaveLength(1);
+		expect(client.updatedNotes).toHaveLength(1);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+		expect(client.updatedNotes).toHaveLength(1);
+	});
+
+	it.each(['NOTE_NOT_FOUND', 'MODEL_MISMATCH', 'URI_UID_MISMATCH'] as const)('does not remove a legacy choice heading when verification fails: %s', async (reason) => {
+		const client = new FakeAnkiClient();
+		const sync = service(client);
+		const card = parseCardBlock('### Question 【A,B】\n- A\n- B');
+		if (card?.type !== 'choice') throw new Error('Choice card was not parsed.');
+		const input = basicInput({ card });
+		await sync.sync(input);
+		const existing = client.noteInfoById.get(100)!;
+		const front = '<h1>cards</h1>Question【　】';
+		existing.fields.Front!.value = front;
+		if (reason === 'NOTE_NOT_FOUND') client.noteInfoById.delete(100);
+		if (reason === 'MODEL_MISMATCH') existing.modelName = 'Other';
+		if (reason === 'URI_UID_MISMATCH') existing.fields.ObsidianURL!.value = 'obsidian://anki-card-link-open?uid=other';
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason });
+		expect(existing.fields.Front?.value).toBe(front);
+		expect(client.createdNotes).toHaveLength(1);
+		expect(client.updatedNotes).toHaveLength(0);
+		expect(client.movedCards).toHaveLength(0);
 	});
 
 	it('syncs a standard Markdown image in a choice back as Anki HTML', async () => {

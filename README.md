@@ -139,7 +139,7 @@ This is a visual review aid, not encryption. Answers remain visible in editing m
 
 Use **Sync current card to Anki** or **Sync all cards in current file to Anki**. On first sync, the plugin generates a UID in memory, creates the Anki note, then writes exactly one v2 button after Anki returns a noteId. An Anki failure leaves Markdown unchanged. A Markdown write failure reports the noteId and UID and does not delete the Anki note.
 
-During synchronization, the plugin prepends an H1 built from the note filename to the synced Basic front, Choice front, and Cloze content. The Markdown source note is not rewritten.
+Basic and Choice fronts display the question without an automatically added filename heading. Their title fields still store the Vault-relative file path without `.md`, such as `test/Calculation`. Headings written in the source content are preserved, and Cloze content still receives the filename H1. Resyncing an existing Basic or Choice card removes the old automatic heading while retaining its note/card IDs and review history. The Markdown source note is not rewritten to make this change.
 
 After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag. Newly created frontmatter ends with a single line break before the original body; no extra blank line is inserted. Existing whitespace is preserved.
 

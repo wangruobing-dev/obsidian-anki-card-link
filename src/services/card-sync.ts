@@ -301,7 +301,7 @@ export class CardSyncService {
 			const fields: Record<string, string> = {
 				[this.settings.choiceCardIdField]: input.uid,
 				[this.settings.choiceTitleField]: toAnkiHtml(input.title),
-				[this.settings.choiceFrontField]: toAnkiHtml(prependFileHeading(input.card.front, input.filePath), input.imageMedia),
+				[this.settings.choiceFrontField]: toAnkiHtml(input.card.front, input.imageMedia),
 				[this.settings.choiceBackField]: toAnkiHtml(input.card.back, input.imageMedia),
 				[this.settings.choiceObsidianUrlField]: uri,
 				[this.settings.choiceCorrectAnswerField]: input.card.correctAnswers.join(','),
@@ -317,7 +317,7 @@ export class CardSyncService {
 		}
 		return {
 			[this.settings.basicTitleField]: toAnkiHtml(input.title),
-			[this.settings.basicFrontField]: toAnkiHtml(prependFileHeading(input.card.front, input.filePath), input.imageMedia),
+			[this.settings.basicFrontField]: toAnkiHtml(input.card.front, input.imageMedia),
 			[this.settings.basicBackField]: toAnkiHtml(input.card.back, input.imageMedia),
 			[this.settings.basicObsidianUriField]: uri,
 		};

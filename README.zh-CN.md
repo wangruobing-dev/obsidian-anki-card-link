@@ -208,7 +208,7 @@ macOS 对应使用 Command / Option，例如区域命令推荐 Command + Option 
 
 首次同步时，插件先在内存生成 UID，再创建 Anki 笔记；只有 Anki 成功返回 noteId 后才写回一个按钮。Anki 创建失败时不会修改 Markdown。如果 Anki 已成功但 Markdown 写回失败，插件会报告 noteId 与 UID，不会自动删除 Anki 笔记。
 
-同步时，插件会把文件名转换成一级标题，追加到同步后的 Basic 正面、Choice 正面和 Cloze 内容最前面，但不会改写 Markdown 源笔记。
+Basic 和 Choice 正面直接显示题目，不再自动添加文件名大标题；`Title/标题` 字段仍保存去掉 `.md` 的 Vault 内相对路径，例如 `test/多选题`。正文中手写的标题正常保留，Cloze 内容仍会在最前面添加文件名一级标题。已有 Basic 或 Choice 卡片再次同步后会移除旧的自动标题，保留原 noteId、卡片 ID 和复习记录；此调整不会改写 Markdown 源笔记。
 
 当前 Markdown 文件至少成功同步一张卡片后，插件会给源笔记添加 `anki-card-link` 标签；已有该标签时不会重复添加。新建属性区时，结束标记后只换行一次，再接原正文，不额外插入空行；原有空行和缩进会保留。
 

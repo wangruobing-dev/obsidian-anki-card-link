@@ -95,7 +95,7 @@ If these note types already exist, compare their fields and templates before imp
 
 The plugin only checks the configured note type and fields, then creates or updates notes. It never creates or changes note types, card templates, or CSS at runtime. The imported Multiple Choice template is responsible for shuffling options, keeping the same order on both sides, deciding single versus multiple choice, coloring answers, and optional automatic flipping.
 
-During synchronization, the plugin prepends an H1 built from the note filename to the Basic front, Choice front, and Cloze content fields. It does not rewrite the Markdown source note.
+Basic and Choice fronts display the question without an automatically added filename heading. Their title fields still store the Vault-relative file path without `.md`, such as `test/Calculation`. Headings written in the source content are preserved, and Cloze content still receives the filename H1. Resync existing Basic or Choice cards to remove the old automatic heading while retaining their note/card IDs and review history. This change does not rewrite the Markdown source note.
 
 ## 5. Configure synchronization
 
