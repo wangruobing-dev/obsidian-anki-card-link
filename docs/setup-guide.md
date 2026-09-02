@@ -152,7 +152,9 @@ ps -ef | grep [s]ervice-name
 
 The single-line and multi-line separator lists are configurable. Enter one separator per line in the plugin settings. A blank configuration falls back to the defaults.
 
-After at least one card in a file synchronizes successfully, the plugin adds the following Obsidian note tag once:
+Standard inline links appear as clickable text in Anki, for example `[Source](https://example.com/?app_platform=ios&app_version=1)`. HTTP/HTTPS destinations support complete query parameters, Chinese characters, escaped punctuation, balanced parentheses, and syntax such as `[Source](<https://example.com/a b> "Title")`. Links inside code and math are not converted; malformed nested links remain text and must be corrected manually in the source note. Resync existing cards to apply the link fix.
+
+After at least one card in a file synchronizes successfully, the plugin adds the following Obsidian note tag once. When creating frontmatter, its closing `---` is followed by a single line break and the original body, with no extra blank line. Existing blank lines are preserved:
 
 ```yaml
 tags:

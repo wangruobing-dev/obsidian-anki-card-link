@@ -165,7 +165,9 @@ tags:
   - anki-card-link
 ```
 
-已有标签会保留，已有 `anki-card-link` 时不会重复添加。
+已有标签会保留，已有 `anki-card-link` 时不会重复添加。首次新建属性区时，结束标记 `---` 后直接换行接原正文，不额外添加空行；用户原有空行不会被删除。
+
+正文中的标准内联链接会在 Anki 中显示为可点击的文字，例如 `[小红书](https://www.xiaohongshu.com/explore/example?app_platform=ios&app_version=1)`。支持 HTTP/HTTPS 地址、完整查询参数、中文、转义字符、成对括号，以及 `[来源](<https://example.com/a b> "标题")` 写法。代码和公式内部不转换链接；错误嵌套的链接保留为文本，需要在源笔记中手动改正。旧卡片再次同步后即可应用链接修复。
 
 ## 七、填空题和自选模板设置
 

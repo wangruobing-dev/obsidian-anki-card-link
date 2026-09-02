@@ -11,7 +11,7 @@ export function ensureObsidianTag(markdown: string, tag: string): string {
 	}
 	const lineEnding = markdown.includes('\r\n') ? '\r\n' : '\n';
 	if (!FRONTMATTER_OPEN.test(markdown)) {
-		return `---${lineEnding}tags:${lineEnding}  - ${normalizedTag}${lineEnding}---${lineEnding}${lineEnding}${markdown}`;
+		return `---${lineEnding}tags:${lineEnding}  - ${normalizedTag}${lineEnding}---${lineEnding}${markdown}`;
 	}
 
 	const lines = markdown.split(/\r?\n/u);

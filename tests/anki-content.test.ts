@@ -6,6 +6,69 @@ describe('Anki HTML content conversion', () => {
 		expect(toAnkiHtml('')).toBe('');
 	});
 
+	it('renders a shared article as a clickable link without interpreting query underscores as emphasis', () => {
+		const url = 'https://www.xiaohongshu.com/explore/example?app_platform=ios&app_version=9.42&share_from_user_hidden=true&xsec_token=sample-token';
+		expect(toAnkiHtml(`🔗 **链接**：[小红书](${url})`)).toBe(
+			`🔗 <strong>链接</strong>：<a href="${url.replaceAll('&', '&amp;')}">小红书</a>`,
+		);
+	});
+
+	it.each([
+		['[中文](https://example.com/中文?q=%E4%B8%AD%E6%96%87#章节)', '<a href="https://example.com/中文?q=%E4%B8%AD%E6%96%87#章节">中文</a>'],
+		['[括号](https://example.com/a_(b_(c))?q=(d))', '<a href="https://example.com/a_(b_(c))?q=(d)">括号</a>'],
+		[String.raw`[转义\[标签\]](https://example.com/a\(b\)?q=1\&v=2)`, '<a href="https://example.com/a(b)?q=1&amp;v=2">转义[标签]</a>'],
+		[String.raw`[\*文字\*](https://example.com)`, '<a href="https://example.com">*文字*</a>'],
+		['[方括号 [文字]](http://example.com)', '<a href="http://example.com">方括号 [文字]</a>'],
+		['[尖括号](<https://example.com/a b?q=x_y>)', '<a href="https://example.com/a%20b?q=x_y">尖括号</a>'],
+		['[标题](https://example.com "说明 & 标题")', '<a href="https://example.com" title="说明 &amp; 标题">标题</a>'],
+		["[标题](https://example.com '说明')", '<a href="https://example.com" title="说明">标题</a>'],
+		['[标题](https://example.com (说明（中文）))', '<a href="https://example.com" title="说明（中文）">标题</a>'],
+		[String.raw`[标题](https://example.com "说明 \"引号\"")`, '<a href="https://example.com" title="说明 &quot;引号&quot;">标题</a>'],
+		['[加粗 **文字** 与 `code`](https://example.com)', '<a href="https://example.com">加粗 <strong>文字</strong> 与 <code>code</code></a>'],
+		['[网址公式](https://example.com/?q=$x^2$)', '<a href="https://example.com/?q=$x^2$">网址公式</a>'],
+		['[表格](https://example.com/?q=a|b)', '<a href="https://example.com/?q=a|b">表格</a>'],
+	])('renders inline link %s', (source, html) => {
+		expect(toAnkiHtml(source)).toBe(html);
+	});
+
+	it('renders several links in blocks and preserves formatting around them', () => {
+		expect(toAnkiHtml('**[甲](https://a.example)** 与 [乙](http://b.example)\n\n> [引用](https://c.example)')).toBe(
+			'<strong><a href="https://a.example">甲</a></strong> 与 <a href="http://b.example">乙</a><br><blockquote><a href="https://c.example">引用</a></blockquote>',
+		);
+		expect(toAnkiHtml('| 来源 | 说明 |\n| --- | --- |\n| [来源](https://example.com/?a=x|y) | 正文 |'))
+			.toContain('<a href="https://example.com/?a=x|y">来源</a>');
+	});
+
+	it.each([
+		'[查看来源]([https://example.com](https://v.douyin.com/example/))',
+		'[外层 [内层](https://inner.example)](https://outer.example)',
+		'[脚本](javascript:alert(1))',
+		'[本地](../note.md)',
+		'[错误](https://)',
+	])('leaves unsupported or malformed links as text: %s', (source) => {
+		expect(toAnkiHtml(source)).toBe(source);
+	});
+
+	it('escapes link attributes and label HTML without creating executable attributes', () => {
+		expect(toAnkiHtml('[<img src=x onerror=alert(1)>](<https://example.com/?q="onclick="test>)')).toBe(
+			'<a href="https://example.com/?q=&quot;onclick=&quot;test">&lt;img src=x onerror=alert(1)&gt;</a>',
+		);
+	});
+
+	it('keeps links inside code and math literal while rendering adjacent links and Cloze content', () => {
+		const link = '[来源](https://example.com/?a_b=c_d)';
+		const anchor = '<a href="https://example.com/?a_b=c_d">来源</a>';
+		expect(toAnkiHtml(`\`${link}\` ${link}`)).toBe(`<code>${link}</code> ${anchor}`);
+		expect(toAnkiHtml(`~~~text\n${link}\n~~~\n${link}`)).toContain(`<code class="language-text">${link}</code></pre></div>${anchor}`);
+		expect(toAnkiHtml(`$$x + ${link}$$`)).toBe(`\\[x + ${link}\\]`);
+		expect(toAnkiHtml(`{{c1::${link}}} 与 $x^2$`)).toBe(`{{c1::${anchor}}} 与 \\(x^2\\)`);
+		expect(toAnkiHtml(`![示意图](附件/a.png) ${link}`, new Map([['附件/a.png', 'media.png']]))).toBe(`<img src="media.png"> ${anchor}`);
+		expect(toAnkiHtml('[![示意图](附件/a.png)](https://example.com)', new Map([['附件/a.png', 'media.png']])))
+			.toBe('<a href="https://example.com"><img src="media.png"></a>');
+		expect(toAnkiHtml('[价格](https://example.com/?price=$value) 与 $x^2$'))
+			.toBe('<a href="https://example.com/?price=$value">价格</a> 与 \\(x^2\\)');
+	});
+
 	it('renders fenced code without synchronizing Markdown fence markers', () => {
 		expect(toAnkiHtml('查找进程：\n```shell\nps -ef | grep [h]ealthcloud\n```')).toBe(
 			'查找进程：<div style="text-align: center;"><pre style="display: inline-block; text-align: left;"><code class="language-shell">ps -ef | grep [h]ealthcloud</code></pre></div>',

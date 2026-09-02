@@ -1,4 +1,5 @@
 import { findObsidianImageEmbeds } from './anki-media';
+import { findMarkdownLinks, unescapeMarkdownLinkText } from './markdown-link';
 
 /** 将第一版支持的 Markdown 文本转换为安全、简单的 Anki HTML。 */
 export function toAnkiHtml(markdown: string, imageMedia?: ReadonlyMap<string, string>): string {
@@ -52,7 +53,7 @@ export function toAnkiHtml(markdown: string, imageMedia?: ReadonlyMap<string, st
 	return parts.join('');
 }
 
-function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string, string>): string {
+function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string, string>, inlineOnly = false): string {
 	const atomicHtml: string[] = [];
 	const placeholder = (html: string): string => {
 		const index = atomicHtml.push(html) - 1;
@@ -62,20 +63,50 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		| { type: 'image'; index: number; length: number; reference: string }
 		| { type: 'code'; index: number; length: number; content: string }
 		| { type: 'math'; index: number; length: number; content: string }
+		| { type: 'link'; index: number; length: number; content: string }
+		| { type: 'text'; index: number; length: number; content: string }
 	> = findObsidianImageEmbeds(markdown).map((embed) => ({ type: 'image', ...embed }));
+	if (inlineOnly) {
+		for (const match of markdown.matchAll(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/gu)) {
+			tokens.push({ type: 'text', index: match.index, length: match[0].length, content: escapeHtml(unescapeMarkdownLinkText(match[0])) });
+		}
+	}
 	for (const match of markdown.matchAll(/(`+)([^\n]*?)\1/gu)) {
 		if (match.index !== undefined) {
 			tokens.push({ type: 'code', index: match.index, length: match[0].length, content: match[2] ?? '' });
 		}
 	}
-	for (const match of markdown.matchAll(/\$\$([\s\S]*?)\$\$/gu)) {
-		if (match.index !== undefined && !isOverlappingToken(tokens, match.index, match[0].length)) {
-			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(match[1] ?? '', true) });
+	if (!inlineOnly) {
+		for (const link of findMarkdownLinks(markdown)) {
+			const end = link.index + link.length;
+			// 外层代码和图片优先；链接内部的标记在标签中单独渲染，不能作用于 URL。
+			if (tokens.some((token) => (token.index < link.index && token.index + token.length > link.index)
+				|| (token.index < end && token.index + token.length > end))) continue;
+			const title = link.title === undefined ? '' : ` title="${escapeHtml(link.title)}"`;
+			const content = link.destination === undefined
+				? escapeHtml(markdown.slice(link.index, end))
+				: `<a href="${escapeHtml(link.destination)}"${title}>${renderNormalMarkdown(link.label, imageMedia, true)}</a>`;
+			tokens.push({ type: 'link', index: link.index, length: link.length, content });
 		}
 	}
-	for (const match of markdown.matchAll(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gu)) {
-		if (match.index !== undefined && isLikelyInlineMath(match[1] ?? '') && !isOverlappingToken(tokens, match.index, match[0].length)) {
-			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(match[1] ?? '', false) });
+	// 屏蔽链接中的美元符号，避免 URL 或标题吞掉相邻公式的分隔符。外层公式仍读取原文。
+	let mathOffset = 0;
+	const mathParts: string[] = [];
+	for (const token of tokens.filter((token) => token.type === 'link')) {
+		mathParts.push(markdown.slice(mathOffset, token.index), ' '.repeat(token.length));
+		mathOffset = token.index + token.length;
+	}
+	const mathSource = mathParts.join('') + markdown.slice(mathOffset);
+	for (const match of mathSource.matchAll(/\$\$([\s\S]*?)\$\$/gu)) {
+		if (!isOverlappingToken(tokens, match.index, match[0].length)) {
+			const content = markdown.slice(match.index + 2, match.index + match[0].length - 2);
+			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(content, true) });
+		}
+	}
+	for (const match of mathSource.matchAll(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gu)) {
+		const content = markdown.slice(match.index + 1, match.index + match[0].length - 1);
+		if (isLikelyInlineMath(content) && !isOverlappingToken(tokens, match.index, match[0].length)) {
+			tokens.push({ type: 'math', index: match.index, length: match[0].length, content: renderMath(content, false) });
 		}
 	}
 	tokens.sort((left, right) => left.index - right.index || right.length - left.length);
@@ -107,15 +138,16 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		.replace(/~~([^~\n]+)~~/gu, '<s>$1</s>')
 		.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/gu, '<em>$1</em>')
 		.replace(/(?<!_)_([^_\n]+)_(?!_)/gu, '<em>$1</em>');
-	html = renderMarkdownBlocks(html);
+	if (!inlineOnly) html = renderMarkdownBlocks(html);
 	for (const [index, value] of atomicHtml.entries()) {
 		html = html.replaceAll(`\u0000anki-card-link-${index}\u0000`, value);
 	}
 	return html;
 }
 
-function isOverlappingToken(tokens: Array<{ index: number; length: number }>, index: number, length: number): boolean {
-	return tokens.some((token) => index < token.index + token.length && token.index < index + length);
+function isOverlappingToken(tokens: Array<{ type: string; index: number; length: number }>, index: number, length: number): boolean {
+	return tokens.some((token) => index < token.index + token.length && token.index < index + length
+		&& !(token.type === 'link' && index < token.index && index + length > token.index + token.length));
 }
 
 /** Convert Markdown math delimiters to delimiters recognized by Anki's MathJax. */

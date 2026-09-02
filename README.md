@@ -141,7 +141,9 @@ Use **Sync current card to Anki** or **Sync all cards in current file to Anki**.
 
 During synchronization, the plugin prepends an H1 built from the note filename to the synced Basic front, Choice front, and Cloze content. The Markdown source note is not rewritten.
 
-After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag.
+After at least one card in the current Markdown file synchronizes successfully, the plugin adds the Obsidian note tag `anki-card-link` without duplicating an existing tag. Newly created frontmatter ends with a single line break before the original body; no extra blank line is inserted. Existing whitespace is preserved.
+
+Inline Markdown links such as `[Source](https://example.com/?app_platform=ios&app_version=1)` become clickable links in Anki. HTTP/HTTPS destinations support query parameters, Chinese characters, escaped punctuation, balanced parentheses, angle brackets, and optional titles. Code and math remain literal with respect to links. Malformed nested links and unsupported destinations remain text. Resync existing cards to replace the old link HTML; source notes and existing blank lines are not cleaned up automatically.
 
 For an existing v2 button, synchronization first calls `notesInfo` for its noteId and checks the configured Anki URI field, UID, and note type. Changed fields are updated. With folder-based deck naming enabled, its cards also move to the matching deck, even when the content is unchanged. A card is skipped only when neither its content nor its deck needs updating. A missing note, note-type mismatch, or UID mismatch is skipped without creating a replacement note. Deck changes and source-file moves do not affect matching; a successful update refreshes the stored source path.
 

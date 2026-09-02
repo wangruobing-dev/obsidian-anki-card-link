@@ -78,6 +78,34 @@ function service(client: FakeAnkiClient, settings: Partial<AnkiCardLinkSettings>
 	return new CardSyncService(client, { ...DEFAULT_SETTINGS, basicTitleField: 'Title', basicHintField: 'Hint', ...settings });
 }
 
+describe('Markdown link synchronization', () => {
+	it.each([
+		['问题\n?\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Back'],
+		['{{c1::答案}}\n\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Content'],
+		['### 题目【B】\n- A\n- B\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Back'],
+	])('creates clickable links and repairs old HTML on resync: %s', async (source, field) => {
+		const client = new FakeAnkiClient();
+		const sync = service(client);
+		const card = parseCardBlock(source);
+		if (card === null) throw new Error('Test card was not parsed.');
+		const input = basicInput({ card });
+		await expect(sync.sync(input)).resolves.toEqual({ status: 'created', noteId: 100 });
+		const anchor = '<a href="https://example.com/?app_platform=ios&amp;app_version=1">来源</a>';
+		expect(client.createdNotes[0]?.fields[field]).toContain(anchor);
+		const existing = client.noteInfoById.get(100)!;
+		const storedField = existing.fields[field]!;
+		storedField.value = storedField.value.replace(anchor, '[来源](https://example.com/?app<em>platform=ios&amp;app</em>version=1)');
+		const beforeCards = [...existing.cards];
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(existing.fields[field]?.value).toContain(anchor);
+		expect(existing.cards).toEqual(beforeCards);
+		expect(client.createdNotes).toHaveLength(1);
+		expect(client.updatedNotes).toHaveLength(1);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+		expect(client.updatedNotes).toHaveLength(1);
+	});
+});
+
 describe('vault deck synchronization', () => {
 	it.each([
 		['生活/百科知识/区划代码.md', '', 'Obsidian::生活::百科知识'],

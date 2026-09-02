@@ -183,3 +183,10 @@ Complete this checklist before publishing the next version. Record the Obsidian,
 - [ ] File rename retains the token and updates the title.
 - [ ] File move retains the token and URL and moves the remote document.
 - [ ] The URL is copied when possible; clipboard denial still leaves a selectable URL field and a copy button.
+
+## Markdown links and first-sync spacing
+
+- [ ] In both single-card and whole-file sync, a Basic, Choice, or Cloze card containing `[Source](https://example.com/?app_platform=ios&app_version=1)` displays clickable text. Clicking it in Anki opens the full original URL.
+- [ ] Links with Chinese characters, balanced or escaped parentheses, angle-bracket destinations, and optional titles open correctly. Links inside code and math remain literal; malformed nested links are not guessed.
+- [ ] First sync of a note without frontmatter inserts the tag but no extra blank line before the original body. Original leading blank lines, existing frontmatter spacing, and LF/CRLF line endings are preserved.
+- [ ] Resync an existing card with the old unconverted link HTML: it reports an update and retains its note/card IDs and review history. A subsequent identical sync reports no changes.
