@@ -97,6 +97,8 @@ Under **Settings → Hotkeys**, search for **Anki Card Link**. The `insert-cloze
 
 When synchronizing, Markdown headings level 1–6 become `<h1>`–`<h6>`. Unordered/ordered lists, blockquotes, horizontal rules, bold, italic, strikethrough, inline/fenced code, and uploaded images are also rendered as Anki HTML instead of exposing Markdown markers.
 
+Paired `==highlight==` markers on the same line become yellow highlights with dark text in Anki's editor and review view. Bold and Cloze can be combined with highlighting. Unpaired or escaped markers, code, math, and link destinations are not highlighted. Resync existing notes to apply the formatting; the source Markdown stays unchanged.
+
 Multiple-choice cards use a level-three heading followed by 2–7 consecutive one-line list items:
 
 ```markdown

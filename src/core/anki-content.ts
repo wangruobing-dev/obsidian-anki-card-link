@@ -54,10 +54,12 @@ export function toAnkiHtml(markdown: string, imageMedia?: ReadonlyMap<string, st
 }
 
 function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string, string>, inlineOnly = false): string {
-	const atomicHtml: string[] = [];
-	const placeholder = (html: string): string => {
-		const index = atomicHtml.push(html) - 1;
-		return `\u0000anki-card-link-${index}\u0000`;
+	const atomicHtml: Array<{ marker: string; html: string }> = [];
+	const placeholder = (html: string, multiline = false): string => {
+		// 多行原文保留不可跨越的边界，防止高亮借由占位符跨行配对。
+		const marker = `\u0000${multiline ? '\u2028' : ''}anki-card-link-${atomicHtml.length}\u0000`;
+		atomicHtml.push({ marker, html });
+		return marker;
 	};
 	const tokens: Array<
 		| { type: 'image'; index: number; length: number; reference: string }
@@ -66,8 +68,10 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 		| { type: 'link'; index: number; length: number; content: string }
 		| { type: 'text'; index: number; length: number; content: string }
 	> = findObsidianImageEmbeds(markdown).map((embed) => ({ type: 'image', ...embed }));
-	if (inlineOnly) {
-		for (const match of markdown.matchAll(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/gu)) {
+	{
+		// 高亮分隔符的转义先保存为普通文本；成对反斜杠不应转义后面的等号。
+		const escapes = inlineOnly ? /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/gu : /\\([\\=])/gu;
+		for (const match of markdown.matchAll(escapes)) {
 			tokens.push({ type: 'text', index: match.index, length: match[0].length, content: escapeHtml(unescapeMarkdownLinkText(match[0])) });
 		}
 	}
@@ -118,36 +122,40 @@ function renderNormalMarkdown(markdown: string, imageMedia?: ReadonlyMap<string,
 			continue;
 		}
 		parts.push(markdown.slice(offset, token.index));
+		const source = markdown.slice(token.index, token.index + token.length);
 		if (token.type === 'image') {
 			const mediaFilename = imageMedia?.get(token.reference);
 			parts.push(mediaFilename === undefined
-				? markdown.slice(token.index, token.index + token.length)
+				? placeholder(escapeHtml(source), source.includes('\n'))
 				: placeholder(`<img src="${escapeHtml(mediaFilename)}">`));
 		} else if (token.type === 'code') {
 			parts.push(placeholder(`<code>${escapeHtml(token.content)}</code>`));
 		} else {
-			parts.push(placeholder(token.content));
+			parts.push(placeholder(token.content, source.includes('\n')));
 		}
 		offset = token.index + token.length;
 	}
 	parts.push(markdown.slice(offset));
 
 	let html = escapeHtml(parts.join(''))
+		// 只处理同一行的成对标记，代码、公式和链接地址已由占位符保护。
+		.replace(/(?<!=)==(?!=)([^\n\u2028]+?)(?<!=)==(?!=)/gu, '<mark style="background-color: #ffeb3b; color: #1f1f1f;">$1</mark>')
 		.replace(/\*\*([^*\n]+)\*\*/gu, '<strong>$1</strong>')
 		.replace(/__([^_\n]+)__/gu, '<strong>$1</strong>')
 		.replace(/~~([^~\n]+)~~/gu, '<s>$1</s>')
 		.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/gu, '<em>$1</em>')
 		.replace(/(?<!_)_([^_\n]+)_(?!_)/gu, '<em>$1</em>');
 	if (!inlineOnly) html = renderMarkdownBlocks(html);
-	for (const [index, value] of atomicHtml.entries()) {
-		html = html.replaceAll(`\u0000anki-card-link-${index}\u0000`, value);
+	for (const { marker, html: value } of atomicHtml) {
+		html = html.replaceAll(marker, value);
 	}
 	return html;
 }
 
 function isOverlappingToken(tokens: Array<{ type: string; index: number; length: number }>, index: number, length: number): boolean {
 	return tokens.some((token) => index < token.index + token.length && token.index < index + length
-		&& !(token.type === 'link' && index < token.index && index + length > token.index + token.length));
+		// 完整公式优先于内部链接和转义文本，保留 LaTeX 中的反斜杠。
+		&& !((token.type === 'link' || token.type === 'text') && index < token.index && index + length > token.index + token.length));
 }
 
 /** Convert Markdown math delimiters to delimiters recognized by Anki's MathJax. */

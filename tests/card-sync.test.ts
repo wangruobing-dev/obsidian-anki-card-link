@@ -80,6 +80,30 @@ function service(client: FakeAnkiClient, settings: Partial<AnkiCardLinkSettings>
 
 describe('Markdown link synchronization', () => {
 	it.each([
+		['问题\n?\n111==33==', 'Back'],
+		['111==33==\n发森森==\n你好{{c1::1}}', 'Content'],
+		['### 题目【B】\n- A\n- B\n111==33==', 'Back'],
+	])('updates old highlight text once without replacing cards: %s', async (source, field) => {
+		const client = new FakeAnkiClient();
+		const sync = service(client);
+		const card = parseCardBlock(source);
+		if (card === null) throw new Error('Test card was not parsed.');
+		const input = basicInput({ card });
+		await sync.sync(input);
+		const highlight = '<mark style="background-color: #ffeb3b; color: #1f1f1f;">33</mark>';
+		const existing = client.noteInfoById.get(100)!;
+		expect(existing.fields[field]?.value).toContain(highlight);
+		existing.fields[field]!.value = existing.fields[field]!.value.replace(highlight, '==33==');
+		const beforeCards = [...existing.cards];
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'updated', noteId: 100 });
+		expect(existing.fields[field]?.value).toContain(highlight);
+		expect(existing.cards).toEqual(beforeCards);
+		await expect(sync.sync({ ...input, noteIdHint: 100 })).resolves.toEqual({ status: 'skipped', reason: 'NO_CHANGES' });
+		expect(client.createdNotes).toHaveLength(1);
+		expect(client.updatedNotes).toHaveLength(1);
+	});
+
+	it.each([
 		['问题\n?\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Back'],
 		['{{c1::答案}}\n\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Content'],
 		['### 题目【B】\n- A\n- B\n[来源](https://example.com/?app_platform=ios&app_version=1)', 'Back'],

@@ -2,6 +2,40 @@ import { describe, expect, it } from 'vitest';
 import { toAnkiHtml } from '../src/core/anki-content';
 
 describe('Anki HTML content conversion', () => {
+	const mark = (text: string): string => `<mark style="background-color: #ffeb3b; color: #1f1f1f;">${text}</mark>`;
+	it.each([
+		['111==33==', `111${mark('33')}`],
+		['== 内容 == 和 ==中文==', `${mark(' 内容 ')} 和 ${mark('中文')}`],
+		['=="firstDeptCode": "122", "queryType": "1",==', mark('&quot;firstDeptCode&quot;: &quot;122&quot;, &quot;queryType&quot;: &quot;1&quot;,')],
+		['发森森==\n==下一行==', `发森森==<br>${mark('下一行')}`],
+		['==未闭合\n内容==', '==未闭合<br>内容=='],
+		['====', '===='],
+		[String.raw`\==文字\==`, '==文字=='],
+		[String.raw`\\==文字==`, `\\${mark('文字')}`],
+		['==**重点** {{c1::答案}}==', mark('<strong>重点</strong> {{c1::答案}}')],
+		['{{c1::==答案==}}', `{{c1::${mark('答案')}}}`],
+		['==<script>&==', mark('&lt;script&gt;&amp;')],
+		['[==来源==](https://example.com/?q===value==)', `<a href="https://example.com/?q===value==">${mark('来源')}</a>`],
+		['==[来源](https://example.com)==', mark('<a href="https://example.com">来源</a>')],
+		['`==code==` ==重点==', `<code>==code==</code> ${mark('重点')}`],
+		['$x==y$ ==重点==', `\\(x==y\\) ${mark('重点')}`],
+		['$$x==y$$', '\\[x==y\\]'],
+		[String.raw`$$a\\b==c$$`, String.raw`\[a\\b==c\]`],
+		[String.raw`$x\=y$`, String.raw`\(x\=y\)`],
+		['==a $$x=1\ny=2$$ b==', '==a \\[x=1\ny=2\\] b=='],
+		['==a $$\nx=1\n$$ b==', '==a \\[x=1\\] b=='],
+		['![logo](https://example.com/==logo==.png)', '![logo](https://example.com/==logo==.png)'],
+		['![[==missing==.png]]', '![[==missing==.png]]'],
+	])('preserves highlight semantics: %s', (source, expected) => {
+		expect(toAnkiHtml(source)).toBe(expected);
+	});
+
+	it('protects highlight markers in fenced code and image references', () => {
+		expect(toAnkiHtml('```text\n==code==\n```')).toContain('<code class="language-text">==code==</code>');
+		expect(toAnkiHtml('![[==image==.png]]', new Map([['==image==.png', '==media==.png']])))
+			.toBe('<img src="==media==.png">');
+	});
+
 	it('keeps an empty optional field empty', () => {
 		expect(toAnkiHtml('')).toBe('');
 	});
